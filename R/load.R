@@ -110,14 +110,14 @@ d2 <- d2 %>%
   
 
 
-d1.agg <- d2 %>%
-  group_by(date) %>%
-  summarize(N=n())
-  
-  summarize( df_rates = m_DHF_cases/ pop*100000,
-    mean_dengue = mean(df_rates)) %>%
-  mutate(lag1_mean_dengue = lag(mean_dengue,1),
-         log_lag1_mean_dengue = log(lag1_mean_dengue +1 ))
+# d1.agg <- d2 %>%
+#   group_by(date) %>%
+#   summarize(N=n())
+# 
+#   summarize( df_rates = m_DHF_cases/ pop*100000,
+#     mean_dengue = mean(df_rates)) %>%
+#   mutate(lag1_mean_dengue = lag(mean_dengue,1),
+#          log_lag1_mean_dengue = log(lag1_mean_dengue +1 ))
 
 # d2 <- d2 %>%
 #   left_join(d1.agg, by='date')

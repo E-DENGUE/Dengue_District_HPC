@@ -32,6 +32,8 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
   #    2)))))    
   
   
+  #nbinomial or poisson
+  
   offset1 <- c1$offset1
   mod1 <- inla(form2, data = c1,  family = "nbinomial",E=offset1,
                control.compute = list(dic = FALSE, 
