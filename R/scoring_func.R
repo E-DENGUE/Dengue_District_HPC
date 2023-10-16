@@ -16,7 +16,7 @@ scoring_func <- function(Y){
     return(pred)
   }
   
-  samps <- sapply(test1,pred.interval.func,dist='nb', simplify='array')
+  samps <- sapply(test1,pred.interval.func,dist=Y$mod.family, simplify='array')
   
   samps <- matrix(samps, dim(samps)[1], dim(samps)[2]*dim(samps)[3])
   
