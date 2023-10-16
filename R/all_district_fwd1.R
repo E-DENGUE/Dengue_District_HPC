@@ -35,7 +35,7 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
   #nbinomial or poisson
   
   offset1 <- c1$offset1
-  mod1 <- inla(form2, data = c1,  family = "nbinomial",E=offset1,
+  mod1 <- inla(form2, data = c1,  family = "poisson",E=offset1,
                control.compute = list(dic = FALSE, 
                                       waic = FALSE, 
                                       config = T,
@@ -55,19 +55,20 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
                )    
   
   
-  
+    mod.family <- mod1$.args$family
+
   
   c1 <- c1 %>%
     ungroup() %>%
     mutate(forecast= as.factor(if_else(is.na(m_DHF_cases_hold),1,0)))
   
-  score.list =list ('ds'=c1, mod=mod1, 'fixed.eff'=mod1$summary.fixed)
+  score.list =list ('ds'=c1, mod=mod1, 'fixed.eff'=mod1$summary.fixed,'mod.family'=mod.family)
 
   scores <- scoring_func(score.list)
   
   c1.out <- c1 %>%
-    dplyr::select(date, district, Dengue_fever_rates, log_df_scale,forecast ) %>%
-    mutate(preds = exp(mod1$summary.linear.predictor * sd.log.df + mean.log.df))
+    dplyr::select(date, district, Dengue_fever_rates, forecast ) %>%
+    mutate(preds = mod1$summary.linear.predictor )
   
   out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed)
   saveRDS(out.list,paste0('./Results/', 'mod',modN,'_',date.test.in  ,'.rds' )   )
