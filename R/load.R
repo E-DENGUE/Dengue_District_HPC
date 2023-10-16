@@ -7,6 +7,7 @@ library(zoo)
 library(lubridate)
 library(pbapply)
 library(INLA)
+inla.setOption(mkl=TRUE)
 library(MASS)
 library(scoringutils)
 
@@ -20,6 +21,7 @@ source('./R/scoring_func.R')
 d1 <- readRDS('./Data/CONFIDENTIAL/full_climate_model.rds')
 
 d2 <- d1 %>%
+   dplyr::select(-geometry) %>%
   mutate(date = paste(year, month, '01', sept='-'),
          year = as_factor(year)) %>%
   filter(VARNAME_2 != "Kien Hai", 
@@ -130,108 +132,133 @@ d2 <- d2 %>%
 date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2018-12-01') , by='month')
 
 
+
+##Priors from Gibb ms 
+# iid model 
+hyper.iid = list(theta = list(prior="pc.prec", param=c(1, 0.01)))
+
+# ar1 model
+hyper.ar1 = list(theta1 = list(prior='pc.prec', param=c(0.5, 0.01)),
+                  rho = list(prior='pc.cor0', param = c(0.5, 0.75)))
+
+# bym model
+hyper.bym = list(theta1 = list(prior="pc.prec", param=c(1, 0.01)),
+                 theta2 = list(prior="pc.prec", param=c(1, 0.01)))
+
+# bym2 model
+# probability of SD of theta1 > 1 = 0.01
+hyper.bym2 = list(theta1 = list(prior="pc.prec", param=c(1, 0.01)),
+                  theta2 = list(prior="pc", param=c(0.5, 0.5)))
+
+# hyperpriors for model grouping (iid / ar1) if used
+# group.control.iid = list(model='iid', hyper = list(prec = list(prior='pc.prec',param=c(1, 0.01))))
+# group.control.ar1 = list(model='ar1', hyper = list(theta1 = list(prior='pc.prec', param=c(1, 0.01)), rho = list(prior='pc.cor0', param = c(0.5, 0.75))))
+
+# rw1/rw2 model: three levels of constraint on precision parameter 
+# (puts more or less prior probability density on more or less wiggly)
+hyper1.rw = list(prec = list(prior='pc.prec', param=c(0.1, 0.01))) # strictest smoothing; sd constrained to be low
+hyper2.rw = list(prec = list(prior='pc.prec', param=c(0.3, 0.01))) # medium
+hyper3.rw = list(prec = list(prior='pc.prec', param=c(1, 0.01))) # weaker (suggested INLA default) 
+hyper4.rw = list(prec = list(prior='pc.prec', param=c(2, 0.01))) # weakest; sd can be quite wide 
+
 #All models
 
+#only models 1,2,3,6,7,8,13 successfully ran
 
 ###############best model based on CRPS (full posterior) ############
 mod1 <- 'm_DHF_cases~   lag_y + 
                         f(districtID,model = "iid")+
                         f(t, model="ar1") + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                         
 
 #same as mod 9 without AR1
 mod2 <- 'm_DHF_cases~   lag_y +
                         f(districtID,model = "iid")+
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))
-                         '
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+
 
 #building off of model 9, adds rainfall
 mod3 <- 'm_DHF_cases~   lag_y +
                         f(districtID,model = "iid")+
                         lag1_total_rainfall_ab + lag2_total_rainfall_ab +
                         f(t, model="ar1") + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                         
 
 #building off of model 9, allow AR1 to vary by district
 mod4 <- 'm_DHF_cases~   lag_y +
                         f(districtID,model = "iid")+
-                        f(t, group=districtID3, model="ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '
+                        f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                         
 
 #building off of model 9, allow AR1 to vary by district AND add rainfall
 mod5 <- 'm_DHF_cases~   lag_y +
                         f(districtID,model = "iid")+
                         lag1_total_rainfall_ab + lag2_total_rainfall_ab +
-                        f(t, group=districtID3, model="ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '
+                        f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                         
 
 ## try adding different combos of climate vars
-mod6 <- 'm_DHF_cases_hold ~   lag_y + lag1_Total_Rainfall +lag2_Total_Rainfall +
+mod6 <- 'm_DHF_cases_hold ~   lag_y + lag1_monthly_cum_ppt +lag2_monthly_cum_ppt +
                         f(districtID,model = "iid")+
                         f(t, model="ar1") + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
 
-mod7 <- 'm_DHF_cases_hold ~   lag_y +  lag1_Min_Average_Temperature +lag2_Min_Average_Temperature +
+mod7 <- 'm_DHF_cases_hold ~   lag_y +  lag1_avg_min_daily_temp +lag2_avg_min_daily_temp +
                         f(districtID,model = "iid")+
                         f(t, model="ar1") + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
 
-mod8 <- 'm_DHF_cases_hold ~   lag_y +  lag1_Max_Average_Temperature +lag2_Max_Average_Temperature +
+mod8 <- 'm_DHF_cases_hold ~   lag_y +  lag1_avg_max_daily_temp +lag2_avg_max_daily_temp +
                         f(districtID,model = "iid")+
                         f(t, model="ar1") + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'
-
-mod9 <- 'm_DHF_cases_hold~   lag_y +  log_lag1_mean_dengue +
-                        f(districtID,model = "iid")+
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '
-
-mod10 <- 'm_DHF_cases_hold~   lag_y +  log_lag1_mean_dengue +
-                        f(districtID,model = "iid")+
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-            '
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
 ## district AR(1) without  lagged cases           
-mod11 <- 'm_DHF_cases_hold~    
+mod9 <- 'm_DHF_cases_hold~    
                         f(districtID,model = "iid")+
-                        f(t, group=districtID3, model="ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '
+                        f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                        
                          
  ## district AR(1) without  lagged cases    +rain       
-mod12 <- 'm_DHF_cases_hold~    
-                        f(districtID,model = "iid")+ lag1_Total_Rainfall +lag2_Total_Rainfall +
-                        f(t, group=districtID3, model="ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '
+mod10 <- 'm_DHF_cases_hold~    
+                        f(districtID,model = "iid")+ lag1_monthly_cum_ppt +lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                         
                          
  ## district AR(1) without  lagged cases    +temp       
-mod13 <- 'm_DHF_cases_hold~    
-                        f(districtID,model = "iid")+ lag1_Min_Average_Temperature +lag2_Min_Average_Temperature +
-                        f(t, group=districtID3, model="ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         '     
+mod11 <- 'm_DHF_cases_hold~    
+                        f(districtID,model = "iid")+ lag1_avg_min_daily_temp +lag2_avg_min_daily_temp +
+                        f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                         
                          
  ## district AR(1) without  lagged cases    +temp   +rain    
-mod14 <- 'm_DHF_cases_hold~    
-                        f(districtID,model = "iid")+ lag1_Min_Average_Temperature +lag2_Min_Average_Temperature + lag1_Total_Rainfall +lag2_Total_Rainfall +
-                        f(t, group=districtID3, model="ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) + #shared AR(1) across districts
-                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
-                         ' 
+mod12 <- 'm_DHF_cases_hold~    
+                        f(districtID,model = "iid")+ lag1_avg_min_daily_temp +lag2_avg_min_daily_temp + lag1_monthly_cum_ppt +lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
+                        f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+
                          
  ## district AR(1) without  lagged cases    +all 
-mod15 <- 'm_DHF_cases_hold~    lag_y + 
-                        f(districtID,model = "iid")+ lag1_Min_Average_Temperature +lag2_Min_Average_Temperature + lag1_Total_Rainfall +lag2_Total_Rainfall +
-                        lag1_Max_Average_Temperature +lag2_Max_Average_Temperature + lag1_Min_Average_Temperature +lag2_Min_Average_Temperature +
-                        lag1_total_rainfall_ab + lag2_total_rainfall_ab +
+mod13 <- 'm_DHF_cases_hold~    lag_y + 
+                        f(districtID,model = "iid")+ lag1_avg_min_daily_temp +lag2_avg_min_daily_temp + lag1_monthly_cum_ppt +lag2_monthly_cum_ppt +
+                        lag1_avg_max_daily_temp +lag2_avg_max_daily_temp + lag1_total_rainfall_ab + lag2_total_rainfall_ab +
+                        f(t, model="ar1") + #shared AR(1) across districts
+                        f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
+                         ' 
+#Same as mod 1 with AR1 instead of RW1                         
+   mod14 <- 'm_DHF_cases~   lag_y + 
+                        f(districtID,model = "iid")+
                         f(t, model="ar1") + #shared AR(1) across districts
                         f(monthN, group=districtID2,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2)))) 
                          ' 
 
-all.mods <- list(mod1,mod2,mod3,mod4,mod5,mod6,mod7,mod8,mod9,mod10, mod11, mod12, mod13, mod14, mod15)
+all.mods <- list(mod1,mod2,mod3,mod4,mod5,mod6,mod7,mod8,mod9,mod10, mod11, mod12, mod13, mod14)
