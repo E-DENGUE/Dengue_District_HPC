@@ -5,6 +5,7 @@ library(tidyr)
 library(tidyverse)
 library(zoo)
 library(lubridate)
+library(reshape2)
 library(pbapply)
 library(INLA)
 library(MASS)
@@ -17,6 +18,25 @@ source('./R/all_district_fwd1.R')
 source('./R/scoring_func.R')
 
 ######## Load data
+
+#data from other parts of Vietnam
+ # p1 <- read_excel('./Data/CONFIDENTIAL/Dengue districts 1998-2019.xlsx', skip=1) %>%
+ #   reshape2::melt(., id.vars=c('Province','District')) %>%
+ #   rename(date=variable, dengue=value) %>%
+ #   mutate( date=as.numeric(as.character(date)),
+ #           date= as.Date(date, origin = "1899-12-30"),
+ #           date=floor_date(date, 'month'),
+ #           dengue=as.numeric(dengue),
+ #           Province=tolower(Province)
+ # ) %>%
+ #   filter(Province %in% c("ha noi"  ,  "dak lak" ,  "khanh hoa" ,"dong nai"    )) %>%
+ #   group_by(Province, date) %>%
+ #   summarize( dengue=sum(dengue, na.rm=T)) %>%
+ #   ungroup() %>%
+ #   filter(date>='2001-01-01' & date<='2017-12-01')
+ # 
+ # ggplot(p1, aes(x=date, y=dengue, group=Province, color=Province))+geom_line() +facet_wrap(~Province, scales='free')
+
 d1 <- readRDS('./Data/CONFIDENTIAL/full_climate_model.rds')
 
 d2 <- d1 %>%
