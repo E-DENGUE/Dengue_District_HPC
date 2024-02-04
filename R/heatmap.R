@@ -12,7 +12,7 @@ library(sf)
 d1 <- readRDS('./Data/CONFIDENTIAL/full_climate_model.rds') %>%
   dplyr::select(-geometry) %>%
   mutate(date = paste(year, month, '01', sept='-'),
-         year = as_factor(year)) %>%
+         year = as.factor(year)) %>%
   filter(VARNAME_2 != "Kien Hai", 
          VARNAME_2 != "Phu Quoc") %>%
   distinct(year, month, VARNAME_2, NAME_1, ENGTYPE_2, .keep_all = T) %>%
@@ -107,6 +107,23 @@ B <-
   theme(legend.position = c(0.9,0.8))
 B
 
+
+#extract data on clusters and their prototypes
+hc_members <- as.data.frame((ggplot_build(plot(dtw_hc, type = "series", clus = c(1L:2L)))[["data"]])) %>%
+  rename(panel_grp=PANEL)
+hc_centroid <- as.data.frame((ggplot_build(plot(dtw_hc, type = "centroids", clus = c(1L:2L), lty=1))[["data"]]))
+
+ggplot(hc_members, aes(x=x ,y=exp(y), group=group))+
+  geom_line(alpha=0.1) +
+  facet_wrap(~panel_grp) +
+  theme_classic() +
+  ylab('Group prototype')
+
+ggplot(hc_centroid, aes(x=x ,y=exp(y), group=group, color=group))+
+  geom_line() +
+ # facet_wrap(~group) +
+  theme_classic() +
+  ylab('Group prototype')
 
 ###MAPING
 ## Get the Vietnam data – district level
