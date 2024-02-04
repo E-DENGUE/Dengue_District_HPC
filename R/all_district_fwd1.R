@@ -10,10 +10,14 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
            log_pop=log(pop/100000),
            year = year(date) ,
            m_DHF_cases_hold= if_else( date>= (date.test.in[1]), NA_real_,
-                                             m_DHF_cases),
+                                      m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
-
+           max_allowed_lag = if_else(grepl('lag_y',formula1 ),1,2),
+           horizon = if_else(date== (date.test.in[1]),1,
+                             if_else(date== (date.test.in[1] %m+% months(1)),2, 0
+                             )
+           ),
            t=row_number(),
            t2=t,
            month=as.factor(month(date)),
@@ -21,7 +25,7 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
            offset1 = pop/100000,
            #log_offset=log(pop/100000)
     ) %>%
-    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y)) %>% #only keep test date and 1 month ahead of that
+    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>% #only keep test date and 1 month ahead of that
     ungroup() %>%
     mutate(districtID = as.numeric(as.factor(district)),
            districtID2 = districtID,

@@ -1,7 +1,7 @@
 source('./R/load.R')
   date.test.in <- as.Date('2014-02-01')
   modN=4
-  formula1 ='m_DHF_cases_hold~   lag2_y +
+  formula1 ='m_DHF_cases_hold~   lag_y +
                         f(districtID,model = "iid")+
                         f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
@@ -20,7 +20,11 @@ source('./R/load.R')
                                       m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
-           
+           max_allowed_lag = if_else(grepl('lag_y',formula1 ),1,2),
+           horizon = if_else(date== (date.test.in[1]),1,
+                             if_else(date== (date.test.in[1] %m+% months(1)),2, 0
+                             )
+           ),
            t=row_number(),
            t2=t,
            month=as.factor(month(date)),
@@ -28,7 +32,7 @@ source('./R/load.R')
            offset1 = pop/100000,
            #log_offset=log(pop/100000)
     ) %>%
-    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y)) %>% #only keep test date and 1 month ahead of that
+    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>% #only keep test date and 1 month ahead of that
     ungroup() %>%
     mutate(districtID = as.numeric(as.factor(district)),
            districtID2 = districtID,
@@ -77,8 +81,7 @@ source('./R/load.R')
                              )
            ),
            max_allowed_lag = if_else(grepl('lag_y',formula1 ),1,2)
-           )%>%
-    filter(horizon <= max_allowed_lag) #get rid of lag2 if lag1 is included as covariate
+           )
   #View(c1 %>% dplyr::select(district, date,m_DHF_cases_hold,Dengue_fever_rates,log_df_rate,lag_y,lag2_y, forecast, horizon)  %>% filter(date>=as.Date('2012-01-01')))
   
   score.list =list ('ds'=c1, mod=mod1, 'fixed.eff'=mod1$summary.fixed,'mod.family'=mod.family)
