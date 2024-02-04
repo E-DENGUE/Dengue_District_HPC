@@ -1,4 +1,11 @@
+##In console:
+# salloc
+# module load R/4.2.0-foss-2020b
+# R
+
 #setwd("~/project/dengue_test/Cluster_DW")
+
+
 library(dplyr)
 library(parallel)
 
@@ -18,12 +25,28 @@ ds.list <- mclapply(file.names,function(X){
     # Extract the date from the string using gsub
     date <- regmatches(X, regexpr(date_pattern, X))
 
-    out.list <- cbind.data.frame('modN'=modN,'date'=date, 'scores'=d1$scores)
+    out.list <- cbind.data.frame('modN'=modN,'eval.date'=date, d1$scores)
   return(out.list)
 },  mc.cores=N_cores)
 
 
 scores <-  bind_rows(ds.list) %>%
     group_by(modN) %>%
-    summarize(score_sum=sum(scores) , n.obs=n())
+    summarize(score_sum=mean(crps1) , n.obs=n())
 
+
+scores_filtered <-  bind_rows(ds.list) %>%
+     group_by( district, date) %>%
+mutate(N_obs=n() ) %>%
+ungroup() %>%
+filter(N_obs==max(N_obs)) %>%
+group_by(modN) %>%
+     summarize(score_sum=mean(crps1) , n.obs=n())
+     
+     scores_filtered <-  bind_rows(ds.list) %>%
+     group_by( district, date) %>%
+mutate(N_obs=n() ) %>%
+ungroup() %>%
+filter(N_obs==max(N_obs)) %>%
+group_by(horizon,modN) %>%
+     summarize(score_sum=mean(crps1) , n.obs=n())
