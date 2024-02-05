@@ -1,17 +1,18 @@
 #!/bin/bash
-#SBATCH --time=02:00:00
+#SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --partition day,scavenge
 #SBATCH --requeue
 #SBATCH --mail-user=daniel.weinberger@yale.edu
 #SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=10G
 #SBATCH -o ./Report/output.%a.out # STDOUT
-#SBATCH --array=1-1176   # If k (14) models and J (84) hold out time points this is 1- j*k
+#SBATCH --array=1-1680   # If k models and J hold out time points this is 1- j*k  J=84, K=15
 
 
 #Define the number of models being tested
 
-N_models=14
+N_models=20
 
 #Load R
 module load R/4.2.0-foss-2020b
