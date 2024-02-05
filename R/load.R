@@ -303,7 +303,10 @@ mod19 <- 'm_DHF_cases_hold~    lag2_y +
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
                                      
 #all.mods <- list(mod1,mod2,mod3,mod4,mod5,mod6,mod7,mod8,mod9,mod10, mod11, mod12, mod13, mod14, mod15, mod16, mod17, mod18, mod19, mod20)
+all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,
+                 'mod8'=mod8,'mod9'=mod9,'mod10'=mod10, 'mod11'=mod11, 'mod12'=mod12, 'mod13'=mod13, 'mod14'=mod14, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 
+                 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
 
-all.mods <- list('mod4'=mod4,'mod5'=mod5, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
+#all.mods <- list('mod4'=mod4,'mod5'=mod5, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
 
 

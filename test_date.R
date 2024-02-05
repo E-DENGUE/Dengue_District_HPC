@@ -1,7 +1,7 @@
 source('./R/load.R')
   date.test.in <- as.Date('2014-02-01')
   modN=4
-  formula1 ='m_DHF_cases_hold~   lag_y +
+  formula1 ='m_DHF_cases_hold~   lag2_y +
                         f(districtID,model = "iid")+
                         f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
