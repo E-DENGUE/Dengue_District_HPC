@@ -24,12 +24,13 @@ names(d1)[names(d1) == "tp_accum"] <- "monthly_cum_ppt"
 
 d2a <- d1 %>%
   mutate(date = paste(year, month, '01', sep='-'),
-         year = as_factor(year)) %>%
+         year = as_factor(year),
+         District_province = paste(district, province, sep = "_")) %>%
   filter(district != "KIEN HAI", district != "PHU QUOC") %>%
   distinct(province,district,year, month, NAME_2, NAME_1, ENGTYPE, .keep_all = TRUE) %>%
   arrange(month, year) %>%
   ungroup() %>%
-  dplyr::select(year, month, province, district, m_DHF_cases, pop, avg_daily_temp, avg_max_daily_temp, avg_min_daily_temp, avg_daily_wind, avg_max_daily_wind,
+  dplyr::select(year, month, province, district,District_province, m_DHF_cases, pop, avg_daily_temp, avg_max_daily_temp, avg_min_daily_temp, avg_daily_wind, avg_max_daily_wind,
                 avg_min_daily_wind, avg_daily_humid, avg_max_daily_humid, avg_min_daily_humid, monthly_cum_ppt
   ) %>%
   ungroup() %>%
@@ -52,12 +53,15 @@ temp3 <- deseasonalize_climate("avg_max_daily_temp")  %>% rename( min_ave_temp_a
 #temp5 <- deseasonalize_climate("mean_min_temp")  %>% rename( min_abs_temp_abb= climate_aberration)
 humid1 <- deseasonalize_climate("avg_daily_humid")  %>% rename(min_humid_abb = climate_aberration)
 
+
+# test <- merge(d2a, rain1,by=c('district', 'date') )
+
 d2 <- d2a %>%
-  as.data.frame() %>%
-  left_join(rain1, by=c('district', 'date')) %>%
-  left_join(temp2, by=c('district', 'date')) %>%
-  left_join(temp3, by=c('district', 'date')) %>%
-  left_join(humid1, by=c('district', 'date')) %>%
+  #arrange(district, date) %>%
+  left_join(rain1, by=c('District_province', 'date')) %>%
+  left_join(temp2, by=c('District_province', 'date')) %>%
+  left_join(temp3, by=c('District_province', 'date')) %>%
+  left_join(humid1, by=c('District_province', 'date')) %>%
   mutate( 
     #redefine the lag variables
     avg_daily_humid = as.vector(scale(avg_daily_humid)),
@@ -135,12 +139,14 @@ MDR_NEW <- st_read(dsn = "./Data/CONFIDENTIAL/MDR_NEW_Boundaries_Final.shp")
 
 # Create a new variable 'District_province' by concatenating 'VARNAME' and 'NAME_En' with an underscore
 MDR_NEW <- MDR_NEW %>%
-  dplyr::mutate(District_province = paste(VARNAME, NAME_En, sep = "_"))
+  dplyr::mutate(District_province = toupper(paste(VARNAME, NAME_En, sep = "_")))
 
 # Remove island districts (no neighbors) from the dataset
 MDR_NEW <- MDR_NEW %>%
   dplyr::filter(VARNAME != "Kien Hai", 
                 VARNAME != "Phu Quoc")
+
+toupper(sort(MDR_NEW$District_province))==toupper(sort(unique(d2$District_province)))
 
 # Transform MDR_NEW to WGS 84 coordinate reference system
 #MDR_NEW <- st_transform(MDR_NEW, crs = st_crs(MDR_2))
