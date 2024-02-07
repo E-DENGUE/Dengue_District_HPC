@@ -2,8 +2,8 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
 
   c1 <- d2 %>%
     # filter(district %in% select.districts) %>%
-    arrange(district, date) %>%
-    group_by(district) %>%
+    arrange(province,district, date) %>%
+    group_by(province,district) %>%
     mutate(district2=district,
            Dengue_fever_rates = m_DHF_cases / pop *100000,
            log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
