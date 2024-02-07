@@ -22,7 +22,7 @@ names(d1)[names(d1) == "rh_max"] <- "avg_max_daily_humid"
 names(d1)[names(d1) == "rh_min"] <- "avg_min_daily_humid"
 names(d1)[names(d1) == "tp_accum"] <- "monthly_cum_ppt"
 
-d2 <- d1 %>%
+d2a <- d1 %>%
   mutate(date = paste(year, month, '01', sep='-'),
          year = as_factor(year)) %>%
   filter(district != "KIEN HAI", district != "PHU QUOC") %>%
@@ -52,7 +52,8 @@ temp3 <- deseasonalize_climate("avg_max_daily_temp")  %>% rename( min_ave_temp_a
 #temp5 <- deseasonalize_climate("mean_min_temp")  %>% rename( min_abs_temp_abb= climate_aberration)
 humid1 <- deseasonalize_climate("avg_daily_humid")  %>% rename(min_humid_abb = climate_aberration)
 
-d2 <- d2 %>%
+d2 <- d2a %>%
+  as.data.frame() %>%
   left_join(rain1, by=c('district', 'date')) %>%
   left_join(temp2, by=c('district', 'date')) %>%
   left_join(temp3, by=c('district', 'date')) %>%
@@ -105,7 +106,7 @@ d2 <- d2 %>%
     
         
     )%>%
-    filter(!is.na(lag6_monthly_cum_ppt) & first_date==as.Date('2001-01-01') & last_date=='2018-12-01')   #filter out regions with partial time series
+    filter(!is.na(lag6_monthly_cum_ppt) )   
   
 
 
@@ -127,10 +128,6 @@ d2 <- d2 %>%
 
 # Generate a sequence of monthly dates from January 2012 to December 2022
 date.test2 <- seq.Date(from = as.Date('2012-01-01'), to = as.Date('2022-12-01'), by = 'month')
-
-# Duplicate the generated sequence and store it in date.test.in
-date.test.in <- date.test2
-
 
 
 # Read district-level spatial data from a shapefile
