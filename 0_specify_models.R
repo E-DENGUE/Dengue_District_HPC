@@ -192,7 +192,7 @@ mod28 <- 'm_DHF_cases_hold~ 1+
                             f(districtID, 
                                    model="besag", 
                                    constr= TRUE, 
-                                   graph=MDR.adj
+                                   graph=MDR.adj,
                                    group=time_id1, 
                                    control.group=list(model="ar1"),
                                    hyper = hyper1,
@@ -209,7 +209,7 @@ mod29 <- 'm_DHF_cases_hold~ 1+
                             f(districtID, 
                                    model="besag", 
                                    constr= TRUE, 
-                                   graph=MDR.adj
+                                   graph=MDR.adj,
                                    group=time_id1, 
                                    control.group=list(model="ar1"),
                                    hyper = hyper1,

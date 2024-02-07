@@ -10,6 +10,10 @@ library(INLA)
 #inla.setOption(mkl=TRUE)
 library(MASS)
 library(scoringutils)
+library(sf)
+library(spdep)
+library(ggmap) # plotting shapefiles 
+library(lattice)  # Load the lattice package if you are using lattice graphics
 
 
 source('./R/predict.rlm.R')
@@ -19,39 +23,52 @@ source('./R/scoring_func.R')
 source('./0_specify_models.R')
 
 ######## Load data
-d1 <- readRDS('./Data/CONFIDENTIAL/full_climate_model.rds')
+#d1 <- readRDS('./Data/CONFIDENTIAL/full_climate_model.rds')
+d1 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries.rds')
+
+# Rename columns in the data frame
+names(d1)[names(d1) == "Dengue"] <- "m_DHF_cases"
+names(d1)[names(d1) == "Population"] <- "pop"
+names(d1)[names(d1) == "t2m_avg"] <- "avg_daily_temp"
+names(d1)[names(d1) == "t2m_max"] <- "avg_max_daily_temp"
+names(d1)[names(d1) == "t2m_min"] <- "avg_min_daily_temp"
+names(d1)[names(d1) == "ws_avg"] <- "avg_daily_wind"
+names(d1)[names(d1) == "ws_max"] <- "avg_max_daily_wind"
+names(d1)[names(d1) == "ws_min"] <- "avg_min_daily_wind"
+names(d1)[names(d1) == "rh_avg"] <- "avg_daily_humid"
+names(d1)[names(d1) == "rh_max"] <- "avg_max_daily_humid"
+names(d1)[names(d1) == "rh_min"] <- "avg_min_daily_humid"
+names(d1)[names(d1) == "tp_accum"] <- "monthly_cum_ppt"
 
 d2 <- d1 %>%
-   dplyr::select(-geometry) %>%
-  mutate(date = paste(year, month, '01', sept='-'),
+  mutate(date = paste(year, month, '01', sep='-'),
          year = as_factor(year)) %>%
-  filter(VARNAME_2 != "Kien Hai", 
-         VARNAME_2 != "Phu Quoc") %>%
-  distinct(year, month, VARNAME_2, NAME_1, ENGTYPE_2, .keep_all = T) %>%
-  arrange(month, year, VARNAME_2)%>%
+  filter(district != "KIEN HAI", district != "PHU QUOC") %>%
+  distinct(province,district,year, month, NAME_2, NAME_1, ENGTYPE, .keep_all = TRUE) %>%
+  arrange(month, year) %>%
   ungroup() %>%
-  dplyr::select(year, month, district,m_DHF_cases,pop,avg_daily_temp,mean_ppt, avg_min_daily_temp, avg_max_daily_temp,avg_daily_humid, monthly_cum_ppt,
-                mean_daily_temp,avg_min_daily_temp,avg_max_daily_temp,mean_max_temp,mean_min_temp,mean_humid) %>%
+  dplyr::select(year, month, province, district, m_DHF_cases, pop, avg_daily_temp, avg_max_daily_temp, avg_min_daily_temp, avg_daily_wind, avg_max_daily_wind,
+                avg_min_daily_wind, avg_daily_humid, avg_max_daily_humid, avg_min_daily_humid, monthly_cum_ppt
+  ) %>%
   ungroup() %>%
-  arrange(district, year, month) %>%
+  arrange(province, district, year, month) %>%
   group_by(district) %>%
-  mutate(date= as.Date(paste(year,month, '01',sep='-'), '%Y-%m-%d'),
-         m_DHF_cases = if_else(!is.na(pop) & is.na(m_DHF_cases),0, m_DHF_cases ) ,
-         first_date=min(date),
-         last_date =max(date),
-          ) %>%
+  mutate(date = as.Date(paste(year, month, '01', sep='-'), '%Y-%m-%d'),
+         m_DHF_cases = m_DHF_cases,
+         first_date = min(date),
+         last_date = max(date),
+  ) %>%
   ungroup() %>%
-  filter(!is.na(district) &first_date==as.Date('2001-01-01') & last_date=='2018-12-01')  #filter out regions with partial time series
-  
+  filter(!is.na(district) & first_date == as.Date('2004-01-01') & last_date == '2022-12-01')
 
 rain1 <- deseasonalize_climate("monthly_cum_ppt") %>% rename(total_rainfall_ab = climate_aberration)
-rain2 <- deseasonalize_climate("mean_ppt")  %>% rename(daily_rainfall_ab = climate_aberration)
-temp1 <- deseasonalize_climate("mean_daily_temp")  %>% rename( ave_temp_ab = climate_aberration)
+#rain2 <- deseasonalize_climate("mean_ppt")  %>% rename(daily_rainfall_ab = climate_aberration)
+#temp1 <- deseasonalize_climate("mean_daily_temp")  %>% rename( ave_temp_ab = climate_aberration)
 temp2 <- deseasonalize_climate("avg_min_daily_temp")  %>% rename( max_temp_ab = climate_aberration)
 temp3 <- deseasonalize_climate("avg_max_daily_temp")  %>% rename( min_ave_temp_ab = climate_aberration)
-temp4 <- deseasonalize_climate("mean_max_temp")  %>% rename( max_abs_temp_abb = climate_aberration)
-temp5 <- deseasonalize_climate("mean_min_temp")  %>% rename( min_abs_temp_abb= climate_aberration)
-humid1 <- deseasonalize_climate("mean_humid")  %>% rename(min_humid_abb = climate_aberration)
+#temp4 <- deseasonalize_climate("mean_max_temp")  %>% rename( max_abs_temp_abb = climate_aberration)
+#temp5 <- deseasonalize_climate("mean_min_temp")  %>% rename( min_abs_temp_abb= climate_aberration)
+humid1 <- deseasonalize_climate("avg_daily_humid")  %>% rename(min_humid_abb = climate_aberration)
 
 d2 <- d2 %>%
   left_join(rain1, by=c('district', 'date')) %>%
@@ -130,9 +147,41 @@ d2 <- d2 %>%
 ### Run the models
 
 
-#just test a few years
-date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2018-12-01') , by='month')
+# Generate a sequence of monthly dates from January 2012 to December 2022
+date.test2 <- seq.Date(from = as.Date('2012-01-01'), to = as.Date('2022-12-01'), by = 'month')
 
+# Duplicate the generated sequence and store it in date.test.in
+date.test.in <- date.test2
+
+
+
+# Read district-level spatial data from a shapefile
+MDR_NEW <- st_read(dsn = "./Data/CONFIDENTIAL/MDR_NEW_Boundaries_Final.shp")
+
+# Create a new variable 'District_province' by concatenating 'VARNAME' and 'NAME_En' with an underscore
+MDR_NEW <- MDR_NEW %>%
+  dplyr::mutate(District_province = paste(VARNAME, NAME_En, sep = "_"))
+
+# Remove island districts (no neighbors) from the dataset
+MDR_NEW <- MDR_NEW %>%
+  dplyr::filter(VARNAME != "Kien Hai", 
+                VARNAME != "Phu Quoc")
+
+# Transform MDR_NEW to WGS 84 coordinate reference system
+#MDR_NEW <- st_transform(MDR_NEW, crs = st_crs(MDR_2))
+
+# Create a spatial neighbors object 'neighb' using queen contiguity based on valid geometries
+neighb <- poly2nb(st_make_valid(MDR_NEW), queen = T, snap = sqrt(0.001))
+
+# Create a new neighbors object 'W.nb' using non-queen contiguity based on valid geometries
+W.nb <- poly2nb(st_make_valid(MDR_NEW), row.names = MDR_NEW$ID)
+neighb <- poly2nb(st_make_valid(MDR_NEW), queen = F, snap = sqrt(0.001))
+
+# Use 'nb2INLA' function to convert the neighbors object to a format suitable for the 'INLA' package
+nb2INLA("MDR.graph", neighb)
+
+# Set the file path for the adjacency graph file
+MDR.adj <- paste(getwd(), "/MDR.graph", sep = "")
 
 
 ##Priors from Gibb ms 
