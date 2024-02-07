@@ -1,21 +1,3 @@
-library(dplyr)
-library(readr)
-library(readxl)
-library(tidyr)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(pbapply)
-library(INLA)
-#inla.setOption(mkl=TRUE)
-library(MASS)
-library(scoringutils)
-library(sf)
-library(spdep)
-library(ggmap) # plotting shapefiles 
-library(lattice)  # Load the lattice package if you are using lattice graphics
-
-
 source('./R/predict.rlm.R')
 source('./R/deseasonalize_climate.R')
 source('./R/all_district_fwd1.R')
@@ -72,12 +54,8 @@ humid1 <- deseasonalize_climate("avg_daily_humid")  %>% rename(min_humid_abb = c
 
 d2 <- d2 %>%
   left_join(rain1, by=c('district', 'date')) %>%
-  left_join(rain2, by=c('district', 'date')) %>%
-  left_join(temp1, by=c('district', 'date')) %>%
   left_join(temp2, by=c('district', 'date')) %>%
   left_join(temp3, by=c('district', 'date')) %>%
-  left_join(temp4, by=c('district', 'date')) %>%
-  left_join(temp5, by=c('district', 'date')) %>%
   left_join(humid1, by=c('district', 'date')) %>%
   mutate( 
     #redefine the lag variables
