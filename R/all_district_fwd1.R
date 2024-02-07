@@ -29,7 +29,9 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
     ungroup() %>%
     mutate(districtID = as.numeric(as.factor(district)),
            districtID2 = districtID,
-           districtID3 = districtID)
+           districtID3 = districtID,
+           time_id1=t,
+           time_id2=t)
   
   form2 <- as.formula (formula1)
   
