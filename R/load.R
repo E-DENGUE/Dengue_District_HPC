@@ -301,12 +301,59 @@ mod19 <- 'm_DHF_cases_hold~    lag2_y +
                         f(districtID,model = "iid")+
                         f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
-                                     
-#all.mods <- list(mod1,mod2,mod3,mod4,mod5,mod6,mod7,mod8,mod9,mod10, mod11, mod12, mod13, mod14, mod15, mod16, mod17, mod18, mod19, mod20)
-all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,
-                 'mod8'=mod8,'mod9'=mod9,'mod10'=mod10, 'mod11'=mod11, 'mod12'=mod12, 'mod13'=mod13, 'mod14'=mod14, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 
-                 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
+              
+              
+    ## mod12, with AR1 nstead of RW1
+    mod21 <- 'm_DHF_cases_hold~    
+                            f(districtID,model = "iid")+ 
+                            lag1_avg_min_daily_temp +lag2_avg_min_daily_temp + lag1_monthly_cum_ppt +lag2_monthly_cum_ppt +
+                            f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                            
+        #mod21 but with                    
+   mod22 <- 'm_DHF_cases_hold~    
+                            f(districtID,model = "iid")+ 
+                            lag1_avg_min_daily_temp +lag2_avg_min_daily_temp + lag1_monthly_cum_ppt +lag2_monthly_cum_ppt +
+                            f(t, replicate=districtID3, model="ar1", hyper =hyper.ar1 ) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                            
+     #same as 20 but with AR1
+    mod23 <- 'm_DHF_cases_hold~   lag2_y +
+                        f(districtID,model = "iid")+
+                        f(t, replicate=districtID3, model="ar1", hyper = hyper2.rw) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                      
+   #same as 19 with AR1                        
+mod24 <- 'm_DHF_cases_hold~    lag2_y +
+                        f(districtID,model = "iid")+ 
+                        f(t, group=districtID3, model="ar1", hyper =hyper.ar1 ,control.group=list(model="iid" )) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                      
+                      
+#mod 20 wih AR1 and 2 month lagged weather covariates
+    mod25 <- 'm_DHF_cases_hold~   lag2_y +
+                        f(districtID,model = "iid")+ lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+  
+  #Same as 22, but with grouped RE instead of replicate RE          
+    mod26 <- 'm_DHF_cases_hold~    
+                            f(districtID,model = "iid")+ 
+                            lag1_avg_min_daily_temp +lag2_avg_min_daily_temp + lag1_monthly_cum_ppt +lag2_monthly_cum_ppt +
+                        f(t, group=districtID3, model="rw1", hyper = hyper2.rw,control.group=list(model="iid" )) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'     
+                      
+  #Same as 26, but 2 month lagged only         
+    mod27 <- 'm_DHF_cases_hold~    
+                            f(districtID,model = "iid")+ 
+                            lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, group=districtID3, model="rw1", hyper = hyper2.rw,control.group=list(model="iid" )) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'    
+                      
+                      
+#all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,
+#'mod8'=mod8,'mod9'=mod9,'mod10'=mod10, 'mod11'=mod11, 'mod12'=mod12, 'mod13'=mod13, 'mod14'=mod14, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
 
-#all.mods <- list('mod4'=mod4,'mod5'=mod5, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
+all.mods <- list('mod26'=mod26,'mod27'=mod27)
 
 

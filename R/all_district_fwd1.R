@@ -13,7 +13,7 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
                                       m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
-           max_allowed_lag = if_else(grepl('lag_y',formula1 ),1,2),
+           max_allowed_lag = if_else(grepl('lag_y',formula1 )|grepl('lag1',formula1 ),1,2),
            horizon = if_else(date== (date.test.in[1]),1,
                              if_else(date== (date.test.in[1] %m+% months(1)),2, 0
                              )
