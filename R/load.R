@@ -1,68 +1,116 @@
+
 source('./R/predict.rlm.R')
 source('./R/deseasonalize_climate.R')
 source('./R/all_district_fwd1.R')
 source('./R/scoring_func.R')
-source('./0_specify_models.R')
 
 ######## Load data
-#d1 <- readRDS('./Data/CONFIDENTIAL/full_climate_model.rds')
 d1 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries.rds')
-
-# Rename columns in the data frame
 names(d1)[names(d1) == "Dengue"] <- "m_DHF_cases"
 names(d1)[names(d1) == "Population"] <- "pop"
 names(d1)[names(d1) == "t2m_avg"] <- "avg_daily_temp"
 names(d1)[names(d1) == "t2m_max"] <- "avg_max_daily_temp"
-names(d1)[names(d1) == "t2m_min"] <- "avg_min_daily_temp"
+names(d1)[names(d1) == "t2m_min" ] <- "avg_min_daily_temp"
 names(d1)[names(d1) == "ws_avg"] <- "avg_daily_wind"
-names(d1)[names(d1) == "ws_max"] <- "avg_max_daily_wind"
-names(d1)[names(d1) == "ws_min"] <- "avg_min_daily_wind"
+names(d1)[names(d1) == "ws_max"] <-  "avg_max_daily_wind"
+names(d1)[names(d1) ==  "ws_min"] <- "avg_min_daily_wind"
 names(d1)[names(d1) == "rh_avg"] <- "avg_daily_humid"
-names(d1)[names(d1) == "rh_max"] <- "avg_max_daily_humid"
-names(d1)[names(d1) == "rh_min"] <- "avg_min_daily_humid"
-names(d1)[names(d1) == "tp_accum"] <- "monthly_cum_ppt"
+names(d1)[names(d1) == "rh_max" ] <- "avg_max_daily_humid"
+names(d1)[names(d1) == "rh_min"  ] <- "avg_min_daily_humid"
+names(d1)[names(d1) == "tp_accum"  ] <- "monthly_cum_ppt"
+# Define the renaming condition for all rows
+d1 <- d1 %>%
+  mutate(district = ifelse(district == 'CHAU THANH' & province == "AN GIANG", 
+                           "CHAU THANH AN GIANG", 
+                           ifelse(district == 'CHAU THANH' & province == "BEN TRE", 
+                                  "CHAU THANH BEN TRE", 
+                                  ifelse(district == 'CHAU THANH' & province == "CA MAU", 
+                                         "CHAU THANH CA MAU",
+                                         ifelse(district == 'CHAU THANH' & province == "DONG THAP", 
+                                                "CHAU THANH DONG THAP",
+                                                ifelse(district == 'CHAU THANH' & province == "HAU GIANG", 
+                                                       "CHAU THANH HAU GIANG",
+                                                       ifelse(district == 'CHAU THANH' & province == "LONG AN", 
+                                                              "CHAU THANH LONG AN",
+                                                              ifelse(district == 'CHAU THANH' & province == "TIEN GIANG", 
+                                                                     "CHAU THANH TIEN GIANG",
+                                                                     ifelse(district == 'CHAU THANH' & province == "TRA VINH", 
+                                                                            "CHAU THANH TRA VINH",
+                                                                            ifelse(district == 'PHU TAN' & province == "CA MAU", 
+                                                                                   "PHU TAN CA MAU",
+                                                                                   ifelse(district == 'PHU TAN' & province == "AN GIANG", 
+                                                                                          "PHU TAN AN GIANG",
+                                                                                          as.character(district)
+                                                                                   )
+                                                                            )
+                                                                     )))))))))
+
+
+
 
 d2a <- d1 %>%
-  mutate(date = paste(year, month, '01', sep='-'),
-         year = as_factor(year),
-         District_province = paste(district, province, sep = "_")) %>%
-  filter(district != "KIEN HAI", district != "PHU QUOC") %>%
-  distinct(province,district,year, month, NAME_2, NAME_1, ENGTYPE, .keep_all = TRUE) %>%
-  arrange(month, year) %>%
+  mutate(date = paste(year, month, '01', sept='-'),
+         year = as_factor(year)) %>%
+  filter(district != "KIEN HAI", 
+         district != "PHU QUOC") %>%
+  distinct(year, month, NAME_2, NAME_1, ENGTYPE, .keep_all = T) %>%
+  arrange(month, year)%>%
   ungroup() %>%
-  dplyr::select(year, month, province, district,District_province, m_DHF_cases, pop, avg_daily_temp, avg_max_daily_temp, avg_min_daily_temp, avg_daily_wind, avg_max_daily_wind,
-                avg_min_daily_wind, avg_daily_humid, avg_max_daily_humid, avg_min_daily_humid, monthly_cum_ppt
+  dplyr::select(year, month,province, district,m_DHF_cases,pop,avg_daily_temp,avg_max_daily_temp,avg_min_daily_temp,avg_daily_wind,avg_max_daily_wind,
+                avg_min_daily_wind,avg_daily_humid,avg_max_daily_humid,avg_min_daily_humid,monthly_cum_ppt,
+                Population_Density,Outmigration_Rate,               
+                Inmigration_Rate,NetImmigration_Rate,           
+                Poverty_Rate,   Hygienic_Water_Access,           
+                Monthly_Average_Income_Percapita,Total_Passenger,                
+                Hygienic_Toilet_Access, Urbanization_Rate  , land.scan.population 
   ) %>%
   ungroup() %>%
-  arrange(province, district, year, month) %>%
+  arrange(province,district, year, month) %>%
   group_by(district) %>%
-  mutate(date = as.Date(paste(year, month, '01', sep='-'), '%Y-%m-%d'),
-         m_DHF_cases = m_DHF_cases,
-         first_date = min(date),
-         last_date = max(date),
+  mutate(date= as.Date(paste(year,month, '01',sep='-'), '%Y-%m-%d'),
+         m_DHF_cases = ifelse(!is.na(pop) & is.na(m_DHF_cases),0, m_DHF_cases ) ,
+         first_date=min(date),
+         last_date =max(date),
   ) %>%
   ungroup() %>%
-  filter(!is.na(district) & first_date == as.Date('2004-01-01') & last_date == '2022-12-01')
+  filter(!is.na(district) &first_date==as.Date('2004-01-01') & last_date=='2022-12-01')   #filter out regions with partial time series
+
 
 rain1 <- deseasonalize_climate("monthly_cum_ppt") %>% rename(total_rainfall_ab = climate_aberration)
 #rain2 <- deseasonalize_climate("mean_ppt")  %>% rename(daily_rainfall_ab = climate_aberration)
-#temp1 <- deseasonalize_climate("mean_daily_temp")  %>% rename( ave_temp_ab = climate_aberration)
+temp1 <- deseasonalize_climate("avg_daily_temp")  %>% rename( ave_temp_ab = climate_aberration)
 temp2 <- deseasonalize_climate("avg_min_daily_temp")  %>% rename( max_temp_ab = climate_aberration)
 temp3 <- deseasonalize_climate("avg_max_daily_temp")  %>% rename( min_ave_temp_ab = climate_aberration)
 #temp4 <- deseasonalize_climate("mean_max_temp")  %>% rename( max_abs_temp_abb = climate_aberration)
 #temp5 <- deseasonalize_climate("mean_min_temp")  %>% rename( min_abs_temp_abb= climate_aberration)
-humid1 <- deseasonalize_climate("avg_daily_humid")  %>% rename(min_humid_abb = climate_aberration)
+humid1 <- deseasonalize_climate("avg_daily_humid")  %>% rename(ave_humid_ab = climate_aberration)
+humid2 <- deseasonalize_climate("avg_min_daily_humid")  %>% rename(min_humid_abb = climate_aberration)
+humid3 <- deseasonalize_climate("avg_max_daily_humid")  %>% rename(max_humid_abb = climate_aberration)
 
-
-# test <- merge(d2a, rain1,by=c('district', 'date') )
+wind1 <- deseasonalize_climate("avg_daily_wind")  %>% rename( ave_wind_ab = climate_aberration)
+wind2 <- deseasonalize_climate("avg_min_daily_wind")  %>% rename( min_wind_ab = climate_aberration)
+wind3 <- deseasonalize_climate("avg_max_daily_wind")  %>% rename( max_wind_ab = climate_aberration)
 
 d2 <- d2a %>%
-  #arrange(district, date) %>%
-  left_join(rain1, by=c('District_province', 'date')) %>%
-  left_join(temp2, by=c('District_province', 'date')) %>%
-  left_join(temp3, by=c('District_province', 'date')) %>%
-  left_join(humid1, by=c('District_province', 'date')) %>%
+  left_join(rain1, by=c('district', 'date')) %>%
+  left_join(temp1, by=c('district', 'date')) %>%
+  left_join(temp2, by=c('district', 'date')) %>%
+  left_join(temp3, by=c('district', 'date')) %>%
+  left_join(humid1, by=c('district', 'date')) %>%
+  left_join(humid2, by=c('district', 'date')) %>%
+  left_join(humid3, by=c('district', 'date')) %>%
+  left_join(wind1, by=c('district', 'date')) %>%
+  left_join(wind2, by=c('district', 'date')) %>%
+  left_join(wind3, by=c('district', 'date')) %>%
   mutate( 
+    #redefine the lag variables
+    avg_daily_wind = as.vector(scale(avg_daily_wind)),
+    lag1_avg_daily_wind = dplyr::lag(avg_daily_wind,1,default=NA),
+    lag2_avg_daily_wind = dplyr::lag(avg_daily_wind,2,default=NA),
+    lag3_avg_daily_wind = dplyr::lag(avg_daily_wind,3),
+    lag4_avg_daily_wind = dplyr::lag(avg_daily_wind,4),
+    lag5_avg_daily_wind = dplyr::lag(avg_daily_wind,5),
+    lag6_avg_daily_wind = dplyr::lag(avg_daily_wind,6),
     #redefine the lag variables
     avg_daily_humid = as.vector(scale(avg_daily_humid)),
     lag1_avg_daily_humid = dplyr::lag(avg_daily_humid,1,default=NA),
@@ -106,12 +154,13 @@ d2 <- d2a %>%
     
     lag1_total_rainfall_ab= dplyr::lag(total_rainfall_ab,1),
     lag2_total_rainfall_ab= dplyr::lag(total_rainfall_ab,2)
-
     
-        
-    )%>%
-    filter(!is.na(lag6_monthly_cum_ppt) )   
-  
+    
+  )%>%
+  filter(!is.na(lag6_monthly_cum_ppt) & first_date==as.Date('2004-01-01') & last_date=='2022-12-01')   #filter out regions with partial time series
+
+
+#na_rows <- d2 %>% filter(is.na(lag6_avg_daily_humid))
 
 
 # d1.agg <- d2 %>%
@@ -130,39 +179,9 @@ d2 <- d2a %>%
 ### Run the models
 
 
-# Generate a sequence of monthly dates from January 2012 to December 2022
-date.test2 <- seq.Date(from = as.Date('2012-01-01'), to = as.Date('2022-12-01'), by = 'month')
+#just test a few years
+date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2022-12-01') , by='month')
 
-
-# Read district-level spatial data from a shapefile
-MDR_NEW <- st_read(dsn = "./Data/CONFIDENTIAL/MDR_NEW_Boundaries_Final.shp")
-
-# Create a new variable 'District_province' by concatenating 'VARNAME' and 'NAME_En' with an underscore
-MDR_NEW <- MDR_NEW %>%
-  dplyr::mutate(District_province = toupper(paste(VARNAME, NAME_En, sep = "_")))
-
-# Remove island districts (no neighbors) from the dataset
-MDR_NEW <- MDR_NEW %>%
-  dplyr::filter(VARNAME != "Kien Hai", 
-                VARNAME != "Phu Quoc")
-
-toupper(sort(MDR_NEW$District_province))==toupper(sort(unique(d2$District_province)))
-
-# Transform MDR_NEW to WGS 84 coordinate reference system
-#MDR_NEW <- st_transform(MDR_NEW, crs = st_crs(MDR_2))
-
-# Create a spatial neighbors object 'neighb' using queen contiguity based on valid geometries
-neighb <- poly2nb(st_make_valid(MDR_NEW), queen = T, snap = sqrt(0.001))
-
-# Create a new neighbors object 'W.nb' using non-queen contiguity based on valid geometries
-W.nb <- poly2nb(st_make_valid(MDR_NEW), row.names = MDR_NEW$ID)
-neighb <- poly2nb(st_make_valid(MDR_NEW), queen = F, snap = sqrt(0.001))
-
-# Use 'nb2INLA' function to convert the neighbors object to a format suitable for the 'INLA' package
-nb2INLA("MDR.graph", neighb)
-
-# Set the file path for the adjacency graph file
-MDR.adj <- paste(getwd(), "/MDR.graph", sep = "")
 
 
 ##Priors from Gibb ms 
@@ -171,7 +190,7 @@ hyper.iid = list(theta = list(prior="pc.prec", param=c(1, 0.01)))
 
 # ar1 model
 hyper.ar1 = list(theta1 = list(prior='pc.prec', param=c(0.5, 0.01)),
-                  rho = list(prior='pc.cor0', param = c(0.5, 0.75)))
+                 rho = list(prior='pc.cor0', param = c(0.5, 0.75)))
 
 # bym model
 hyper.bym = list(theta1 = list(prior="pc.prec", param=c(1, 0.01)),
@@ -194,5 +213,4 @@ hyper3.rw = list(prec = list(prior='pc.prec', param=c(1, 0.01))) # weaker (sugge
 hyper4.rw = list(prec = list(prior='pc.prec', param=c(2, 0.01))) # weakest; sd can be quite wide 
 
 #All models
-
 
