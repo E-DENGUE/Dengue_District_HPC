@@ -192,7 +192,7 @@ mod28 <- 'm_DHF_cases_hold~ 1+
                             f(districtID, 
                                    model="besag", 
                                    constr= TRUE, 
-                                   graph=MDR.adj
+                                   graph=MDR.adj,
                                    group=time_id1, 
                                    control.group=list(model="ar1"),
                                    hyper = hyper1,
@@ -201,15 +201,14 @@ mod28 <- 'm_DHF_cases_hold~ 1+
                                   model="iid", 
                                   group=time_id2, 
                                   control.group=list(model="iid"),
-                                  hyper = hyper1,
-                                  scale.model = TRUE)'    
+                                  hyper = hyper1)'    
 #mod 28 adding in lagged weather
 mod29 <- 'm_DHF_cases_hold~ 1+    
                              lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
                             f(districtID, 
                                    model="besag", 
                                    constr= TRUE, 
-                                   graph=MDR.adj
+                                   graph=MDR.adj,
                                    group=time_id1, 
                                    control.group=list(model="ar1"),
                                    hyper = hyper1,
@@ -218,8 +217,7 @@ mod29 <- 'm_DHF_cases_hold~ 1+
                                   model="iid", 
                                   group=time_id2, 
                                   control.group=list(model="iid"),
-                                  hyper = hyper1,
-                                  scale.model = TRUE)'    
+                                  hyper = hyper1)'    
 
 
 #all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,

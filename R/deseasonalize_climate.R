@@ -1,6 +1,6 @@
 deseasonalize_climate <- function(climate_var){
   
-  seas.mod <-d2 %>% 
+  seas.mod <-d2a %>% 
     arrange(district, date) %>%
     group_by(district) %>%
     mutate( Climate_Train = if_else(date<as.Date('2005-01-01'), .data[[climate_var]], NA_real_),
@@ -31,7 +31,7 @@ deseasonalize_climate <- function(climate_var){
     mutate(climate_diff = (.data[[climate_var]] - upr),
            climate_aberration = if_else(.data[[climate_var]] > upr,climate_diff , 0 ) 
     ) %>% 
-    dplyr::select(district, date,climate_aberration)
+    dplyr::select(district,district, date,climate_aberration)
   
   return(all_mods)
 }  

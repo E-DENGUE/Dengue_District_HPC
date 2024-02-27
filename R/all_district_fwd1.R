@@ -2,20 +2,20 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
 
   c1 <- d2 %>%
     # filter(district %in% select.districts) %>%
-    arrange(district, date) %>%
-    group_by(district) %>%
+    arrange(province,district, date) %>%
+    group_by(province,district) %>%
     mutate(district2=district,
            Dengue_fever_rates = m_DHF_cases / pop *100000,
            log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
            log_pop=log(pop/100000),
            year = year(date) ,
-           m_DHF_cases_hold= if_else( date>= (date.test.in[1]), NA_real_,
+           m_DHF_cases_hold= ifelse( date>= (date.test.in), NA_real_,
                                       m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
            max_allowed_lag = if_else(grepl('lag_y',formula1 )|grepl('lag1',formula1 ),1,2),
-           horizon = if_else(date== (date.test.in[1]),1,
-                             if_else(date== (date.test.in[1] %m+% months(1)),2, 0
+           horizon = if_else(date== (date.test.in),1,
+                             if_else(date== (date.test.in %m+% months(1)),2, 0
                              )
            ),
            t=row_number(),
@@ -25,9 +25,10 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
            offset1 = pop/100000,
            #log_offset=log(pop/100000)
     ) %>%
-    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>% #only keep test date and 1 month ahead of that
+    filter(date<= (date.test.in %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>% #only keep test date and 1 month ahead of that
     ungroup() %>%
-    mutate(districtID = as.numeric(as.factor(district)),
+    mutate( t= t - min(t,na.rm=T) +1 ,
+          districtID = as.numeric(as.factor(district)),
            districtID2 = districtID,
            districtID3 = districtID,
            time_id1=t,
