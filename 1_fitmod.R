@@ -17,6 +17,7 @@ library(spdep)
 library(ggmap) # plotting shapefiles 
 library(lattice)  # Load the lattice package if you are using lattice graphics
 
+
 source('./R/load.R')
 
 # Parse command-line arguments
@@ -28,4 +29,3 @@ k <- as.numeric(args[2])
 #k=1 #10 models
 
 mod1 <- all_district_fwd1(date.test.in = date.test2[j], formula1 = all.mods[[k]], modN=as.numeric(gsub("mod","",names(all.mods)[k]) )   )
-
