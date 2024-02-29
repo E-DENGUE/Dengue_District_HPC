@@ -182,13 +182,20 @@ mod27 <- 'm_DHF_cases_hold~
                             lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
                         f(t, group=districtID3, model="rw1", hyper = hyper2.rw,control.group=list(model="iid" )) + #shared AR(1) across districts
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'    
+#same as 27 with AR1
+mod28 <- 'm_DHF_cases_hold~    
+                            f(districtID,model = "iid")+ 
+                            lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, group=districtID3, model="ar1", hyper =  hyper.ar1,control.group=list(model="iid" )) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'    
+
 
 #Model proposed by Rue and Fattah 
 fix_th <- FALSE
 hyper1 = list(prec=list(prior="pc.prec", param=c(1,0.5), 
                         fixed = fix_th,
                         initial = 1))
-mod28 <- 'm_DHF_cases_hold~ 1+    
+mod29 <- 'm_DHF_cases_hold~ 1+    
                             f(districtID, 
                                    model="besag", 
                                    constr= TRUE, 
@@ -203,7 +210,7 @@ mod28 <- 'm_DHF_cases_hold~ 1+
                                   control.group=list(model="iid"),
                                   hyper = hyper1)'    
 #mod 28 adding in lagged weather
-mod29 <- 'm_DHF_cases_hold~ 1+    
+mod30 <- 'm_DHF_cases_hold~ 1+    
                              lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
                             f(districtID, 
                                    model="besag", 
@@ -219,10 +226,109 @@ mod29 <- 'm_DHF_cases_hold~ 1+
                                   control.group=list(model="iid"),
                                   hyper = hyper1)'    
 
+#mod29 adding seasonality
+ mod31 <- 'm_DHF_cases_hold~ 1+    
+                            f(districtID, 
+                                   model="besag", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   group=time_id1, 
+                                   control.group=list(model="ar1"),
+                                   hyper = hyper1,
+                                   scale.model = TRUE) +
+                                f(districtID2, 
+                                  model="iid", 
+                                  group=time_id2, 
+                                  control.group=list(model="iid"),
+                                  hyper = hyper1)+
+                                 f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, 
+                                   scale.model=TRUE, constr=TRUE, replicate=districtID2)'    
+                                  
+#mod 30 adding in seasonality
+mod32 <- 'm_DHF_cases_hold~ 1+    
+                             lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                            f(districtID, 
+                                   model="besag", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   group=time_id1, 
+                                   control.group=list(model="ar1"),
+                                   hyper = hyper1,
+                                   scale.model = TRUE) +
+                                f(districtID2, 
+                                  model="iid", 
+                                  group=time_id2, 
+                                  control.group=list(model="iid"),
+                                  hyper = hyper1)+
+                                 f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, 
+                                   scale.model=TRUE, constr=TRUE, replicate=districtID2)'  
+                                   
+#mod 25 wih besag random itercept
+                    mod33 <- 'm_DHF_cases_hold~   lag2_y +
+                            f(districtID, 
+                                   model="besag", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                    hyper = hyper1,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+                      
+#mod 33 wih besag rAR1 for time
+                    mod34 <- 'm_DHF_cases_hold~   lag2_y +
+                           f(districtID, 
+                                   model="besag", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   group=time_id1, 
+                                   control.group=list(model="ar1"),
+                                   hyper = hyper1,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'  
+ 
+ #save as 34 but addign spatial intercept from 33 as well                     
+             mod35 <- 'm_DHF_cases_hold~   lag2_y +
+                      f(districtID, 
+                                   model="besag", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                    hyper = hyper1,
+                                   scale.model = TRUE)+
+                           f(districtID2, 
+                                   model="besag", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   group=time_id1, 
+                                   control.group=list(model="ar1"),
+                                   hyper = hyper1,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'  
+            
+            mod36 <- 'm_DHF_cases_hold~   lag2_y +
+                      f(districtID, 
+                                   model="bym", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                  #  hyper = hyper1,
+                                   scale.model = TRUE)+
+                           f(districtID2, 
+                                   model="bym", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   group=time_id1, 
+                                   control.group=list(model="ar1"),
+                                  # hyper = hyper1,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'  
 
 #all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,
 #'mod8'=mod8,'mod9'=mod9,'mod10'=mod10, 'mod11'=mod11, 'mod12'=mod12, 'mod13'=mod13, 'mod14'=mod14, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
 
-all.mods <- list('mod28'=mod28,'mod29'=mod29)
+#all.mods <- list( 'mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32)
+all.mods <- list( 'mod36'=mod36)
 
 
