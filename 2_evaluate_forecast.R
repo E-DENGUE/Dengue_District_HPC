@@ -36,21 +36,33 @@ scores <-  bind_rows(ds.list) %>%
 
 
 scores_filtered <-  bind_rows(ds.list) %>%
-     group_by( district, date) %>%
-mutate(N_obs=n() ) %>%
-ungroup() %>%
-filter(N_obs==max(N_obs)) %>%
-group_by(modN) %>%
-     summarize(score_sum=mean(crps1) , n.obs=n())
-     
-     scores_filtered <-  bind_rows(ds.list) %>%
-     group_by( district, date) %>%
-mutate(N_obs=n() ) %>%
-ungroup() %>%
-filter(N_obs==max(N_obs)) %>%
+#     group_by( district, date, horizon) %>%
+#mutate(N_obs=n() ) %>%
+#ungroup() %>%
+#filter(N_obs==max(N_obs)) %>%
 group_by(horizon,modN) %>%
      summarize(score_sum=mean(crps1) , n.obs=n()) %>%
      ungroup() %>%
     arrange(horizon,score_sum)
 
 print(scores_filtered, n=100)
+
+scores_filtered2 <-  bind_rows(ds.list) %>%
+group_by(district,horizon,modN) %>%
+     summarize(score_sum=mean(crps1) , n.obs=n()) %>%
+         filter(  n.obs==max( n.obs)) %>%
+     ungroup() %>%
+    arrange(district,horizon,score_sum) %>%
+    group_by(district,horizon) %>%
+    mutate(model_rank=row_number()) %>%
+    ungroup() 
+    
+   scores_filtered2 %>%
+    filter(model_rank<=3 ) %>%
+    print(., n=1000)
+    
+ scores_filtered2 %>%
+group_by(horizon, modN) %>%
+summarize(ave_rank=mean(model_rank)) %>%
+arrange(horizon, ave_rank)%>%
+    print(., n=1000)
