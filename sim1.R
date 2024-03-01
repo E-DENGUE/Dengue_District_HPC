@@ -43,13 +43,13 @@ dates.test <- unique(ds1$date)[-c(1:60)] #exclude first 5 years
 ds1.in <- ds1.in %>% filter(!(date %in% dates.test)) 
 
 
+#NOE TO FIX--THIS ISN"T CURRENTLY CORRECT--most.recent is taking 5 most recent, but it should be 5 most recent not including current time
 for(i in 1:length(dates.test)){
   X=dates.test[i]
-  ds1.in <- bind_rows(ds1.in, ds1[ds1$date==X,]) #add on latest observation 
   month.test <- month(X)
   
   most.recent <- ds1.in %>%
-    filter(date <= X & monthN == month.test ) %>% #& epidemic_flag <=0 ) %>% #select the same month for all years, excluding past epidemics
+    filter(date < X & monthN == month.test ) %>% #& epidemic_flag <=0 ) %>% #select the same month for all years, not including current month
     arrange(date) %>%
     mutate(order=row_number(),
            rev_order= max(order)- order+ 1) %>%
@@ -57,60 +57,40 @@ for(i in 1:length(dates.test)){
 
   #mean with SD
   ds1.test_mean_sd <- most.recent %>%
-    mutate(n_times=n(),
-           ma5=rollapply(N_cases,width=5,mean,align='right',fill=NA, partial=F), #5 most recent NON EPIDEMIC years
-           sd5=rollapply(N_cases,width=5,sd,align='right',fill=NA, partial=F),
-           ma5_lag = lag(ma5),
-           sd5_lag=lag(sd5)
+    summarize(n_times=n(),
+           ma5=mean(N_cases,na.rm=T), #5 most recent NON EPIDEMIC years
+           sd5=sd(N_cases, na.rm=T)
            ) %>%
-    ungroup() %>%
-    arrange(date) %>%
-    filter(date==X) %>%
-    dplyr::select(date,n_times,N_cases,ma5_lag, sd5_lag,threshold, epidemic_flag) 
+    mutate(date=X)  
   
   #quantile
-  ds1.test_quant <- most.recent %>%
-    mutate(n_times=n(),
-           mquant=rollapply(N_cases,width=(n_times-1),quantile, probs=0.9,align='right',fill=NA, partial=F),
-           mquant_lag = lag(mquant)
+  ds1.test_quant <- ds1.in %>%  #note uses whole data, not just most recent 5
+    filter(date < X & monthN == month.test ) %>% #& epidemic_flag <=0 ) %>% #select the same month for all years, excluding past epidemics
+    summarize(n_times=n(),
+           mquant=quantile(N_cases, probs=0.95),
     ) %>%
     ungroup() %>%
-    arrange(date) %>%
-    filter(date==X) %>%
-  dplyr::select(date,n_times,N_cases,mquant_lag,  epidemic_flag_quant) 
-  
+    mutate(date=X)
   #poisson
   #pois.pred.interval= quantile(rpois(100000, lambda=mean.x), probs=0.975)
-  
+
+  #poisson prediction interval
   mod1.coef <-summary(glm(N_cases ~1, family='poisson', data=most.recent))$coefficients['(Intercept)',c('Estimate','Std. Error')]
   
-  ds1.test_poisCI <- most.recent %>%
-    filter(date <= X & monthN == month.test & epidemic_flag_poisson <=0 ) %>% #select the same month for all years, excluding past epidemics
-    mutate(n_times=n(),
-           ma5=rollapply(N_cases,width=5,mean,align='right',fill=NA, partial=F), #5 most recent NON EPIDEMIC years
-           sd5=rollapply(N_cases,width=5,sd,align='right',fill=NA, partial=F), #5 most recent NON EPIDEMIC years
-           ma5_lag= lag(ma5),
-           sd5_lag = lag(sd5),
-           
-    ) %>%
-    ungroup() %>%
-    arrange(date) %>%
-    filter(date==X) %>%
-    dplyr::select(date,n_times,N_cases,ma5_lag,sd5_lag, threshold_poisson, epidemic_flag_poisson) 
-  
-    #poisson prediction interval
-    pois.ucl= quantile(rpois(1000, lambda=mod1.coef['Estimate'] +rnorm(1000, sd=mod1.coef['Std. Error'])), probs=0.975)
+    pois.ucl= quantile(rpois(1000, lambda=exp(mod1.coef['Estimate'] +rnorm(1000,mean=0, sd=mod1.coef['Std. Error']))), probs=0.975)
     
     #for the most recent date, determine if an epidemic has occurred
-  ds1.in <- ds1.in %>%
-    mutate( threshold= if_else(date==X,ds1.test_mean_sd$ma5_lag + 2*ds1.test_mean_sd$sd5_lag ,threshold),
-            epidemic_flag = if_else(date==X,1*(ds1.test_mean_sd$N_cases>threshold),epidemic_flag),
+    ds1.in <- bind_rows(ds1.in, ds1[ds1$date==X,]) #add on latest observation 
+    
+    ds1.in <- ds1.in %>%
+    mutate( threshold= if_else(date==X,ds1.test_mean_sd$ma5 + 2*ds1.test_mean_sd$sd5 ,threshold),
+            epidemic_flag = if_else(date==X,1*(N_cases>threshold),epidemic_flag),
     
             threshold_poisson= if_else(date==X,pois.ucl ,threshold_poisson),
-            epidemic_flag_poisson = if_else(date==X,1*(ds1.test_poisCI$N_cases>threshold_poisson),epidemic_flag_poisson),
+            epidemic_flag_poisson = if_else(date==X,1*(N_cases>threshold_poisson),epidemic_flag_poisson),
             
-            threshold_quant= if_else(date==X,ds1.test_quant$mquant_lag ,threshold_quant),
-            epidemic_flag_quant = if_else(date==X,1*(ds1.test_quant$N_cases>threshold_quant),epidemic_flag_quant),
+            threshold_quant= if_else(date==X,ds1.test_quant$mquant ,threshold_quant),
+            epidemic_flag_quant = if_else(date==X,1*(N_cases>threshold_quant),epidemic_flag_quant),
             
             )
 
@@ -197,3 +177,22 @@ pois.pred.interval= quantile(rpois(100000, lambda=mean.x), probs=0.975)
 mean(x3>ucl.x2) # about right for a 2 sideD CI
 mean(x3>ucl2.x2) # about right for a 2 sideD CI
 mean(x3>pois.pred.interval) #too conservative
+
+
+set.seed(123)
+hist.data <- rpois(n=5, lambda=3)
+
+mod1 <- summary(glm(hist.data ~1, family='poisson'))
+mod1.coef <- mod1$coefficients['(Intercept)',c('Estimate','Std. Error')]
+#pois.ucl= quantile(rpois(1000, lambda=exp(mod1.coef['Estimate'] +rnorm(1000,mean=0, sd=mod1.coef['Std. Error']))), probs=0.975)
+pois.ucl= quantile(rpois(1000, lambda=exp(mod1.coef['Estimate'] )), probs=0.975)
+pois.ucl
+
+new.data <- rpois(n=10000, lambda=3)
+
+mean(new.data>pois.ucl)
+
+pois_pred_int <- function(X){
+  mod1 <- summary(glm(X ~1, family='poisson'))
+  mod1.coef <- mod1$coefficients['(Intercept)',c('Estimate','Std. Error')]
+}
