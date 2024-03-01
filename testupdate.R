@@ -109,10 +109,14 @@ posterior.prec(mod1, 'lag_y' )
 fixed.priors <- list()
 fixed.priors$mean = list()
 fixed.priors$prec = list()
-for (name in c("(Intercept)", "lag_y")) {
+for (name in c("lag_y")) {
   fixed.priors$mean[[name]] <- posterior.mean(mod1, name)
   fixed.priors$prec[[name]] <- posterior.prec(mod1, name)
 }
+
+prior.fixed <- list(mean.intercept = posterior.mean(mod1, '(Intercept)' ), 
+ prec.intercept = posterior.prec(mod1, '(Intercept)' ),
+                    mean = fixed.priors$mean, prec = fixed.priors$prec)
 
 #Extract the density of the priors
 ih.prec.t <-  paste(c("table:",as.vector(mod1$internal.marginals.hyperpar[["Log precision for t"]])), collapse='')
@@ -152,7 +156,7 @@ mod2 <- inla(form3, data = c1,  family = "poisson",E=offset1,
                                       link=1),
              control.inla = list(strategy='adaptive', # adaptive gaussian
                                  cmin=0),
-             control.fixed=fixed.priors,
+             control.fixed=prior.fixed,
              inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
              num.threads=8
 )    
@@ -176,7 +180,7 @@ mod2a <- inla(form3, data = c1a,  family = "poisson",E=offset1a,
                                       link=1),
              control.inla = list(strategy='adaptive', # adaptive gaussian
                                  cmin=0),
-             control.fixed=fixed.priors,
+             control.fixed=prior.fixed,
              inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
              num.threads=8
 )    
