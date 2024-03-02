@@ -33,13 +33,14 @@ ds.list <- mclapply(file.names,function(X){
 scores <-  bind_rows(ds.list) %>%
     group_by(modN) %>%
     summarize(score_sum=mean(crps1) , n.obs=n())
-
+    
+scores_month <-  bind_rows(ds.list) %>%
+    group_by(modN, monthN, horizon) %>%
+    summarize(score_sum=mean(crps1) , n.obs=n()) %>%
+    arrange(horizon, monthN, score_sum)
+print(scores_month, n=1000)
 
 scores_filtered <-  bind_rows(ds.list) %>%
-#     group_by( district, date, horizon) %>%
-#mutate(N_obs=n() ) %>%
-#ungroup() %>%
-#filter(N_obs==max(N_obs)) %>%
 group_by(horizon,modN) %>%
      summarize(score_sum=mean(crps1) , n.obs=n()) %>%
      ungroup() %>%
@@ -47,22 +48,36 @@ group_by(horizon,modN) %>%
 
 print(scores_filtered, n=100)
 
-scores_filtered2 <-  bind_rows(ds.list) %>%
+N_date <-  bind_rows(ds.list) %>%
+group_by(date) %>%
+ summarize(N_mods_date= n()) %>%
+ ungroup()
+
+scores_filtered2  <-  bind_rows(ds.list) %>%
+    left_join(N_date, by='date') %>%
+    filter(N_mods_date == max(N_mods_date)) %>%
 group_by(district,horizon,modN) %>%
      summarize(score_sum=mean(crps1) , n.obs=n()) %>%
-         filter(  n.obs==max( n.obs)) %>%
+        # filter(  n.obs==max( n.obs)) %>%
      ungroup() %>%
     arrange(district,horizon,score_sum) %>%
     group_by(district,horizon) %>%
     mutate(model_rank=row_number()) %>%
     ungroup() 
     
-   scores_filtered2 %>%
-    filter(model_rank<=3 ) %>%
+
+#WHAT ARE THE TOP MODELS BASED ON CRPS AT 1 and 2 MONTH AHEAD?
+scores_filtered2  <-  bind_rows(ds.list) %>%
+    left_join(N_date, by='date') %>%
+    filter(N_mods_date == max(N_mods_date)) %>%
+group_by(horizon,modN) %>%
+     summarize(score_sum=mean(crps1) , n.obs=n()) %>%
+        # filter(  n.obs==max( n.obs)) %>%
+     ungroup() %>%
+    arrange(horizon,score_sum) %>%
+    group_by(horizon) %>%
+    mutate(model_rank=row_number()) %>%
+    ungroup() %>%
     print(., n=1000)
     
- scores_filtered2 %>%
-group_by(horizon, modN) %>%
-summarize(ave_rank=mean(model_rank)) %>%
-arrange(horizon, ave_rank)%>%
-    print(., n=1000)
+
