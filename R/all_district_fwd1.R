@@ -20,6 +20,8 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
            ),
            t=row_number(),
            t2=t,
+           sin12 = sin(2*pi*t/12),
+           cos12 = cos(2*pi*t/12),
            month=as.factor(month(date)),
            monthN=month(date),
            offset1 = pop/100000,
@@ -30,6 +32,8 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
     mutate(districtID = as.numeric(as.factor(district)),
            districtID2 = districtID,
            districtID3 = districtID,
+           districtID4 = districtID,
+
            time_id1= t - min(t, na.rm=T) + 1, #make sure timeID starts at 1
            time_id2=time_id1)
   
