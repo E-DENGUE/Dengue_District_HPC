@@ -23,7 +23,7 @@ source('./R/load.R')
 k=1
 j=1
 date.test.in = date.test2[j]
-formula1 = 'm_DHF_cases_hold~   lag_y + 
+formula1 = 'm_DHF_cases_hold~   lag_y + sin12 + cos12 +
                         f(districtID,model = "iid")+
                         f(t, model="ar1") + #shared AR(1) across districts
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
@@ -51,6 +51,8 @@ c1 <- d2 %>%
          ),
          t=row_number(),
          t2=t,
+         sin12=sin(2*pi*t/12),
+         cos12=cos(2*pi*t/12),
          month=as.factor(month(date)),
          monthN=month(date),
          offset1 = pop/100000,
@@ -70,6 +72,7 @@ form2 <- as.formula (formula1)
 # hyper = list(theta1 = list(prior = "loggamma", param = c(3, 
 #    2)))))    
 
+#to set initial values for hyperparameters:  control.mode = list(theta = mod1$mode$theta, restart = TRUE),
 
 #nbinomial or poisson
 
@@ -97,6 +100,7 @@ mod1 <- inla(form2, data = c1,  family = "poisson",E=offset1,
 
 proc.time() - ptm
 
+plot(mod1$summary.random$t$mean, type='l')
      
 posterior_samples <- inla.posterior.sample(mod1, n = 10000, intern=T)
 
@@ -109,14 +113,14 @@ posterior.prec(mod1, 'lag_y' )
 fixed.priors <- list()
 fixed.priors$mean = list()
 fixed.priors$prec = list()
-for (name in c("lag_y")) {
+for (name in c("lag_y","sin12","cos12")) {
   fixed.priors$mean[[name]] <- posterior.mean(mod1, name)
   fixed.priors$prec[[name]] <- posterior.prec(mod1, name)
 }
 
 prior.fixed <- list(mean.intercept = posterior.mean(mod1, '(Intercept)' ), 
  prec.intercept = posterior.prec(mod1, '(Intercept)' ),
-                    mean = fixed.priors$mean, prec = fixed.priors$prec)
+                    mean = list(lag_y = fixed.priors$mean[['lag_y']]), prec = list(lag_y = fixed.priors$prec[['lag_y']]))
 
 #Extract the density of the priors
 ih.prec.t <-  paste(c("table:",as.vector(mod1$internal.marginals.hyperpar[["Log precision for t"]])), collapse='')
@@ -136,7 +140,7 @@ hyper.ar1.t = list(theta1 = ih.prec.t,
 hyper.iid.district = list(theta = ih.prec.district)
 
 
-form3 <- as.formula('m_DHF_cases_hold ~ lag_y +
+form3 <- as.formula('m_DHF_cases_hold ~ lag_y +sin12 +cos12 +
   f(districtID, model = "iid", hyper=list(prec=hyper.iid.district)) + 
   f(t, model = "ar1", hyper=list(hyper.ar1.t)) +
   f(monthN, model = "rw1", hyper = list(hyper2.rw.monthN.inf), cyclic = TRUE, scale.model = TRUE, constr = TRUE, 
@@ -156,7 +160,16 @@ mod2 <- inla(form3, data = c1,  family = "poisson",E=offset1,
                                       link=1),
              control.inla = list(strategy='adaptive', # adaptive gaussian
                                  cmin=0),
-             control.fixed=prior.fixed,
+             control.fixed=list(mean.intercept = posterior.mean(mod1, '(Intercept)' ), 
+                                prec.intercept = posterior.prec(mod1, '(Intercept)' ),
+                                mean = list(lag_y = fixed.priors$mean[['lag_y']],
+                                            sin12 = fixed.priors$mean[['sin12']],
+                                            cos12 = fixed.priors$mean[['cos12']]
+                                ), 
+                                prec = list(lag_y = fixed.priors$prec[['lag_y']],
+                                            sin12 = fixed.priors$prec[['sin12']],
+                                            cos12 = fixed.priors$prec[['cos12']]
+                                )),
              inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
              num.threads=8
 )    
@@ -165,11 +178,15 @@ proc.time() - ptm
 
 #now just rerun on the last 2 time points--15 sec
 
+
+form3.test <- as.formula('m_DHF_cases_hold ~ lag_y +sin12 +cos12  '
+)
+
 ptm <- proc.time()
 c1a <- c1 %>%
-  filter(date>="2011-12-01")
+  filter(date>="2011-11-01")
 offset1a <- c1a$pop/100000
-mod2a <- inla(form3, data = c1a,  family = "poisson",E=offset1a,
+mod2a <- inla(form3.test, data = c1a,  family = "poisson",E=offset1a,
              control.compute = list(dic = FALSE, 
                                     waic = FALSE, 
                                     config = T,
@@ -178,14 +195,23 @@ mod2a <- inla(form3, data = c1a,  family = "poisson",E=offset1a,
              # save predicted values on response scale
              control.predictor = list(compute=TRUE, 
                                       link=1),
-             control.inla = list(strategy='adaptive', # adaptive gaussian
-                                 cmin=0),
-             control.fixed=prior.fixed,
+             control.fixed=list(mean.intercept = posterior.mean(mod1, '(Intercept)' ), 
+                                prec.intercept = posterior.prec(mod1, '(Intercept)' ),
+                                mean = list(lag_y = fixed.priors$mean[['lag_y']],
+                                            sin12 = fixed.priors$mean[['sin12']],
+                                            cos12 = fixed.priors$mean[['cos12']]
+                                            ), 
+                                prec = list(lag_y = fixed.priors$prec[['lag_y']],
+                                            sin12 = fixed.priors$prec[['sin12']],
+                                            cos12 = fixed.priors$prec[['cos12']]
+                                            )),
+             
              inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
              num.threads=8
 )    
 proc.time() - ptm
 
-
-
+summary(mod2a)
+#check prior used
+mod2a$all.hyper$fixed
 
