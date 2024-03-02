@@ -324,11 +324,46 @@ mod32 <- 'm_DHF_cases_hold~ 1+
                                    scale.model = TRUE) +
                      lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'  
+          
+        #same as 36 but substitute sin12, cos12 random effects for rw random effect for season            
+        mod37 <- 'm_DHF_cases_hold~   lag2_y + sin12 +cos12 +
+                      f(districtID, 
+                                   model="bym", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   scale.model = TRUE)+
+                           f(districtID2, 
+                                   model="bym", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   group=time_id1, 
+                                   control.group=list(model="ar1"),
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                      f(districtID3,sin12, model="iid")+
+                      f(districtID4,cos12, model="iid")'  
+                
+                 #same as 37 but only have fixed effect for seasonal terms            
+           
+         mod38 <- 'm_DHF_cases_hold~   lag2_y + sin12 +cos12 +
+                      f(districtID, 
+                                   model="bym", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   scale.model = TRUE)+
+                           f(districtID2, 
+                                   model="bym", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                   group=time_id1, 
+                                   control.group=list(model="ar1"),
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt '  
 
 #all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,
 #'mod8'=mod8,'mod9'=mod9,'mod10'=mod10, 'mod11'=mod11, 'mod12'=mod12, 'mod13'=mod13, 'mod14'=mod14, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
 
 #all.mods <- list( 'mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32)
-all.mods <- list( 'mod36'=mod36)
+all.mods <- list( 'mod37'=mod37,'mod38'=mod38)
 
 
