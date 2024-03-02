@@ -30,6 +30,9 @@ ds.list <- mclapply(file.names,function(X){
 },  mc.cores=N_cores)
 
 
+out<-  bind_rows(ds.list) %>%
+ saveRDS(., "./cleaned_scores/all_crps.rds")
+
 scores <-  bind_rows(ds.list) %>%
     group_by(modN) %>%
     summarize(score_sum=mean(crps1) , n.obs=n())
