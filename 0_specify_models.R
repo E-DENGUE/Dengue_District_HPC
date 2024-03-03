@@ -360,10 +360,42 @@ mod32 <- 'm_DHF_cases_hold~ 1+
                                    scale.model = TRUE) +
                      lag2_avg_min_daily_temp + lag2_monthly_cum_ppt '  
 
+    mod39_type4 <- 'm_DHF_cases_hold~ 1 + lag2_y+ lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+    sin12 +cos12 +
+      f(id_t,model="generic0",
+        Cmatrix= Qt,
+        constr= FALSE,
+        rankdef = order_t,
+        diagonal = 1e-4,
+        extraconstr= list(A=t(con_t),e=rep(0,nrow(t(con_t)))),
+        hyper = list(prec=list(prior="pc.prec", param=c(1,0.5), 
+                               fixed = fix_th,
+                               initial = INIT_THETA[1] ))) +
+      
+      f(id_s,model="generic0",
+        Cmatrix= Qs,
+        constr= FALSE,
+        diagonal = 1e-4,
+        rankdef = order_s,
+        extraconstr= list(A=t(con_s),e=rep(0,nrow(t(con_s)))),
+        hyper = list(prec=list(prior="pc.prec", param=c(1,0.5), 
+                               fixed = fix_th,
+                               initial = INIT_THETA[2]))) +
+      
+      f(id_ts,model="generic0",
+        Cmatrix= R_QtQs,
+        constr= FALSE,
+        diagonal = 1e-4,
+        rankdef = num_con_ts,
+        extraconstr= list(A=t(con_ts),e=rep(0,nrow(t(con_ts)))),
+        hyper = list(prec=list(prior="pc.prec", param=c(1,0.5), 
+                               fixed = fix_th,
+                               initial = INIT_THETA[5]))) '
+
 #all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,
 #'mod8'=mod8,'mod9'=mod9,'mod10'=mod10, 'mod11'=mod11, 'mod12'=mod12, 'mod13'=mod13, 'mod14'=mod14, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
 
 #all.mods <- list( 'mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32)
-all.mods <- list( 'mod37'=mod37,'mod38'=mod38)
-
+#all.mods <- list( 'mod37'=mod37,'mod38'=mod38)
+all.mods <- list('mod39_type4'=mod39_type4)
 

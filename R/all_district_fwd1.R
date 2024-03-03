@@ -1,4 +1,4 @@
-all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
+all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
 
   c1 <- d2 %>%
     # filter(district %in% select.districts) %>%
@@ -9,7 +9,7 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
            log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
            log_pop=log(pop/100000),
            year = year(date) ,
-           m_DHF_cases_hold= if_else( date>= (date.test.in[1]), NA_real_,
+           m_DHF_cases_hold= ifelse( date>= (date.test.in[1]), NA_real_,
                                       m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
@@ -45,7 +45,7 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
   
   
   #nbinomial or poisson
-  
+  if(type4mod==F){
   offset1 <- c1$offset1
   mod1 <- inla(form2, data = c1,  family = "poisson",E=offset1,
                control.compute = list(dic = FALSE, 
@@ -65,7 +65,10 @@ all_district_fwd1 <- function(date.test.in, modN, formula1='y ~ -1 +  X +   f(t,
             inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
             num.threads=8
                )    
-  
+  }
+  if(type4mod==T){
+    source('./R/type_r_spatial.R')
+  }
   
     mod.family <- mod1$.args$family
 
