@@ -73,11 +73,11 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     #-------> Time
     ##---------------------------
     order_t <- 2
-    nt <- length(unique(c1$t))
+    nt <- length(unique(c1$time_id1))
     Qt <- INLA:::inla.rw(nt, order = order_t)
     con_t <- eigen(Qt)$vectors[,(nt-order_t+1):nt]
     Qt = inla.scale.model(Qt,list(A=t(con_t),e=rep(0,order_t)))
-    c1$id_t <- c1$t
+    c1$id_t <- c1$time_id1
     
     ##---------------------------
     #-------> Space
@@ -92,7 +92,7 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     ns <- dim(Qs)[1]
     con_s <- eigen(Qs)$vectors[,ns]
     Qs = inla.scale.model(Qs,list(A=t(con_s),e=0))
-    c1$id_t <- c1$t
+    c1$id_s <- c1$districtID
     
     
     ##---------------------------
@@ -103,7 +103,7 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     nts <- dim(R_QtQs)[1]
     num_con_ts <- nts - (nt-order_t)*(ns-1)
     con_ts <- eigen(R_QtQs)$vectors[,(dim(R_QtQs)[1]-num_con_ts+1):dim(R_QtQs)[1]]
-    c1$id_s <- c1$districtID
+    c1$id_ts <- paste(c1$time_id1,c1$districtID, sep='_')
     
     
     ##---------------------------
