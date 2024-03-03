@@ -29,10 +29,12 @@ ds.list <- mclapply(file.names,function(X){
   return(out.list)
 },  mc.cores=N_cores)
 
+#out <- readRDS("./cleaned_scores/all_crps.rds")%>% dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop, crps1) %>%
+# saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 out.slim<-  bind_rows(ds.list) %>%
-  dplyr::select(date, modN, eval.date, district, province, m_DHF_cases,m_DHF_cases_hold, pop) %>%
- saveRDS(., "./cleaned_scores/all_crps.rds")
+  dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop) %>%
+ saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 scores <-  bind_rows(ds.list) %>%
     group_by(modN) %>%
@@ -87,18 +89,54 @@ group_by(horizon,modN) %>%
 
 ##DESKTOP EVALUATION OF OUTPUTS
 
-out <- readRDS( "./cleaned_scores/all_crps.rds")
-out.slim <- out %>%
-  dplyr::select(date, modN, eval.date, district, province, m_DHF_cases,m_DHF_cases_hold, pop)
-saveRDS( out.slim,"./cleaned_scores/all_crps.rds")
+out <- readRDS( "./cleaned_scores/all_crps_slim.rds")
 
-
-miss.dates <- out %>% group_by(date) %>%   summarize(N_mods=n(),N_cases=sum(m_DHF_cases )) %>%
+miss.dates <- out %>% group_by(date, horizon) %>%   
+  filter(!(modN %in% c('mod31','mod32'))) %>%
+  summarize(N_mods=n(),N_cases=sum(m_DHF_cases )) %>%
   ungroup() %>%
-  mutate(miss_date = if_else(N_mods< max(N_mods),1,0 ))
+  group_by(horizon) %>%
+  mutate(miss_date = if_else(N_mods< max(N_mods),1,0 )) %>%
+  ungroup()
 
 #note this is not a proper time series--we are double counting cases across models.
 ggplot(miss.dates, aes(x=date, y=N_cases)) +
   theme_classic()+
   geom_line()+
+  facet_wrap(~horizon) +
   geom_point(aes(x=date, y=N_cases, color=miss_date))
+
+#Overall
+out2 <- out %>%
+  left_join(miss.dates, by=c('date','horizon')) %>%
+  filter(miss_date==0 & !(modN %in% c('mod31','mod32'))) %>%
+  group_by(horizon, modN) %>%
+  summarize(crps1 = mean(crps1), N=n() ) %>%
+  arrange(horizon, crps1)
+out2
+
+#By calendar month
+out2 <- out %>%
+  left_join(miss.dates, by=c('date','horizon')) %>%
+  filter(miss_date==0 & !(modN %in% c('mod31','mod32'))) %>%
+  mutate(month=lubridate::month(date)) %>%
+  group_by(horizon, month, modN) %>%
+  summarize(crps1 = mean(crps1), N=n() ) %>%
+  arrange(horizon,month, crps1)
+View(out2)
+
+
+
+# miss_pattern <- out %>% 
+#   group_by(date, modN, horizon) %>%
+#   summarize(N=n()) %>%
+#   reshape2::dcast(., date + horizon~modN) %>%
+#   arrange(horizon, date)
+
+
+
+
+
+# ds <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
+# 
+# View(ds %>% group_by(date) %>% summarize(N=n()))
