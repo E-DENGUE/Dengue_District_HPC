@@ -8,7 +8,7 @@
 
 library(dplyr)
 library(parallel)
-
+library(ggplot2)
 
 N_cores = detectCores()
 
@@ -30,7 +30,8 @@ ds.list <- mclapply(file.names,function(X){
 },  mc.cores=N_cores)
 
 
-out<-  bind_rows(ds.list) %>%
+out.slim<-  bind_rows(ds.list) %>%
+  dplyr::select(date, modN, eval.date, district, province, m_DHF_cases,m_DHF_cases_hold, pop) %>%
  saveRDS(., "./cleaned_scores/all_crps.rds")
 
 scores <-  bind_rows(ds.list) %>%
@@ -84,3 +85,20 @@ group_by(horizon,modN) %>%
     print(., n=1000)
     
 
+##DESKTOP EVALUATION OF OUTPUTS
+
+out <- readRDS( "./cleaned_scores/all_crps.rds")
+out.slim <- out %>%
+  dplyr::select(date, modN, eval.date, district, province, m_DHF_cases,m_DHF_cases_hold, pop)
+saveRDS( out.slim,"./cleaned_scores/all_crps.rds")
+
+
+miss.dates <- out %>% group_by(date) %>%   summarize(N_mods=n(),N_cases=sum(m_DHF_cases )) %>%
+  ungroup() %>%
+  mutate(miss_date = if_else(N_mods< max(N_mods),1,0 ))
+
+#note this is not a proper time series--we are double counting cases across models.
+ggplot(miss.dates, aes(x=date, y=N_cases)) +
+  theme_classic()+
+  geom_line()+
+  geom_point(aes(x=date, y=N_cases, color=miss_date))
