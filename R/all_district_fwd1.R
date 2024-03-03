@@ -67,7 +67,7 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
                )    
   }
   if(type4mod==T){
-    source('./R/type_r_spatial.R')
+    source('./R/type_4_spatial.R')
   }
   
     mod.family <- mod1$.args$family
