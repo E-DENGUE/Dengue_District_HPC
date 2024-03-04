@@ -124,7 +124,7 @@ filter( date>='2004-09-01')%>%
     nts <- dim(R_QtQs)[1]
     num_con_ts <- nts - (nt-order_t)*(ns-1)
     con_ts <- eigen(R_QtQs)$vectors[,(dim(R_QtQs)[1]-num_con_ts+1):dim(R_QtQs)[1]]
-    mydata$id_ts <- as.factor(paste(c1$timeIDpad,c1$districtIDpad, sep='_')) #should be arranged as t1_s1, t1_s2, t1_s3...t2_s1, t2_d2, t2_d3...
+    mydata$id_ts <- as.numeric(as.factor(paste(c1$timeIDpad,c1$districtIDpad, sep='_'))) #should be arranged as t1_s1, t1_s2, t1_s3...t2_s1, t2_d2, t2_d3...
     
     
     ##---------------------------
