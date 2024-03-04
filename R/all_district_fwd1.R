@@ -70,9 +70,14 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     #Called when all_district_fwd1() has a value of T for type4mod
     
     mydata <- list()
-    mydata$y <- c1$m_DHF_cases_hold
+    mydata$m_DHF_cases_hold <- c1$m_DHF_cases_hold
     mydata$E <- c1$offset1
     mydata$cov <- c1$t
+    mydata$lag2_y <- c1$lag2_y
+    mydata$lag2_avg_min_daily_temp  <- c1$lag2_avg_min_daily_temp
+    mydata$lag2_monthly_cum_ppt <- c1$lag2_monthly_cum_ppt
+    mydata$sin12 <- c1$sin12
+    mydata$cos12<- c1$cos12
     
     ##---------------------------
     #-------> Time
@@ -97,7 +102,8 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     ns <- dim(Qs)[1]
     con_s <- eigen(Qs)$vectors[,ns]
     Qs = inla.scale.model(Qs,list(A=t(con_s),e=0))
-    mydata$id_t <- c1$t
+    id_s=rep(seq(1,ns),each=1)
+    mydata$id_s <- id_s
     
     
     ##---------------------------
@@ -108,7 +114,8 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     nts <- dim(R_QtQs)[1]
     num_con_ts <- nts - (nt-order_t)*(ns-1)
     con_ts <- eigen(R_QtQs)$vectors[,(dim(R_QtQs)[1]-num_con_ts+1):dim(R_QtQs)[1]]
-    mydata$id_s <- c1$districtID
+    mydata$id_ts <- id_ts
+    
     
     ##---------------------------
     #-------> Formula
