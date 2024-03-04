@@ -131,7 +131,8 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
                  control.inla=list(strategy="gaussian",
                                    control.vb=list(enable=TRUE),
                                    h = 5E-3,use.directions = TRUE,num.hessian="central"),
-                 control.predictor=list(compute=TRUE), control.compute=list(dic=TRUE,cpo=TRUE),
+                 control.predictor=list(compute=TRUE), 
+                 control.compute=list(dic=TRUE,cpo=TRUE,config = TRUE),
                  control.fixed = list(prec.intercept =1e-3),
                  verbose=T)
   }
