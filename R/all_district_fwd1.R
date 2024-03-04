@@ -72,7 +72,7 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     mydata <- list()
     mydata$m_DHF_cases_hold <- c1$m_DHF_cases_hold
     mydata$E <- c1$offset1
-    mydata$cov <- c1$t
+    mydata$cov <- c1$time_id1
     mydata$lag2_y <- c1$lag2_y
     mydata$lag2_avg_min_daily_temp  <- c1$lag2_avg_min_daily_temp
     mydata$lag2_monthly_cum_ppt <- c1$lag2_monthly_cum_ppt
@@ -83,11 +83,11 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     #-------> Time
     ##---------------------------
     order_t <- 2
-    nt <- length(unique(c1$t))
+    nt <- length(unique(c1$time_id1))
     Qt <- INLA:::inla.rw(nt, order = order_t)
     con_t <- eigen(Qt)$vectors[,(nt-order_t+1):nt]
     Qt = inla.scale.model(Qt,list(A=t(con_t),e=rep(0,order_t)))
-    mydata$id_t <- c1$t
+    mydata$id_t <- c1$time_id1
     
     ##---------------------------
     #-------> Space
@@ -102,19 +102,19 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     ns <- dim(Qs)[1]
     con_s <- eigen(Qs)$vectors[,ns]
     Qs = inla.scale.model(Qs,list(A=t(con_s),e=0))
-    id_s=rep(seq(1,ns),each=1)
-    mydata$id_s <- id_s
+    #id_s=rep(seq(1,ns),each=1)
+    mydata$id_s <- c1$districtID
     
     
     ##---------------------------
     #-------> Time x Space
     ##---------------------------
-    id_ts=rep(seq(1,ns*nt),each=1)
+    #id_ts=rep(seq(1,ns*nt),each=1)
     R_QtQs <- Qt%x%Qs
     nts <- dim(R_QtQs)[1]
     num_con_ts <- nts - (nt-order_t)*(ns-1)
     con_ts <- eigen(R_QtQs)$vectors[,(dim(R_QtQs)[1]-num_con_ts+1):dim(R_QtQs)[1]]
-    mydata$id_ts <- id_ts
+    mydata$id_ts <- as.numeric(as.factor(paste(c1$districtID,c1$time_id1, sep='_')))
     
     
     ##---------------------------
