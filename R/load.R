@@ -5,12 +5,31 @@ source('./R/all_district_fwd1.R')
 source('./R/scoring_func.R')
 source('./0_specify_models.R')
 
-d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
+#d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
+d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors.rds') %>%
+  rename(District_province = prov_dis)
+
+
+MDR_NEW <- st_read(dsn = "./Data/shapefiles/MDR_NEW_Boundaries_Final.shp") %>%
+ rename(District_province = Dstrct_p)  %>%
+  mutate(District_province=gsub("_"," ",District_province , fixed='T'))
+
+sort(MDR_NEW$District_province) ==sort(unique(d2$District_province))
+
+# Remove island districts (no neighbors) from the dataset
+spat_IDS <- MDR_NEW %>%
+  dplyr::filter(VARNAME != "Kien Hai", 
+                VARNAME != "Phu Quoc") %>%
+  rename(district=VARNAME) %>%
+  mutate(districtID= row_number(), district=toupper(district)) %>%
+  as.data.frame() %>%
+  dplyr::select(District_province,districtID) 
 
 # Set the file path for the adjacency graph file
 MDR.adj <- paste(getwd(), "/MDR.graph", sep = "")
 
 date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2022-12-01') , by='month')
+
 
 
 ##Priors from Gibb ms 

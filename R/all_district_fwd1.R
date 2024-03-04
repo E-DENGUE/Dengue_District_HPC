@@ -3,6 +3,7 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
   c1 <- d2 %>%
     # filter(district %in% select.districts) %>%
     arrange(district, date) %>%
+    left_join(spat_IDS, by='district') %>%
     group_by(district) %>%
     mutate(district2=district,
            Dengue_fever_rates = m_DHF_cases / pop *100000,
@@ -29,13 +30,17 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     ) %>%
     filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>% #only keep test date and 1 month ahead of that
     ungroup() %>%
-    mutate(districtID = as.numeric(as.factor(district)),
+    mutate(
            districtID2 = districtID,
            districtID3 = districtID,
            districtID4 = districtID,
 
            time_id1= t - min(t, na.rm=T) + 1, #make sure timeID starts at 1
-           time_id2=time_id1)
+           time_id2=time_id1) %>%
+    arrange(date,districtID) %>% #SORT FOR SPACE_TIME
+    mutate(districtIDpad=str_pad(districtID, 3, pad = "0", side='left'),
+           timeIDpad=str_pad(time_id1, 5, pad = "0", side='left'),
+           )
   
   form2 <- as.formula (formula1)
   
@@ -114,7 +119,7 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     nts <- dim(R_QtQs)[1]
     num_con_ts <- nts - (nt-order_t)*(ns-1)
     con_ts <- eigen(R_QtQs)$vectors[,(dim(R_QtQs)[1]-num_con_ts+1):dim(R_QtQs)[1]]
-    mydata$id_ts <- as.numeric(as.factor(paste(c1$districtID,c1$time_id1, sep='_')))
+    mydata$id_ts <- as.factor(paste(c1$timeIDpad,c1$districtIDpad, sep='_'))
     
     
     ##---------------------------
