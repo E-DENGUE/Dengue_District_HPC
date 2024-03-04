@@ -1,9 +1,10 @@
 all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
 
   c1 <- d2 %>%
-    # filter(district %in% select.districts) %>%
-    arrange(district, date) %>%
+filter( date>='2004-09-01')%>%
     left_join(spat_IDS, by='district') %>%
+    arrange(district, date) %>%
+    mutate( t = interval(min(date), date) %/% months(1) + 1) %>%
     group_by(district) %>%
     mutate(district2=district,
            Dengue_fever_rates = m_DHF_cases / pop *100000,
@@ -19,8 +20,6 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
                              if_else(date== (date.test.in[1] %m+% months(1)),2, 0
                              )
            ),
-           t=row_number(),
-           t2=t,
            sin12 = sin(2*pi*t/12),
            cos12 = cos(2*pi*t/12),
            month=as.factor(month(date)),
@@ -28,20 +27,26 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
            offset1 = pop/100000,
            #log_offset=log(pop/100000)
     ) %>%
-    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>% #only keep test date and 1 month ahead of that
+    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>%  #only keep test date and 1 month ahead of that
     ungroup() %>%
     mutate(
+      t2=t,
            districtID2 = districtID,
            districtID3 = districtID,
            districtID4 = districtID,
-
-           time_id1= t - min(t, na.rm=T) + 1, #make sure timeID starts at 1
-           time_id2=time_id1) %>%
+           t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
+           
+           time_id1= t , 
+           time_id2=t,
+           time_id3= t) %>%
     arrange(date,districtID) %>% #SORT FOR SPACE_TIME
     mutate(districtIDpad=str_pad(districtID, 3, pad = "0", side='left'),
            timeIDpad=str_pad(time_id1, 5, pad = "0", side='left'),
-           )
+           ) 
   
+  # check_times <- c1 %>% group_by(district) %>% summarize(N=n())
+   #check_districts <- c1 %>% group_by(date) %>% summarize(N=n())
+   
   form2 <- as.formula (formula1)
   
   # form2 <- as.formula(y ~ f(t, group = districtID2, model = "ar1", 
@@ -119,7 +124,7 @@ all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 + 
     nts <- dim(R_QtQs)[1]
     num_con_ts <- nts - (nt-order_t)*(ns-1)
     con_ts <- eigen(R_QtQs)$vectors[,(dim(R_QtQs)[1]-num_con_ts+1):dim(R_QtQs)[1]]
-    mydata$id_ts <- as.factor(paste(c1$timeIDpad,c1$districtIDpad, sep='_'))
+    mydata$id_ts <- as.factor(paste(c1$timeIDpad,c1$districtIDpad, sep='_')) #should be arranged as t1_s1, t1_s2, t1_s3...t2_s1, t2_d2, t2_d3...
     
     
     ##---------------------------
