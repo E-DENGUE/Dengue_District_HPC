@@ -33,7 +33,7 @@ ds.list <- mclapply(file.names,function(X){
 # saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 out.slim<-  bind_rows(ds.list) %>%
-  dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop) %>%
+  dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop, crps1) %>%
  saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 scores <-  bind_rows(ds.list) %>%
@@ -116,14 +116,14 @@ out2 <- out %>%
 out2
 
 #By calendar month
-out2 <- out %>%
+out3 <- out %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 & !(modN %in% c('mod31','mod32'))) %>%
   mutate(month=lubridate::month(date)) %>%
   group_by(horizon, month, modN) %>%
   summarize(crps1 = mean(crps1), N=n() ) %>%
   arrange(horizon,month, crps1)
-View(out2)
+View(out3)
 
 
 

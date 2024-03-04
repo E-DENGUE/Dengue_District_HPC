@@ -397,5 +397,7 @@ mod32 <- 'm_DHF_cases_hold~ 1+
 
 #all.mods <- list( 'mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32)
 #all.mods <- list( 'mod37'=mod37,'mod38'=mod38)
-all.mods <- list('mod39_type4'=mod39_type4)
+all.mods <- list('mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32,  'mod33'=mod33,  'mod34'=mod34,  'mod35'=mod35,  'mod36'=mod36,  'mod37'=mod37,  'mod38'=mod38,     'mod39_type4'=mod39_type4)
+
+#all.mods <- list('mod39_type4'=mod39_type4)
 
