@@ -6,24 +6,14 @@ source('./R/scoring_func.R')
 source('./0_specify_models.R')
 
 #d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
-d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors.rds') %>%
+#cleaned in format_input_data.R
+d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
   rename(District_province = prov_dis)
 
+MDR_NEW <- readRDS( "./Data/MDR_NEW.rds")
 
-MDR_NEW <- st_read(dsn = "./Data/shapefiles/MDR_NEW_Boundaries_Final.shp") %>%
- rename(District_province = Dstrct_p)  %>%
-  mutate(District_province=gsub("_"," ",District_province , fixed='T'))
+spat_IDS <- readRDS( "./Data/spatial_IDS.rds")
 
-sort(MDR_NEW$District_province) ==sort(unique(d2$District_province))
-
-# Remove island districts (no neighbors) from the dataset
-spat_IDS <- MDR_NEW %>%
-  dplyr::filter(VARNAME != "Kien Hai", 
-                VARNAME != "Phu Quoc") %>%
-  rename(district=VARNAME) %>%
-  mutate(districtID= row_number(), district=toupper(district)) %>%
-  as.data.frame() %>%
-  dplyr::select(District_province,districtID) 
 
 # Set the file path for the adjacency graph file
 MDR.adj <- paste(getwd(), "/MDR.graph", sep = "")

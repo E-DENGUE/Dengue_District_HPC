@@ -1,6 +1,6 @@
-deseasonalize_climate <- function(climate_var){
+deseasonalize_climate <- function(climate_var, ds=d1){
   
-  seas.mod <-d2a %>% 
+  seas.mod <-ds %>% 
     arrange(district, date) %>%
     group_by(district) %>%
     mutate( Climate_Train = if_else(date<as.Date('2005-01-01'), .data[[climate_var]], NA_real_),

@@ -24,17 +24,19 @@ The code in this repository is intended to be run on an HPC.
 
 > install.packages('scoringutils')
 
-if there are other packages that need to be installed, instal them here as well.
+if there are other packages that need to be installed, install them here as well.
 
-2) if mod1.sh is created or modified on a Windows machine, you will get an error. In the terminal on the cluster, run:
+2) if 1_fitmod.sh is created or modified on a Windows machine, you will get an error. In the terminal on the cluster, run:
 > dos2unix mod1.sh
 
 3) Run the program by opening the shell, change directory to the directory containing the .sh file using 
 > cd XX
 
-4) run salloc mod1.sh
+4) run 1_fitmod.sh 
 
-NOTES: if you add more models to load.R, you need to modify the .sh file to reflect the new range of indices AND the total number of models. You can test a subset of the models by specifying the corresponding indices on the SBATCh line at the top. However, N_mod should correspond to the TOTAL number of models that have been evaluated not just those in the current array call
+5) more models can be added under0_specify_models.R. Note if you want to run a type 4 spatial model, the formula should be called modXX_type4, where the XX is replace by tehe number for the new model
+
+NOTES: if you add more models to 0_specify_models.R, you need to modify the .sh file to reflect the new range of indices AND the total number of models. You can test a subset of the models by specifying the corresponding indices on the SBATCh line at the top. However, N_mod should correspond to the TOTAL number of models that have been evaluated not just those in the current array call
 
 When running INLA on Linux, use the following. Without this, the model unpredictably fails:
 library(INLA)
