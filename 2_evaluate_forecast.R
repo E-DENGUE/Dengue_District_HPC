@@ -33,7 +33,7 @@ ds.list <- mclapply(file.names,function(X){
 # saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 out.slim<-  bind_rows(ds.list) %>%
-  dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop, crps1) %>%
+  dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2) %>%
  saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 scores <-  bind_rows(ds.list) %>%
