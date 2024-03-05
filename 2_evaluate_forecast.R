@@ -29,6 +29,22 @@ ds.list <- mclapply(file.names,function(X){
   return(out.list)
 },  mc.cores=N_cores)
 
+
+#Save the model formulae
+mod_str <- mclapply(file.names,function(X){
+  
+  a1 <- readRDS(file=file.path(paste0('./Results/',X)))
+  
+  modN <-  sub("^(.*?)_.*$", "\\1", X)
+
+  out.list <- cbind.data.frame('modN'=modN,"form"=a1$form)
+  return(out.list)
+},  mc.cores=N_cores) %>%
+  bind_rows() %>%
+  distinct()
+saveRDS(mod_str, "./cleaned_scores/mod_formula.rds")
+
+
 #out <- readRDS("./cleaned_scores/all_crps.rds")%>% dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop, crps1) %>%
 # saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
@@ -91,8 +107,21 @@ group_by(horizon,modN) %>%
 
 out <- readRDS( "./cleaned_scores/all_crps_slim.rds")
 
+form <- readRDS( "./cleaned_scores/mod_formula.rds") %>%
+  mutate(rw_season = grepl('cyclic=TRUE', form),
+         harm_season = grepl('sin12', form),
+         lag2_y = grepl('lag2_y', form),
+         lag_y = grepl('lag_y', form),
+         lag2_monthly_cum_ppt =grepl('lag2_monthly_cum_ppt', form),
+          iid_spat_intercept=grepl('f(districtID,model = "iid")',form, fixed=T),
+         rw_time_spatial=grepl(' f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) ',form, fixed=T),
+         type4_spatial_bym = grepl('model="bym"', form, fixed=T) *grepl('control.group=list(model="ar1"', form, fixed=T) *grepl('group=time_id1', form, fixed=T)
+  )
+
+
+
 miss.dates <- out %>% group_by(date, horizon) %>%   
-  filter(!(modN %in% c('mod31','mod32'))) %>%
+  filter(!(modN %in% c('mod31','mod32')) & !is.na(crps2)) %>%
   summarize(N_mods=n(),N_cases=sum(m_DHF_cases )) %>%
   ungroup() %>%
   group_by(horizon) %>%
@@ -109,23 +138,28 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
 #Overall
 out2 <- out %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
-  filter(miss_date==0 & !(modN %in% c('mod31','mod32'))) %>%
+  filter(miss_date==0 & !(modN %in% c('mod31','mod32')) & !is.na(crps2)) %>%
   group_by(horizon, modN) %>%
-  summarize(crps1 = mean(crps1), N=n() ) %>%
-  arrange(horizon, crps1) %>%
+  summarize(crps1 = mean(crps1),crps2 = mean(crps2) ,N=n() ) %>%
+  arrange(horizon, crps2) %>%
   filter(modN !='mod39') %>%
-  mutate( w_i = crps1^2/sum(crps1^2) ) #following Colon
+  mutate( w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) ) %>%
+  left_join(form, by='modN')
 View(out2)
 
+#what model factors are associate with a higher weight?
+mod1 <- lm(w_i2 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=out2)
+summary(mod1)
 
 #By calendar month
 out3 <- out %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
-  filter(miss_date==0 & !(modN %in% c('mod31','mod32'))) %>%
+  filter(miss_date==0 & !(modN %in% c('mod31','mod32'))& !is.na(crps2)) %>%
   mutate(month=lubridate::month(date)) %>%
   group_by(horizon, month, modN) %>%
-  summarize(crps1 = mean(crps1), N=n() ) %>%
-  arrange(horizon,month, crps1)
+  summarize(crps1 = mean(crps1),crps2=mean(crps2), N=n() ) %>%
+  arrange(horizon,month, crps2)%>%
+  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) )
 View(out3)
 
 
