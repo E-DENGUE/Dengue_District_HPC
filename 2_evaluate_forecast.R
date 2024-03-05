@@ -159,10 +159,21 @@ out3 <- out %>%
   group_by(horizon, month, modN) %>%
   summarize(crps1 = mean(crps1),crps2=mean(crps2), N=n() ) %>%
   arrange(horizon,month, crps2)%>%
-  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) )
+  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) )%>%
+  left_join(form, by='modN')
 View(out3)
 
+mod1 <- out3 %>% filter(month==2) %>%
+ lm(w_i2 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=.)
+summary(mod1)
 
+mod2 <- out3 %>% filter(month==4) %>%
+  lm(w_i2 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=.)
+summary(mod2)
+
+mod3<- out3 %>% filter(month==6) %>%
+  lm(w_i2 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=.)
+summary(mod3)
 
 # miss_pattern <- out %>% 
 #   group_by(date, modN, horizon) %>%
