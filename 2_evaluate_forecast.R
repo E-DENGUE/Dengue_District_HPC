@@ -17,40 +17,34 @@ file.names <- list.files('./Results')
 
 ds.list <- mclapply(file.names,function(X){
   
-    d1 <- readRDS(file=file.path(paste0('./Results/',X)))
-    
-    modN <-  sub("^(.*?)_.*$", "\\1", X)
-    
-    date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-
-    # Extract the date from the string using gsub
-    date <- regmatches(X, regexpr(date_pattern, X))
-
-    out.list <- cbind.data.frame('modN'=modN,'eval.date'=date, d1$scores)
+  d1 <- readRDS(file=file.path(paste0('./Results/',X)))
+  
+  modN <-  sub("^(.*?)_.*$", "\\1", X)
+  
+  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  
+  # Extract the date from the string using gsub
+  date <- regmatches(X, regexpr(date_pattern, X))
+  
+  preds_df <- d1$ds$preds %>%
+    cbind.data.frame(d1$ds) %>%
+    rename(pred=mean, pred_lcl=`0.025quant`, pred_ucl= `0.975quant`) %>%
+    filter(forecast==1) %>%
+    dplyr::select(pred, pred_lcl, pred_ucl ) 
+  
+  
+  out.list <- cbind.data.frame('modN'=modN,'eval.date'=date, d1$scores, preds_df) %>%
+    dplyr::select(date, modN, eval.date,horizon, district, province, pred,m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2,pred,pred_lcl,pred_ucl) %>%
+    mutate(form=d1$form)
   return(out.list)
 },  mc.cores=N_cores)
 
 
-#Save the model formulae
-mod_str <- mclapply(file.names,function(X){
-  
-  a1 <- readRDS(file=file.path(paste0('./Results/',X)))
-  
-  modN <-  sub("^(.*?)_.*$", "\\1", X)
-
-  out.list <- cbind.data.frame('modN'=modN,"form"=a1$form)
-  return(out.list)
-},  mc.cores=N_cores) %>%
-  bind_rows() %>%
-  distinct()
-saveRDS(mod_str, "./cleaned_scores/mod_formula.rds")
 
 
-#out <- readRDS("./cleaned_scores/all_crps.rds")%>% dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop, crps1) %>%
-# saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 out.slim<-  bind_rows(ds.list) %>%
-  dplyr::select(date, modN, eval.date,horizon, district, province, m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2) %>%
+  dplyr::select(date, modN, eval.date,horizon, district, province, preds,m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2,pred,pred_lcl,pred_ucl) %>%
  saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 scores <-  bind_rows(ds.list) %>%
