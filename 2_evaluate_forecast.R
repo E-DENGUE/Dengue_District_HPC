@@ -112,8 +112,11 @@ out2 <- out %>%
   filter(miss_date==0 & !(modN %in% c('mod31','mod32'))) %>%
   group_by(horizon, modN) %>%
   summarize(crps1 = mean(crps1), N=n() ) %>%
-  arrange(horizon, crps1)
-out2
+  arrange(horizon, crps1) %>%
+  filter(modN !='mod39') %>%
+  mutate( w_i = crps1^2/sum(crps1^2) ) #following Colon
+View(out2)
+
 
 #By calendar month
 out3 <- out %>%
