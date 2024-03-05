@@ -144,7 +144,8 @@ out2 <- out %>%
   arrange(horizon, crps2) %>%
   filter(modN !='mod39') %>%
   mutate( w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) ) %>%
-  left_join(form, by='modN')
+  left_join(form, by='modN')%>%
+  filter(horizon==2)
 View(out2)
 
 #what model factors are associate with a higher weight?
@@ -160,7 +161,8 @@ out3 <- out %>%
   summarize(crps1 = mean(crps1),crps2=mean(crps2), N=n() ) %>%
   arrange(horizon,month, crps2)%>%
   mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) )%>%
-  left_join(form, by='modN')
+  left_join(form, by='modN') %>%
+  filter(horizon==2)
 View(out3)
 
 mod1 <- out3 %>% filter(month==2) %>%
