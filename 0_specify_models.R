@@ -275,7 +275,7 @@ mod32 <- 'm_DHF_cases_hold~ 1+
                         f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
                       
-#mod 33 wih besag rAR1 for time
+#mod 33 wih besag rAR1 for time--THIS IS A TYPE IV STRUCTURE!
                     mod34 <- 'm_DHF_cases_hold~   lag2_y +
                            f(districtID, 
                                    model="besag", 
@@ -360,8 +360,7 @@ mod32 <- 'm_DHF_cases_hold~ 1+
                                    scale.model = TRUE) +
                      lag2_avg_min_daily_temp + lag2_monthly_cum_ppt '  
 
-    mod39_type4 <- 'm_DHF_cases_hold~ 1 + lag2_y+ lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
-    sin12 +cos12 +
+    mod39_type4 <- 'm_DHF_cases_hold~ 1 + sin12 +cos12 + #lag2_y+ lag2_avg_min_daily_temp + lag2_monthly_cum_ppt + sin12 +cos12 +
       f(id_t,model="generic0",
         Cmatrix= Qt,
         constr= FALSE,

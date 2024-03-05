@@ -44,10 +44,13 @@ scoring_func <- function(Y){
   }
   
   crps1 <- crps_sample(obs, samps.inc)
+
+  crps2 <- crps_sample(log(obs+1), log(samps.inc+1)) #on the log scale, as recommended by https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1011393#sec008
   
-  crps1 <- cbind.data.frame(crps1, forecast_ds) 
+    
+  crps3 <- cbind.data.frame(crps1, crps2,forecast_ds) 
   
   #pred.samples.forecast.inc.me <- apply(samps.inc,1,median)
-  return(crps1)
+  return(crps3)
 }
 
