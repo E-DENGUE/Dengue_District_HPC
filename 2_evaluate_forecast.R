@@ -33,18 +33,17 @@ ds.list <- mclapply(file.names,function(X){
     dplyr::select(pred, pred_lcl, pred_ucl ) 
   
   
-  out.list <- cbind.data.frame('modN'=modN,'eval.date'=date, d1$scores, preds_df) %>%
-    dplyr::select(date, modN, eval.date,horizon, district, province, pred,m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2,pred,pred_lcl,pred_ucl) %>%
-    mutate(form=d1$form)
+  out.list <- cbind.data.frame( d1$scores, preds_df) %>%
+  #  dplyr::select(date,  horizon, district, province, pred,m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2,pred,pred_lcl,pred_ucl) %>%
+    mutate(form=d1$form, 
+           eval.date=date,
+           modN=modN)
   return(out.list)
 },  mc.cores=N_cores)
 
 
-
-
-
 out.slim<-  bind_rows(ds.list) %>%
-  dplyr::select(date, modN, eval.date,horizon, district, province, preds,m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2,pred,pred_lcl,pred_ucl) %>%
+  dplyr::select(date, modN, eval.date,horizon, district, province, pred,m_DHF_cases,m_DHF_cases_hold, pop, crps1, crps2,pred,pred_lcl,pred_ucl) %>%
  saveRDS(., "./cleaned_scores/all_crps_slim.rds")
 
 scores <-  bind_rows(ds.list) %>%
@@ -100,9 +99,7 @@ group_by(horizon,modN) %>%
 
 ##DESKTOP EVALUATION OF OUTPUTS
 
-out <- readRDS( "./cleaned_scores/all_crps_slim.rds")
-
-form <- readRDS( "./cleaned_scores/mod_formula.rds") %>%
+out <- readRDS( "./cleaned_scores/all_crps_slim.rds")%>%
   mutate(rw_season = grepl('cyclic=TRUE', form),
          harm_season = grepl('sin12', form),
          lag2_y = grepl('lag2_y', form),
@@ -134,12 +131,11 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
 out2 <- out %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 & !(modN %in% c('mod31','mod32')) & !is.na(crps2)) %>%
-  group_by(horizon, modN) %>%
+  group_by(horizon, modN, form) %>%
   summarize(crps1 = mean(crps1),crps2 = mean(crps2) ,N=n() ) %>%
   arrange(horizon, crps2) %>%
   filter(modN !='mod39') %>%
   mutate( w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) ) %>%
-  left_join(form, by='modN')%>%
   filter(horizon==2)
 View(out2)
 
@@ -152,11 +148,10 @@ out3 <- out %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 & !(modN %in% c('mod31','mod32'))& !is.na(crps2)) %>%
   mutate(month=lubridate::month(date)) %>%
-  group_by(horizon, month, modN) %>%
+  group_by(horizon, month, modN, form) %>%
   summarize(crps1 = mean(crps1),crps2=mean(crps2), N=n() ) %>%
   arrange(horizon,month, crps2)%>%
   mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) )%>%
-  left_join(form, by='modN') %>%
   filter(horizon==2)
 View(out3)
 
