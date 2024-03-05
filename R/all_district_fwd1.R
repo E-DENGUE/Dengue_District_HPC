@@ -141,7 +141,7 @@ filter( date>='2004-09-01')%>%
                  control.inla=list(strategy="gaussian",
                                    control.vb=list(enable=TRUE),
                                    h = 5E-3,use.directions = TRUE,num.hessian="central"),
-                 control.predictor=list(compute=TRUE, link="log"), 
+                 control.predictor=list(compute=TRUE, link=1), 
                  control.compute=list(dic=TRUE,cpo=TRUE,config = TRUE),
                  control.fixed = list(prec.intercept =1e-3),
                  verbose=T)
