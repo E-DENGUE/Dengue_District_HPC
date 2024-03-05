@@ -64,8 +64,7 @@ filter( date>='2004-09-01')%>%
                                       return.marginals=F
                ),
                # save predicted values on response scale
-               control.predictor = list(compute=TRUE, 
-                                        link=1),
+               control.predictor = list(compute=TRUE),
             control.inla = list(strategy='adaptive', # adaptive gaussian
                    cmin=0),
             control.fixed = list(mean.intercept=0, 
