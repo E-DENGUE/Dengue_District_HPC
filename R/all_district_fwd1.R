@@ -137,12 +137,16 @@ filter( date>='2004-09-01')%>%
                  family = "poisson",
                  E = E,
                  data =mydata,
-                 #num.threads ="8:6",
+                 control.compute = list(dic = FALSE, 
+                                        waic = FALSE, 
+                                        config = T,
+                                        return.marginals=F
+                 ),
                  control.inla=list(strategy="gaussian",
                                    control.vb=list(enable=TRUE),
                                    h = 5E-3,use.directions = TRUE,num.hessian="central"),
-                 control.predictor=list(compute=TRUE, link="log"), 
-                 control.compute=list(dic=TRUE,cpo=TRUE,config = TRUE),
+                 control.predictor=list(compute=TRUE, 
+                                        link=1), 
                  control.fixed = list(prec.intercept =1e-3),
                  verbose=T)
   }
@@ -166,6 +170,9 @@ filter( date>='2004-09-01')%>%
   score.list =list ('ds'=c1, mod=mod1, 'fixed.eff'=mod1$summary.fixed,'mod.family'=mod.family)
 
   scores <- scoring_func(score.list)
+  
+  #plot(c1$date, mod1$summary.fitted.values$mean)
+  plot((c1$m_DHF_cases[is.na(c1$m_DHF_cases_hold)]), ((mod1$summary.fitted.values$mean[is.na(c1$m_DHF_cases_hold)])))
   
   c1.out <- c1 %>%
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) %>%
