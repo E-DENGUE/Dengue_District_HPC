@@ -52,16 +52,33 @@ p2
 #############################################
 ##USING THE VIETNAMESE MOH DEFINITION
 #############################################
-#NOE TO FIX--THIS ISN"T CURRENTLY CORRECT--most.recent is taking 5 most recent, but it should be 5 most recent not including current time
 
-dates.test <- sort(unique(d2$date))[-c(1:60)] #exclude first 5 years
+dates.test <- sort(unique(d2$date))[-c(1:60)]
+ds1.in <- d2 %>%
+  dplyr::select(date, m_DHF_cases , district) %>%
+  mutate(monthN=lubridate::month(date),
+         epidemic_flag=-9999,
+         epidemic_flag_poisson=-9999,
+         epidemic_flag_quant=-9999,
+         
+                  threshold_poisson=9999,
+         threshold=9999,
+         threshold_quant=9999
+         )
 
-for(i in 1:length(dates.test)){
+ds1.in.dist <- split(ds1.in, ds1.in$district) 
+ds1.in.dist.init <- list()
+
+for(j in 1:length(unique(ds1.in$district))){
+  ds1.in.dist.init[[j]] <- ds1.in.dist[[j]] %>% filter(date<dates.test[1])
+  dist.select <- unique( ds1.in.dist.init[[j]]$district)
+  print(j)
+  for(i in 1:length(dates.test)){
   X=dates.test[i]
   month.test <- month(X)
   
-  most.recent <- ds1.in %>%
-    filter(date < X & monthN == month.test ) %>% #& epidemic_flag <=0 ) %>% #select the same month for all years, not including current month
+  most.recent <- ds1.in.dist.init[[j]] %>%
+    filter(date < X & district==dist.select & monthN == month.test & epidemic_flag<=0 ) %>% #& epidemic_flag <=0 ) %>% #select the same month for all years, not including current month
     arrange(date) %>%
     mutate(order=row_number(),
            rev_order= max(order)- order+ 1) %>%
@@ -70,16 +87,16 @@ for(i in 1:length(dates.test)){
   #mean with SD
   ds1.test_mean_sd <- most.recent %>%
     summarize(n_times=n(),
-              ma5=mean(N_cases,na.rm=T), #5 most recent NON EPIDEMIC years
-              sd5=sd(N_cases, na.rm=T)
+              ma5=mean(m_DHF_cases,na.rm=T), #5 most recent NON EPIDEMIC years
+              sd5=sd(m_DHF_cases, na.rm=T)
     ) %>%
     mutate(date=X)  
   
   #quantile
-  ds1.test_quant <- ds1.in %>%  #note uses whole data, not just most recent 5
-    filter(date < X & monthN == month.test ) %>% #& epidemic_flag <=0 ) %>% #select the same month for all years, excluding past epidemics
+  ds1.test_quant <- ds1.in.dist.init[[j]] %>%  #note uses whole data, not just most recent 5
+    filter(date < X & district==dist.select & monthN == month.test  & epidemic_flag<=0) %>% #& epidemic_flag <=0 ) %>% #select the same month for all years, excluding past epidemics
     summarize(n_times=n(),
-              mquant=quantile(N_cases, probs=0.95),
+              mquant=quantile(m_DHF_cases, probs=0.95),
     ) %>%
     ungroup() %>%
     mutate(date=X)
@@ -87,30 +104,36 @@ for(i in 1:length(dates.test)){
   #pois.pred.interval= quantile(rpois(100000, lambda=mean.x), probs=0.975)
   
   #poisson prediction interval
-  mod1.coef <-summary(glm(N_cases ~1, family='poisson', data=most.recent))$coefficients['(Intercept)',c('Estimate','Std. Error')]
-  
-  pois.ucl= quantile(rpois(1000, lambda=exp(mod1.coef['Estimate'] +rnorm(1000,mean=0, sd=mod1.coef['Std. Error']))), probs=0.975)
-  
+  if(sum(most.recent$m_DHF_cases>0)){
+    mod1.coef <-summary(glm(m_DHF_cases ~1, family='poisson', data=most.recent))$coefficients['(Intercept)',c('Estimate','Std. Error')]
+    pois.ucl= quantile(rpois(1000, lambda=exp(mod1.coef['Estimate'] +rnorm(1000,mean=0, sd=mod1.coef['Std. Error']))), probs=0.975)
+  }else{
+    pois.ucl <- 5 #if no cases observed, just set arbitrary threshold of 5
+  }
+    
+
   #for the most recent date, determine if an epidemic has occurred
-  ds1.in <- bind_rows(ds1.in, ds1[ds1$date==X,]) #add on latest observation 
+  add.ds <- ds1.in.dist[[j]] %>% filter(date==X)
+  ds1.in.dist.init[[j]] <- bind_rows(ds1.in.dist.init[[j]], add.ds) #add on latest observation 
   
-  ds1.in <- ds1.in %>%
+  ds1.in.dist.init[[j]] <- ds1.in.dist.init[[j]] %>%
     mutate( threshold= if_else(date==X,ds1.test_mean_sd$ma5 + 2*ds1.test_mean_sd$sd5 ,threshold),
-            epidemic_flag = if_else(date==X,1*(N_cases>threshold),epidemic_flag),
+            epidemic_flag = if_else(date==X,1*(m_DHF_cases>threshold),epidemic_flag),
             
             threshold_poisson= if_else(date==X,pois.ucl ,threshold_poisson),
-            epidemic_flag_poisson = if_else(date==X,1*(N_cases>threshold_poisson),epidemic_flag_poisson),
+            epidemic_flag_poisson = if_else(date==X,1*(m_DHF_cases>threshold_poisson),epidemic_flag_poisson),
             
             threshold_quant= if_else(date==X,ds1.test_quant$mquant ,threshold_quant),
-            epidemic_flag_quant = if_else(date==X,1*(N_cases>threshold_quant),epidemic_flag_quant),
+            epidemic_flag_quant = if_else(date==X,1*(m_DHF_cases>threshold_quant),epidemic_flag_quant),
             
     )
   
+  }
 }
 
 ds2_pois <- ds1.in %>%
-  filter( epidemic_flag_poisson!=-999)
-ggplot(ds2_pois, aes(x=date, y=N_cases)) +
+  filter( threshold_quant!=9999)
+ggplot(ds2_pois, aes(x=date, y=m_DHF_cases)) +
   geom_line(col='gray') +
   theme_classic() +
   geom_line(aes(x=date, y=threshold_poisson))+
