@@ -28,4 +28,20 @@ k=$(( task_id  % N_models  + 1 )) # $(( )) does arithmetic evaluation
     # Run your R script with the task-specific J and K
 Rscript 1_fitmod.R "$j" "$k"
 
+# Start time
+start_time=$(date +"%Y-%m-%d %H:%M:%S")
+
+# Run your R script with the task-specific J and K
+Rscript mod5.R "$j" "$k"
+
+# End time
+end_time=$(date +"%Y-%m-%d %H:%M:%S")
+
+# Calculate running time
+start_seconds=$(date -d "$start_time" +%s)
+end_seconds=$(date -d "$end_time" +%s)
+running_time=$((end_seconds - start_seconds))
+
+# Output j, k, model number, and running time to a log file
+echo "j=$j, k=$k, model_number=$task_id, running_time=$running_time seconds" >> ./Report/log1.txt
 # done
