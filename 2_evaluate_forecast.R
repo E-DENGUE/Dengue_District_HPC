@@ -179,16 +179,16 @@ View(mods)
 #Observed vs expected
 
 p1 <- out %>%
-  filter(modN=='mod33' & horizon==2) %>%
+  filter( horizon==2 & !(modN %in% c('mod31','mod32', 'mod39'))) %>%
   dplyr::select(-form) %>%
   mutate(pred_count =exp(pred)*pop/100000) %>%
-  group_by(date) %>%
+  group_by(modN,date) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_count)) %>%
-  ggplot(aes(x=date, y=m_DHF_cases)) +
+  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
   geom_line() +
   theme_classic()+
   ylim(0,NA)+
-  geom_line(aes(x=date, y=pred_count), col='red')
+  geom_line(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))
   
 # miss_pattern <- out %>% 
 #   group_by(date, modN, horizon) %>%
