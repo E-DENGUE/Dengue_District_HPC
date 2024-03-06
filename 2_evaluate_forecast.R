@@ -10,6 +10,7 @@ library(dplyr)
 library(parallel)
 library(ggplot2)
 library(tidyverse)
+library(broom)
 
 N_cores = detectCores()
 
@@ -99,18 +100,7 @@ group_by(horizon,modN) %>%
 
 ##DESKTOP EVALUATION OF OUTPUTS
 
-out <- readRDS( "./cleaned_scores/all_crps_slim.rds")%>%
-  mutate(rw_season = grepl('cyclic=TRUE', form),
-         harm_season = grepl('sin12', form),
-         lag2_y = grepl('lag2_y', form),
-         lag_y = grepl('lag_y', form),
-         lag2_monthly_cum_ppt =grepl('lag2_monthly_cum_ppt', form),
-          iid_spat_intercept=grepl('f(districtID,model = "iid")',form, fixed=T),
-         rw_time_spatial=grepl(' f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) ',form, fixed=T),
-         type4_spatial_bym = grepl('model="bym"', form, fixed=T) *grepl('control.group=list(model="ar1"', form, fixed=T) *grepl('group=time_id1', form, fixed=T)
-  )
-
-
+out <- readRDS( "./cleaned_scores/all_crps_slim.rds")
 
 miss.dates <- out %>% group_by(date, horizon) %>%   
   filter(!(modN %in% c('mod31','mod32')) & !is.na(crps2)) %>%
@@ -130,13 +120,23 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
 #Overall
 out2 <- out %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
-  filter(miss_date==0 & !(modN %in% c('mod31','mod32')) & !is.na(crps2)) %>%
+  filter(miss_date==0 & !(modN %in% c('mod31','mod32','mod39')) & !is.na(crps2)) %>%
   group_by(horizon, modN, form) %>%
   summarize(crps1 = mean(crps1),crps2 = mean(crps2) ,N=n() ) %>%
+  ungroup() %>%
   arrange(horizon, crps2) %>%
-  filter(modN !='mod39') %>%
+  group_by(horizon) %>%
   mutate( w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) ) %>%
-  filter(horizon==2)
+  filter(horizon==2)%>%
+  mutate(rw_season = grepl('cyclic=TRUE', form),
+         harm_season = grepl('sin12', form),
+         lag2_y = grepl('lag2_y', form),
+         lag_y = grepl('lag_y', form),
+         lag2_monthly_cum_ppt =grepl('lag2_monthly_cum_ppt', form),
+         iid_spat_intercept=grepl('f(districtID,model = "iid")',form, fixed=T),
+         rw_time_spatial=grepl(' f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) ',form, fixed=T),
+         type4_spatial_bym = grepl('model="bym"', form, fixed=T) *grepl('control.group=list(model="ar1"', form, fixed=T) *grepl('group=time_id1', form, fixed=T)
+  )
 View(out2)
 
 #what model factors are associate with a higher weight?
@@ -151,14 +151,28 @@ out3 <- out %>%
   group_by(horizon, month, modN, form) %>%
   summarize(crps1 = mean(crps1),crps2=mean(crps2), N=n() ) %>%
   arrange(horizon,month, crps2)%>%
+  ungroup() %>%
+  group_by(horizon,month) %>%
   mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) )%>%
-  filter(horizon==2)
+  filter(horizon==2)%>%
+  mutate(rw_season = grepl('cyclic=TRUE', form),
+         harm_season = grepl('sin12', form),
+         lag2_y = grepl('lag2_y', form),
+         lag_y = grepl('lag_y', form),
+         lag2_monthly_cum_ppt =grepl('lag2_monthly_cum_ppt', form),
+         iid_spat_intercept=grepl('f(districtID,model = "iid")',form, fixed=T),
+         rw_time_spatial=grepl(' f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) ',form, fixed=T),
+         type4_spatial_bym = grepl('model="bym"', form, fixed=T) *grepl('control.group=list(model="ar1"', form, fixed=T) *grepl('group=time_id1', form, fixed=T)
+  )
 View(out3)
 
-#how much does incusion of different components affect model weight?
-mods <- out3 %>%ungroup() %>% nest_by(month) %>%
+#how much does inclusion of different components affect model weight?
+mods <- out3 %>%
+  ungroup() %>% 
+  nest_by(month) %>%
   mutate(mod = list(lm(w_i2 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=data))) %>%
-  reframe(broom::tidy(mod))
+  dplyr::reframe(broom::tidy(mod)) %>%
+  mutate(p.value=round(p.value,3))
 View(mods)
 
 # miss_pattern <- out %>% 
