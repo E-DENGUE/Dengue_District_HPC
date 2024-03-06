@@ -33,19 +33,30 @@ scoring_func <- function(Y){
   
   samps <- matrix(samps, dim(samps)[1], dim(samps)[2]*dim(samps)[3])
   
-  samps.inc <- apply(samps,2, function(x) x/forecast_ds$pop*100000)
+  #This verifies that SAMPSis on the scale of cases
+  #samps.mean <- apply(samps,1,mean)
+  #plot(samps.mean,forecast_ds$m_DHF_cases )
+  #abline(a=0, b=1)
+  #sum(samps.mean)
+  #sum(forecast_ds$m_DHF_cases)
   
-  obs <- (forecast_ds$m_DHF_cases/forecast_ds$pop*100000)
-
+  samps.inc <- apply(samps,2, function(x) x/forecast_ds$pop*100000)
+  log.samps.inc <- log(apply(samps,2, function(x) (x+1)/forecast_ds$pop*100000))
+  
+  log.samps.inc_mean <-apply(log.samps.inc,1,mean)
+  
+  obs_inc <- (forecast_ds$m_DHF_cases/forecast_ds$pop*100000)
+  log_obs_inc <- log((forecast_ds$m_DHF_cases+1)/forecast_ds$pop*100000)
+    
   miss.obs <- which(is.na(obs))
   if(length(miss.obs>0)){
     obs <- obs[-miss.obs]
     samps.inc  <- samps.inc[-miss.obs,1,]
   }
   
-  crps1 <- crps_sample(obs, samps.inc)
+  crps1 <- crps_sample(obs_inc, samps.inc)
 
-  crps2 <- crps_sample(log(obs+1), log(samps.inc+1)) #on the log scale, as recommended by https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1011393#sec008
+  crps2 <- crps_sample(log_obs_inc, log.samps.inc) #on the log scale, as recommended by https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1011393#sec008
   
     
   crps3 <- cbind.data.frame(crps1, crps2,forecast_ds) 
