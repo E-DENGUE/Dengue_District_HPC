@@ -11,6 +11,7 @@ library(parallel)
 library(ggplot2)
 library(tidyverse)
 library(broom)
+library(plotly)
 
 N_cores = detectCores()
 
@@ -103,7 +104,7 @@ group_by(horizon,modN) %>%
 out <- readRDS( "./cleaned_scores/all_crps_slim.rds")
 
 miss.dates <- out %>% group_by(date, horizon) %>%   
-  filter(!(modN %in% c('mod31','mod32')) & !is.na(crps2)) %>%
+  filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
   summarize(N_mods=n(),N_cases=sum(m_DHF_cases )) %>%
   ungroup() %>%
   group_by(horizon) %>%
@@ -120,7 +121,7 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
 #Overall
 out2 <- out %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
-  filter(miss_date==0 & !(modN %in% c('mod31','mod32','mod39')) & !is.na(crps2)) %>%
+  filter(miss_date==0 & !(modN %in% c('mod39')) ) %>%
   group_by(horizon, modN, form) %>%
   summarize(crps1 = mean(crps1),crps2 = mean(crps2) ,N=n() ) %>%
   ungroup() %>%
@@ -145,8 +146,9 @@ summary(mod1)
 
 #By calendar month
 out3 <- out %>%
+  filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
-  filter(miss_date==0 & !(modN %in% c('mod31','mod32'))& !is.na(crps2)) %>%
+  filter(miss_date==0 ) %>%
   mutate(month=lubridate::month(date)) %>%
   group_by(horizon, month, modN, form) %>%
   summarize(crps1 = mean(crps1),crps2=mean(crps2), N=n() ) %>%
@@ -166,6 +168,47 @@ out3 <- out %>%
   )
 View(out3)
 
+
+## How does best model differ by district?
+out4 <- out %>%
+  filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
+  left_join(miss.dates, by=c('date','horizon')) %>%
+  filter(miss_date==0 ) %>%
+  mutate(month=lubridate::month(date)) %>%
+  group_by(horizon, district, modN, form) %>%
+  summarize(crps1 = mean(crps1),crps2=mean(crps2), N=n() ) %>%
+  arrange(horizon,district, crps2)%>%
+  ungroup() %>%
+  group_by(horizon,district) %>%
+  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2), rel_wgt1= w_i1/max(w_i1) )%>%
+  filter(horizon==2)%>%
+  mutate(rw_season = grepl('cyclic=TRUE', form),
+         harm_season = grepl('sin12', form),
+         lag2_y = grepl('lag2_y', form),
+         lag_y = grepl('lag_y', form),
+         lag2_monthly_cum_ppt =grepl('lag2_monthly_cum_ppt', form),
+         iid_spat_intercept=grepl('f(districtID,model = "iid")',form, fixed=T),
+         rw_time_spatial=grepl(' f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) ',form, fixed=T),
+         type4_spatial_bym = grepl('model="bym"', form, fixed=T) *grepl('control.group=list(model="ar1"', form, fixed=T) *grepl('group=time_id1', form, fixed=T)
+  ) %>%
+  dplyr::select(-form)
+View(out4)
+
+out4%>%
+ggplot(aes(x=modN,y=rel_wgt1, group=district, color=district )) +
+  geom_line()+
+  theme_classic()
+
+ggplot(out4, aes(x = district, y = modN, fill = rel_wgt1)) +
+  geom_tile() +
+  scale_fill_viridis(discrete = FALSE)+
+  labs(title = "CRPS Heatmap",
+       x = "District",
+       y = "ModelN")
+
+#mean of relative weghts across all districts--this basically agrees with what is seen in out2
+out4 %>% group_by(modN) %>% summarize(rel_wgt1=mean(rel_wgt1)) %>% arrange(-rel_wgt1)
+
 #how much does inclusion of different components affect model weight?
 mods <- out3 %>%
   ungroup() %>% 
@@ -179,7 +222,7 @@ View(mods)
 #Observed vs expected
 
 p1 <- out %>%
-  filter( horizon==2 & !(modN %in% c('mod31','mod32', 'mod39'))) %>%
+  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
   mutate(pred_count =exp(pred)*pop/100000) %>%
   group_by(modN,date) %>%
@@ -189,7 +232,7 @@ p1 <- out %>%
   theme_classic()+
   ylim(0,NA)+
   geom_line(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))
-  
+ggplotly(p1)  
 # miss_pattern <- out %>% 
 #   group_by(date, modN, horizon) %>%
 #   summarize(N=n()) %>%
@@ -197,6 +240,41 @@ p1 <- out %>%
 #   arrange(horizon, date)
 
 
+district.plot <- unique(out$district)[1:10]
+p2 <- out %>%
+  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32') )  & modN=='mod33'  & district %in% district.plot) %>%
+  dplyr::select(-form) %>%
+  mutate(pred_count =exp(pred)*pop/100000,
+         pred_count_lcl = exp(pred_lcl )*pop/100000,
+         pred_count_ucl = exp(pred_ucl )*pop/100000,
+         ) %>%
+  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+  geom_line() +
+  theme_classic()+
+  ylim(0,NA)+
+  geom_line(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
+  facet_wrap(~district) +
+  geom_ribbon(aes(x=date, ymin=pred_count_lcl, ymax=pred_count_ucl),alpha=0.2)+
+  ggtitle('Model 33')
+  p2
+  
+  district.plot <- unique(out$district)[1:10]
+  p2 <- out %>%
+    filter( horizon==2 & !(modN %in% c( 'mod39') )  & modN=='mod29'  & district %in% district.plot) %>%
+    dplyr::select(-form) %>%
+    mutate(pred_count =exp(pred)*pop/100000,
+           pred_count_lcl = exp(pred_lcl )*pop/100000,
+           pred_count_ucl = exp(pred_ucl )*pop/100000,
+    ) %>%
+    ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+    geom_line() +
+    theme_classic()+
+    ylim(0,NA)+
+    geom_line(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
+    facet_wrap(~district) +
+    geom_ribbon(aes(x=date, ymin=pred_count_lcl, ymax=pred_count_ucl),alpha=0.2)+
+    ggtitle('Model 29')
+  p2
 
 
 
