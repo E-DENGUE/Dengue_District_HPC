@@ -181,13 +181,14 @@ View(mods)
 p1 <- out %>%
   filter(modN=='mod33' & horizon==2) %>%
   dplyr::select(-form) %>%
+  mutate(pred_count =exp(pred)*pop/100000) %>%
   group_by(date) %>%
-  summarize(m_DHF_cases=sum(m_DHF_cases), pred=sum(pred)) %>%
+  summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_count)) %>%
   ggplot(aes(x=date, y=m_DHF_cases)) +
   geom_line() +
   theme_classic()+
   ylim(0,NA)+
-  geom_line(aes(x=date, y=pred), col='red')
+  geom_line(aes(x=date, y=pred_count), col='red')
   
 # miss_pattern <- out %>% 
 #   group_by(date, modN, horizon) %>%
