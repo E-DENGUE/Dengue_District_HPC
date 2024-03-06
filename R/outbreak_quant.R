@@ -131,15 +131,29 @@ for(j in 1:length(unique(ds1.in$district))){
   }
 }
 
-ds2_pois <- ds1.in %>%
-  filter( threshold_quant!=9999)
-ggplot(ds2_pois, aes(x=date, y=m_DHF_cases)) +
-  geom_line(col='gray') +
-  theme_classic() +
-  geom_line(aes(x=date, y=threshold_poisson))+
-  geom_line(aes(x=date, y=threshold), col='red')+
-  geom_line(aes(x=date, y=threshold_quant), col='blue')
+out.ds <- bind_rows(ds1.in.dist.init)
 
-mean(ds2_pois$epidemic_flag_pois)
+plot.districts <- unique(out.ds$district)[1:10]
+
+ds2_pois <- out.ds %>%
+  filter( threshold_quant !=9999 & district %in% plot.districts)
+
+ggplot(ds2_pois, aes(x=date, y=m_DHF_cases)) +
+  geom_line(col='black') +
+  theme_classic() +
+  geom_point(aes(x=date, y=m_DHF_cases, color=epidemic_flag_quant)) +
+  #geom_line(aes(x=date, y=threshold_poisson))+
+  #geom_line(aes(x=date, y=threshold), col='red', lty=2, alpha=0.5)+
+  geom_line(aes(x=date, y=threshold_quant), col='blue', lty=2, alpha=0.5)+
+  facet_wrap(~district, scales='free')
+
+ggplot(ds2_pois, aes(x=date, y=m_DHF_cases)) +
+  geom_line(col='black') +
+  theme_classic() +
+  geom_point(aes(x=date, y=m_DHF_cases, color=epidemic_flag_poisson)) +
+  geom_line(aes(x=date, y=threshold_poisson) ,lty=2, alpha=0.5,col='blue')+
+  facet_wrap(~district, scales='free')
+
+mean(ds2_pois$epidemic_flag_poisson)
 mean(ds2_pois$epidemic_flag_quant)
 mean(ds2_pois$epidemic_flag)
