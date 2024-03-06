@@ -175,6 +175,20 @@ mods <- out3 %>%
   mutate(p.value=round(p.value,3))
 View(mods)
 
+
+#Observed vs expected
+
+p1 <- out %>%
+  filter(modN=='mod33' & horizon==2) %>%
+  dplyr::select(-form) %>%
+  group_by(date) %>%
+  summarize(m_DHF_cases=sum(m_DHF_cases), pred=sum(pred)) %>%
+  ggplot(aes(x=date, y=m_DHF_cases)) +
+  geom_line() +
+  theme_classic()+
+  ylim(0,NA)+
+  geom_line(aes(x=date, y=pred), col='red')
+  
 # miss_pattern <- out %>% 
 #   group_by(date, modN, horizon) %>%
 #   summarize(N=n()) %>%
