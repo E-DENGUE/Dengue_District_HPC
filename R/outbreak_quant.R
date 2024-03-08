@@ -195,12 +195,14 @@ e1 <- ds2_pois %>%
   mutate(alarmN= RcppRoll::roll_sum(epidemic_flag, n=4,align = "right", fill = NA,partial = FALSE),
          alarmN_pois=RcppRoll::roll_sum(epidemic_flag_poisson, n=4,align = "right", fill = NA,partial = FALSE),
          alarmN_quant=RcppRoll::roll_sum(epidemic_flag_quant, n=4,align = "right", fill = NA,partial = FALSE),
-         alarmN_fixed=RcppRoll::roll_sum(epidemic_flag_fixed), n=4,align = "right", fill = NA,partial = FALSE)%>%
+         alarmN_fixed=RcppRoll::roll_sum(epidemic_flag_fixed, n=4,align = "right", fill = NA,partial = FALSE))%>%
   ungroup()%>%
+  #Count how many cases occur during the alarm period
   mutate(N_epidemic_sd = if_else(alarmN>0,m_DHF_cases,NA_real_) ,
          N_epidemic_pois = if_else(alarmN_pois>0,m_DHF_cases,NA_real_) ,
          N_epidemic_quant = if_else(alarmN_quant>0,m_DHF_cases,NA_real_) ,
-         N_epidemic_fixed = if_else(alarmN_fixed>0,m_DHF_cases,NA_real_) 
+         N_epidemic_fixed = if_else(alarmN_fixed>0,m_DHF_cases,NA_real_) ,
+         inc=m_DHF_cases/pop*100000
         ) %>%
   filter(!is.na(alarmN)) 
 
