@@ -4,6 +4,7 @@ library(lubridate)
 library(zoo)
 library(ggplot2)
 library(exactci)
+library(RcppRoll)
 d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds') 
   
 all.districts <- unique(d2$district) 
@@ -55,7 +56,7 @@ p2
 
 dates.test <- sort(unique(d2$date))[-c(1:60)]
 ds1.in <- d2 %>%
-  dplyr::select(date, m_DHF_cases , district) %>%
+  dplyr::select(date, m_DHF_cases ,pop, district) %>%
   mutate(monthN=lubridate::month(date),
          epidemic_flag=-9999,
          epidemic_flag_poisson=-9999,
@@ -131,29 +132,102 @@ for(j in 1:length(unique(ds1.in$district))){
   }
 }
 
-out.ds <- bind_rows(ds1.in.dist.init)
+out.ds <- bind_rows(ds1.in.dist.init)%>%
+  mutate(obs_inc=m_DHF_cases/pop*100000)
 
 plot.districts <- unique(out.ds$district)[1:10]
 
 ds2_pois <- out.ds %>%
-  filter( threshold_quant !=9999 & district %in% plot.districts)
+  filter( threshold_quant !=9999 & district %in% plot.districts) %>%
+  mutate(epidemic_flag_fixed = if_else(obs_inc>43.75,1,0)) # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
+
+
+ggplot(ds2_pois, aes(x=date, y=obs_inc)) +
+  geom_line(col='black') +
+  theme_classic() +
+  facet_wrap(~district, scales='fixed') +
+  geom_hline(yintercept=43.75, col='gray')+ # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
+  geom_point(aes(x=date, y=obs_inc, color=epidemic_flag_fixed)) 
+  
 
 ggplot(ds2_pois, aes(x=date, y=m_DHF_cases)) +
   geom_line(col='black') +
   theme_classic() +
-  geom_point(aes(x=date, y=m_DHF_cases, color=epidemic_flag_quant)) +
-  #geom_line(aes(x=date, y=threshold_poisson))+
-  #geom_line(aes(x=date, y=threshold), col='red', lty=2, alpha=0.5)+
-  geom_line(aes(x=date, y=threshold_quant), col='blue', lty=2, alpha=0.5)+
-  facet_wrap(~district, scales='free')
+  geom_point(aes(x=date, y=obs_inc, color=epidemic_flag_quant)) +
+  geom_line(aes(x=date, y=threshold_quant/pop*100000), col='gray', lty=2, alpha=0.5)+
+  facet_wrap(~district, scales='fixed')
 
-ggplot(ds2_pois, aes(x=date, y=m_DHF_cases)) +
+ggplot(ds2_pois, aes(x=date, y=obs_inc)) +
   geom_line(col='black') +
   theme_classic() +
-  geom_point(aes(x=date, y=m_DHF_cases, color=epidemic_flag_poisson)) +
-  geom_line(aes(x=date, y=threshold_poisson) ,lty=2, alpha=0.5,col='blue')+
-  facet_wrap(~district, scales='free')
+  geom_point(aes(x=date, y=obs_inc, color=epidemic_flag)) +
+  geom_line(aes(x=date, y=threshold/pop*100000), col='gray', lty=2, alpha=0.5)+
+  facet_wrap(~district, scales='fixed')
+
+ggplot(ds2_pois, aes(x=date, y=obs_inc)) +
+  geom_line(col='black') +
+  theme_classic() +
+  geom_point(aes(x=date, y=obs_inc, color=epidemic_flag_poisson)) +
+  geom_line(aes(x=date, y=threshold_poisson/pop*100000) ,lty=2, alpha=0.5,col='gray')+
+  facet_wrap(~district, scales='fixed')
 
 mean(ds2_pois$epidemic_flag_poisson)
 mean(ds2_pois$epidemic_flag_quant)
 mean(ds2_pois$epidemic_flag)
+mean(ds2_pois$epidemic_flag_fixed)
+
+## quantify performance of the different cutoffs. We want to have high values for:
+### what proportion of cases in each year occur after the epidemic is observed?
+### what is the incidence of cases that occur each year after the epidemic is declared
+##This creates a 6 month moving window for each district to see if an alarm has been triggered in last 6 months (0=no alarm)
+e1 <- ds2_pois %>%
+  arrange(district, date) %>%
+  mutate(year=year(date)) %>%
+  group_by(district) %>%
+  mutate(alarmN= RcppRoll::roll_sum(epidemic_flag, n=6,align = "right", fill = NA,partial = FALSE),
+         alarmN_pois=RcppRoll::roll_sum(epidemic_flag_poisson, n=6,align = "right", fill = NA,partial = FALSE),
+         alarmN_quant=RcppRoll::roll_sum(epidemic_flag_quant, n=6,align = "right", fill = NA,partial = FALSE),
+         alarmN_fixed=RcppRoll::roll_sum(epidemic_flag_fixed), n=6,align = "right", fill = NA,partial = FALSE)%>%
+  ungroup()%>%
+  mutate(N_epidemic_sd = if_else(alarmN>0,m_DHF_cases,NA_real_) ,
+         N_epidemic_pois = if_else(alarmN_pois>0,m_DHF_cases,NA_real_) ,
+         N_epidemic_quant = if_else(alarmN_quant>0,m_DHF_cases,NA_real_) ,
+         N_epidemic_fixed = if_else(alarmN_fixed>0,m_DHF_cases,NA_real_) 
+        ) %>%
+  filter(!is.na(alarmN)) %>%
+  group_by(district, year) %>%
+  summarize(N_epidemic_sd=sum(N_epidemic_sd, na.rm=T),
+            N_epidemic_pois=sum(N_epidemic_pois, na.rm=T),
+            N_epidemic_quant=sum(N_epidemic_quant, na.rm=T),
+            N_epidemic_fixed=sum(N_epidemic_fixed, na.rm=T),
+            N_cases=sum(m_DHF_cases, na.rm=T),
+            pop=mean(pop),
+            
+            prop_epidemic_2sd = N_epidemic_sd/N_cases,
+            prop_epidemic_quant = N_epidemic_quant/N_cases,
+            prop_epidemic_pois = N_epidemic_pois/N_cases,
+            prop_epidemic_fixed = N_epidemic_fixed/N_cases,
+            
+            inc_epidemic_2sd = N_epidemic_sd/pop*100000,
+            inc_epidemic_quant = N_epidemic_quant/pop*100000,
+            inc_epidemic_pois = N_epidemic_pois/pop*100000,
+            inc_epidemic_fixed = N_epidemic_fixed/pop*100000,
+            )
+
+ggplot(e1, aes(x=inc_epidemic_2sd, y=prop_epidemic_2sd))+
+  geom_point()+
+  ylim(0,1)
+
+ggplot(e1, aes(x=inc_epidemic_quant, y=prop_epidemic_quant))+
+  geom_point()+
+  ylim(0,1)
+
+ggplot(e1, aes(x=inc_epidemic_pois, y=prop_epidemic_pois))+
+  geom_point()+
+  ylim(0,1)
+
+ggplot(e1, aes(x=inc_epidemic_fixed, y=prop_epidemic_fixed))+
+  geom_point()+
+  ylim(0,1)
+
+  
