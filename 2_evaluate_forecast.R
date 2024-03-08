@@ -267,26 +267,27 @@ ggplotly(p1)
 #   arrange(horizon, date)
 
 
-district.plot <- unique(out$district)[1:10]
-p2 <- out %>%
-  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32') )  & modN=='mod33'  & district %in% district.plot) %>%
-  dplyr::select(-form) %>%
-  mutate(pred_count =exp(pred)*pop/100000,
-         pred_count_lcl = exp(pred_lcl )*pop/100000,
-         pred_count_ucl = exp(pred_ucl )*pop/100000,
-         ) %>%
-  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-  geom_line() +
-  theme_classic()+
-  ylim(0,NA)+
-  geom_line(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
-  facet_wrap(~district) +
-  geom_ribbon(aes(x=date, ymin=pred_count_lcl, ymax=pred_count_ucl),alpha=0.2)+
-  ggtitle('Model 33')
+  district.plot <- unique(out$district)[1:8]
+  p2 <- out_1a %>%
+    filter( horizon==2 & !(modN %in% c( 'mod39') )  & modN=='mod33'  & district %in% district.plot) %>%
+    dplyr::select(-form) %>%
+    mutate(pred_count =exp(pred)*pop/100000,
+           pred_count_lcl = exp(pred_lcl )*pop/100000,
+           pred_count_ucl = exp(pred_ucl )*pop/100000,
+    ) %>%
+    ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+    geom_point() +
+    theme_classic()+
+    ylim(0,NA)+
+    geom_point(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
+    facet_wrap(~district,nrow=2) +
+    geom_ribbon(aes(x=date, ymin=pred_count_lcl, ymax=pred_count_ucl),alpha=0.2)+
+    ggtitle('Model 33')+
+    geom_hline(yintercept=43.75, col='gray', lty=2)
   p2
   
-  district.plot <- unique(out$district)[1:10]
-  p2 <- out %>%
+  district.plot <- unique(out$district)[1:8]
+  p2 <- out_1a %>%
     filter( horizon==2 & !(modN %in% c( 'mod39') )  & modN=='mod29'  & district %in% district.plot) %>%
     dplyr::select(-form) %>%
     mutate(pred_count =exp(pred)*pop/100000,
@@ -294,13 +295,14 @@ p2 <- out %>%
            pred_count_ucl = exp(pred_ucl )*pop/100000,
     ) %>%
     ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-    geom_line() +
+    geom_point() +
     theme_classic()+
     ylim(0,NA)+
-    geom_line(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
-    facet_wrap(~district) +
+    geom_point(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
+    facet_wrap(~district,nrow=2) +
     geom_ribbon(aes(x=date, ymin=pred_count_lcl, ymax=pred_count_ucl),alpha=0.2)+
-    ggtitle('Model 29')
+    ggtitle('Model 29')+
+    geom_hline(yintercept=43.75, col='gray', lty=2)
   p2
 
 
