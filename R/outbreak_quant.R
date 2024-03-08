@@ -135,14 +135,14 @@ for(j in 1:length(unique(ds1.in$district))){
 out.ds <- bind_rows(ds1.in.dist.init)%>%
   mutate(obs_inc=m_DHF_cases/pop*100000)
 
-plot.districts <- unique(out.ds$district)[1:10]
+plot.districts10 <- unique(out.ds$district)[1:10]
 
-ds2_pois <- out.ds %>%
-  filter( threshold_quant !=9999 & district %in% plot.districts) %>%
+ds2_pois10 <- out.ds %>%
+  filter( threshold_quant !=9999 & district %in% plot.districts10) %>%
   mutate(epidemic_flag_fixed = if_else(obs_inc>43.75,1,0)) # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
 
 
-ggplot(ds2_pois, aes(x=date, y=obs_inc)) +
+ggplot(ds2_pois10, aes(x=date, y=obs_inc)) +
   geom_line(col='black') +
   theme_classic() +
   facet_wrap(~district, scales='fixed') +
@@ -150,31 +150,38 @@ ggplot(ds2_pois, aes(x=date, y=obs_inc)) +
   geom_point(aes(x=date, y=obs_inc, color=epidemic_flag_fixed)) 
   
 
-ggplot(ds2_pois, aes(x=date, y=m_DHF_cases)) +
+ggplot(ds2_pois10, aes(x=date, y=m_DHF_cases)) +
   geom_line(col='black') +
   theme_classic() +
   geom_point(aes(x=date, y=obs_inc, color=epidemic_flag_quant)) +
   geom_line(aes(x=date, y=threshold_quant/pop*100000), col='gray', lty=2, alpha=0.5)+
   facet_wrap(~district, scales='fixed')
 
-ggplot(ds2_pois, aes(x=date, y=obs_inc)) +
+ggplot(ds2_pois10, aes(x=date, y=obs_inc)) +
   geom_line(col='black') +
   theme_classic() +
   geom_point(aes(x=date, y=obs_inc, color=epidemic_flag)) +
   geom_line(aes(x=date, y=threshold/pop*100000), col='gray', lty=2, alpha=0.5)+
   facet_wrap(~district, scales='fixed')
 
-ggplot(ds2_pois, aes(x=date, y=obs_inc)) +
+ggplot(ds2_pois10, aes(x=date, y=obs_inc)) +
   geom_line(col='black') +
   theme_classic() +
   geom_point(aes(x=date, y=obs_inc, color=epidemic_flag_poisson)) +
   geom_line(aes(x=date, y=threshold_poisson/pop*100000) ,lty=2, alpha=0.5,col='gray')+
   facet_wrap(~district, scales='fixed')
 
+
+plot.districts <- unique(out.ds$district)
+
+ds2_pois <- out.ds %>%
+  filter( threshold_quant !=9999 ) %>%
+  mutate(epidemic_flag_fixed = if_else(obs_inc>43.75,1,0)) # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
+
 mean(ds2_pois$epidemic_flag_poisson)
 mean(ds2_pois$epidemic_flag_quant)
 mean(ds2_pois$epidemic_flag)
-mean(ds2_pois$epidemic_flag_fixed)
+mean(ds2_pois$epidemic_flag_fixed, na.rm=T)
 
 ## quantify performance of the different cutoffs. We want to have high values for:
 ### what proportion of cases in each year occur after the epidemic is observed?
@@ -214,6 +221,7 @@ e1 <- ds2_pois %>%
             inc_epidemic_fixed = N_epidemic_fixed/pop*100000,
             )
 
+##What we want is stuff in upper quadrant: large proportion of cases occur after epidemic is declared and incidence is high after epidemic is declared.
 ggplot(e1, aes(x=inc_epidemic_2sd, y=prop_epidemic_2sd))+
   geom_point()+
   ylim(0,1)
