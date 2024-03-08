@@ -124,6 +124,9 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
   geom_point(aes(x=date, y=N_cases, color=miss_date))
 
 #FILTER OUT months when an epidemic has been recognized by the time forecast is made in a specific district (using fixed epidemic threshold)
+
+
+#CHECK THIS: BaTri should have some months removed late-2015 that are still there
 out_1a <- out %>%
   dplyr::select(-pop,-m_DHF_cases,-m_DHF_cases_hold) %>%
   left_join(obs_epidemics, by=c('district'='district','vintage_date'='date')) %>%
@@ -239,7 +242,7 @@ mod.weights <- out3 %>%
   dplyr::select(w_i1, modN,  month)
 
 #note this looks very different when looking at data with epidemics filtered out using out
-p1.ds <- out %>%
+p1.ds <- out_1a %>%
   filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
   mutate(pred_count =exp(pred)*pop/100000) %>%
