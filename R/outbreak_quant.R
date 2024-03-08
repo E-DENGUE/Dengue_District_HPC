@@ -202,8 +202,10 @@ e1 <- ds2_pois %>%
          N_epidemic_quant = if_else(alarmN_quant>0,m_DHF_cases,NA_real_) ,
          N_epidemic_fixed = if_else(alarmN_fixed>0,m_DHF_cases,NA_real_) 
         ) %>%
-  filter(!is.na(alarmN)) %>%
-  group_by(district, year) %>%
+  filter(!is.na(alarmN)) 
+
+ e1_summary <- e1%>%
+   group_by(district, year) %>% 
   summarize(N_epidemic_sd=sum(N_epidemic_sd, na.rm=T),
             N_epidemic_pois=sum(N_epidemic_pois, na.rm=T),
             N_epidemic_quant=sum(N_epidemic_quant, na.rm=T),
@@ -223,26 +225,26 @@ e1 <- ds2_pois %>%
             )
 saveRDS(e1, './Data/observed_alarms.rds')
 ##What we want is stuff in upper quadrant: large proportion of cases occur after epidemic is declared and incidence is high after epidemic is declared.
-p1<-ggplot(e1, aes(x=inc_epidemic_2sd, y=prop_epidemic_2sd))+
+p1<-ggplot(e1_summary, aes(x=inc_epidemic_2sd, y=prop_epidemic_2sd))+
   geom_point(alpha=0.2)+
   ylim(0,1)+
   ggtitle('Mean+2SD')+
   theme_classic()
 
-p2<- ggplot(e1, aes(x=inc_epidemic_quant, y=prop_epidemic_quant))+
+p2<- ggplot(e1_summary, aes(x=inc_epidemic_quant, y=prop_epidemic_quant))+
   geom_point(alpha=0.2)+
   ylim(0,1)+
   ggtitle('Quantile (95%tile)')+
   theme_classic()
 
-p3 <- ggplot(e1, aes(x=inc_epidemic_pois, y=prop_epidemic_pois))+
+p3 <- ggplot(e1_summary, aes(x=inc_epidemic_pois, y=prop_epidemic_pois))+
   geom_point(alpha=0.2)+
   ylim(0,1)+
   ggtitle('Poisson prediction interval')+
   theme_classic()
 
 
-p4<- ggplot(e1, aes(x=inc_epidemic_fixed, y=prop_epidemic_fixed))+
+p4<- ggplot(e1_summary, aes(x=inc_epidemic_fixed, y=prop_epidemic_fixed))+
   geom_point(alpha=0.2)+
   ylim(0,1)+
 ggtitle('Fixed threshold')+

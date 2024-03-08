@@ -12,6 +12,7 @@ library(ggplot2)
 library(tidyverse)
 library(broom)
 library(plotly)
+library(viridis)
 
 N_cores = detectCores()
 
@@ -101,7 +102,11 @@ group_by(horizon,modN) %>%
 
 ##DESKTOP EVALUATION OF OUTPUTS
 
-out <- readRDS( "./cleaned_scores/all_crps_slim.rds")
+out <- readRDS( "./cleaned_scores/all_crps_slim.rds") %>% #CRPS score from model
+  mutate(vintage_date = date %m-% months(horizon)) #when was the forecast for the date made?
+
+obs_epidemics <- readRDS( './Data/observed_alarms.rds') #observed alarms, as flagged in outbreak_quant.R
+
 
 miss.dates <- out %>% group_by(date, horizon) %>%   
   filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
@@ -118,8 +123,15 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
   facet_wrap(~horizon) +
   geom_point(aes(x=date, y=N_cases, color=miss_date))
 
+#FILTER OUT months when an epidemic has been recognized by the time forecast is made in a specific district (using fixed epidemic threshold)
+out_1a <- out %>%
+  dplyr::select(-pop,-m_DHF_cases,-m_DHF_cases_hold) %>%
+  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date')) %>%
+  filter(epidemic_flag_fixed==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
+
+
 #Overall
-out2 <- out %>%
+out2 <- out_1a %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 & !(modN %in% c('mod39')) ) %>%
   group_by(horizon, modN, form) %>%
@@ -141,11 +153,11 @@ out2 <- out %>%
 View(out2)
 
 #what model factors are associate with a higher weight?
-mod1 <- lm(w_i2 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=out2)
+mod1 <- lm(w_i1 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=out2)
 summary(mod1)
 
 #By calendar month
-out3 <- out %>%
+out3 <- out_1a %>%
   filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 ) %>%
@@ -170,7 +182,7 @@ View(out3)
 
 
 ## How does best model differ by district?
-out4 <- out %>%
+out4 <- out_1a %>%
   filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 ) %>%
@@ -195,7 +207,7 @@ out4 <- out %>%
 View(out4)
 
 out4%>%
-ggplot(aes(x=modN,y=rel_wgt1, group=district, color=district )) +
+ggplot(aes(x=modN,y=rel_wgt1, group=district )) +
   geom_line()+
   theme_classic()
 
@@ -218,20 +230,35 @@ mods <- out3 %>%
   mutate(p.value=round(p.value,3))
 View(mods)
 
-
+#################################################
 #Observed vs expected
 
-p1 <- out %>%
+mod.weights <- out3 %>%
+  ungroup() %>%
+  filter(horizon==2) %>%
+  dplyr::select(w_i1, modN,  month)
+
+#note this looks very different when looking at data with epidemics filtered out using out
+p1.ds <- out %>%
   filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
   mutate(pred_count =exp(pred)*pop/100000) %>%
   group_by(modN,date) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_count)) %>%
+  mutate(month=month(date)) %>%
+  left_join(mod.weights, by=c('modN','month')) %>%
+  ungroup() %>%
+  group_by(date) %>%
+  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count)  )
+
+p1 <- p1.ds %>%
   ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
   geom_line() +
   theme_classic()+
   ylim(0,NA)+
-  geom_line(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))
+  geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
+  geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='gray')
+
 ggplotly(p1)  
 # miss_pattern <- out %>% 
 #   group_by(date, modN, horizon) %>%
