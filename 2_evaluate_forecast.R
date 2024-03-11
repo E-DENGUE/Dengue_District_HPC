@@ -132,6 +132,10 @@ out_1a <- out %>%
   filter(epidemic_flag_fixed==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
 
+test <- out_1a %>%
+  filter(district=='BA TRI') %>%
+  dplyr::select(date,inc,alarmN_fixed, N_epidemic_fixed )
+
 #Overall
 out2 <- out_1a %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
