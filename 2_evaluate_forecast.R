@@ -131,6 +131,16 @@ out_1a <- out %>%
   left_join(obs_epidemics, by=c('district'='district','vintage_date'='date')) %>%
   filter(epidemic_flag_fixed==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
+View(out_1a %>% group_by(district,date, horizon) %>% summarize(N=n()))
+
+#check
+View(out %>%
+  dplyr::select(-pop,-m_DHF_cases,-m_DHF_cases_hold) %>%
+  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date')) %>%
+  filter(district=='BA TRI' & date>= '2015-09-01' & date<='2015-11-01' & horizon==2) %>%
+  dplyr::select(district,date, modN,epidemic_flag_fixed ) %>%
+    arrange(date, modN)
+)
 
 #Overall
 out2 <- out_1a %>%
@@ -244,7 +254,7 @@ mod.weights <- out3 %>%
 p1.ds <- out_1a %>%
   filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
-  mutate(pred_count =exp(pred)*pop/100000) %>%
+  mutate(pred_count =exp(pred)) %>%
   group_by(modN,date) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_count)) %>%
   mutate(month=month(date)) %>%
