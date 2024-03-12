@@ -18,7 +18,7 @@ scoring_func <- function(Y){
   test1 <-inla.posterior.sample(1000, Y$mod,  num.threads=8,seed=123)
   
   pred.interval.func <- function(sample.ds, dist=c('nb','poisson')){
-    mu1 <- exp(sample.ds$latent[grep('Predictor', row.names(sample.ds$latent))])
+    mu1 <- exp(sample.ds$latent[grep('Predictor', row.names(sample.ds$latent))])*forecast_ds$pop/100000 #lambda
     mu2 <- mu1[forecast.index1]
     if(dist=='nb'){
       nb.size1 = sample.ds$hyperpar['size for the nbinomial observations (1/overdispersion)']
@@ -64,4 +64,21 @@ scoring_func <- function(Y){
   #pred.samples.forecast.inc.me <- apply(samps.inc,1,median)
   return(crps3)
 }
+
+
+# Y = rpois(100, lambda=10)
+# E1= rep(15, 100)
+# library(INLA)
+# ds <- cbind.data.frame(Y,E1)
+# mod1 <- inla(Y~1, E=E1, family='poisson', data=ds,control.compute=list(config = TRUE))
+# 
+# exp(mod1$summary.linear.predictor$mean)*15
+# 
+# test1 <-inla.posterior.sample(1000, mod1,  num.threads=8,seed=123)
+# 
+# preds <- sapply(test1, function(X){
+#   mu1 <- exp(X$latent[grep('Predictor', row.names(X$latent))])
+# })
+# 
+# hist(preds*15)
 
