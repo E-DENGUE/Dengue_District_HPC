@@ -28,17 +28,16 @@ ds.list <- mclapply(file.names,function(X){
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
   
   # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))  #THIS IS NOT RIGJT!!!! THIS IS CORRECT FOR HORIZON==1, NOT HORIZON==2
+  date.test.in <- regmatches(X, regexpr(date_pattern, X)) 
   
   preds_df <- d1$ds$preds %>%
     cbind.data.frame(d1$ds) %>%
     rename(pred_inc=mean, pred_inc_lcl=`0.025quant`, pred_inc_ucl= `0.975quant`) %>%
-   # filter(forecast==1) %>%
     dplyr::select(pred_inc, pred_inc_lcl, pred_inc_ucl,district,date, horizon ) %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1),
+    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
            form=d1$form) %>%
-    full_join(d1$scores, by=c('district','date','horizon')) %>%
+    left_join(d1$scores, by=c('district','date','horizon')) %>%
     dplyr::select(pred_inc, pred_inc_lcl, pred_inc_ucl,district,date, horizon ,vintage_date,  starts_with("crps")) 
     
     return(preds_df)
@@ -47,7 +46,7 @@ ds.list <- mclapply(file.names,function(X){
 
 out.slim<-  bind_rows(ds.list) %>%
   filter(horizon>=1) %>%
- saveRDS(., "./cleaned_scores/all_crps_slim.rds")
+ saveRDS( "./cleaned_scores/all_crps_slim.rds")
 
 
 ##################################
