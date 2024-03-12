@@ -30,7 +30,6 @@ filter( date>='2004-09-01')%>%
     filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>%  #only keep test date and 1 month ahead of that
     ungroup() %>%
     mutate(
-      t2=t,
            districtID2 = districtID,
            districtID3 = districtID,
            districtID4 = districtID,
