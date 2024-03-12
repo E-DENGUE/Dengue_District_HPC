@@ -38,7 +38,7 @@ ds.list <- mclapply(file.names,function(X){
 },  mc.cores=N_cores)
 
 
-out.slim<-  bind_rows(ds.list) %>%
+  bind_rows(ds.list) %>%
   filter(horizon>=1) %>%
  saveRDS( "./cleaned_scores/all_crps_slim.rds")
 
