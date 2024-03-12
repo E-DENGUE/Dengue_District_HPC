@@ -39,7 +39,8 @@ ds.list <- mclapply(file.names,function(X){
   A$Predictor <- gsub("Predictor\\.", "", A$Predictor)
   # Set row names to NULL
   rownames(A) <- NULL
-  Q <- subset(A, date %in% unique(d1$scores$date))
+  Q <- subset(A, date %in% unique(d1$scores$date) )
+  
   preds_df <- Q%>%
     inner_join(d1$scores, by=c('district','date','horizon')) %>%
     dplyr::select(pred_inc, pred_inc_lcl, pred_inc_ucl,district,date, horizon ,vintage_date,starts_with("crps"),modN)

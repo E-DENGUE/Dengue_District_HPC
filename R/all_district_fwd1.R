@@ -170,12 +170,11 @@ filter( date>='2004-09-01')%>%
   scores <- scoring_func(score.list)
   
   #plot(c1$date, mod1$summary.fitted.values$mean)
-  plot((c1$m_DHF_cases[is.na(c1$m_DHF_cases_hold)]), ((mod1$summary.fitted.values$mean[is.na(c1$m_DHF_cases_hold)])))
+ # plot((c1$m_DHF_cases[is.na(c1$m_DHF_cases_hold)]), ((mod1$summary.fitted.values$mean[is.na(c1$m_DHF_cases_hold)])))
   
   c1.out <- c1 %>%
-    dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) %>%
-    mutate(preds = mod1$summary.linear.predictor)
-  
+    dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
+
   out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=formula1)
   saveRDS(out.list,paste0('./Results/', 'mod',modN,'_',date.test.in  ,'.rds' )   )
   return(out.list)
