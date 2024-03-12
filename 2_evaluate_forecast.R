@@ -27,23 +27,13 @@ ds.list <- mclapply(file.names,function(X){
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
   # Extract the date from the string using gsub
   date.test.in <- regmatches(X, regexpr(date_pattern, X))
-  A<- d1$ds$preds %>%
-    cbind.data.frame(d1$ds) %>%
-    rename(pred_inc=mean, pred_inc_lcl=`0.025quant`, pred_inc_ucl= `0.975quant`) %>%
-    dplyr::select(pred_inc, pred_inc_lcl, pred_inc_ucl,district,date, horizon ) %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
-           modN=modN)
-  # Convert row names to an actual column
-  A$Predictor <- rownames(A)
-  # Remove the "Predictor." prefix
-  A$Predictor <- gsub("Predictor\\.", "", A$Predictor)
-  # Set row names to NULL
-  rownames(A) <- NULL
-  Q <- subset(A, date %in% unique(d1$scores$date) )
   
-  preds_df <- Q%>%
-    inner_join(d1$scores, by=c('district','date','horizon')) %>%
-    dplyr::select(pred_inc, pred_inc_lcl, pred_inc_ucl,district,date, horizon ,vintage_date,starts_with("crps"),modN)
+  preds_df <- d1$scores %>%
+    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+           modN=modN,
+           date.test.in=date.test.in)
+    
+   
   return(preds_df)
 },  mc.cores=N_cores)
 
