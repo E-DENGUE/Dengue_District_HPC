@@ -56,7 +56,7 @@ out <- readRDS( "./cleaned_scores/all_crps_slim.rds") %>%  #CRPS score from mode
 
 obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
   rename(case_vintage=m_DHF_cases) %>%
-  dplyr::select(date, district,case_check, starts_with('epidemic_flag'), starts_with('threshold'))
+  dplyr::select(date, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
 
 miss.dates <- out %>% 
   group_by(date, horizon) %>%   
@@ -218,38 +218,32 @@ ggplotly(p1)
 
   district.plot <- unique(out$district)[1:8]
   p2 <- out_1a %>%
+    left_join(obs_case, by=c('date','district')) %>%
     filter( horizon==2 & !(modN %in% c( 'mod39') )  & modN=='mod33'  & district %in% district.plot) %>%
     dplyr::select(-form) %>%
-    mutate(pred_count =exp(pred)*pop/100000,
-           pred_count_lcl = exp(pred_lcl )*pop/100000,
-           pred_count_ucl = exp(pred_ucl )*pop/100000,
-    ) %>%
     ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
     geom_point() +
     theme_classic()+
     ylim(0,NA)+
-    geom_point(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
+    geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
     facet_wrap(~district,nrow=2) +
-    geom_ribbon(aes(x=date, ymin=pred_count_lcl, ymax=pred_count_ucl),alpha=0.2)+
-    ggtitle('Model 33')+
+    geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
+    ggtitle('Model 20')+
     geom_hline(yintercept=43.75, col='gray', lty=2)
   p2
   
   district.plot <- unique(out$district)[1:8]
   p2 <- out_1a %>%
+    left_join(obs_case, by=c('date','district')) %>%
     filter( horizon==2 & !(modN %in% c( 'mod39') )  & modN=='mod29'  & district %in% district.plot) %>%
     dplyr::select(-form) %>%
-    mutate(pred_count =exp(pred)*pop/100000,
-           pred_count_lcl = exp(pred_lcl )*pop/100000,
-           pred_count_ucl = exp(pred_ucl )*pop/100000,
-    ) %>%
     ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
     geom_point() +
     theme_classic()+
     ylim(0,NA)+
-    geom_point(aes(x=date, y=pred_count,group=modN, color=modN, alpha=0.5))+
+    geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
     facet_wrap(~district,nrow=2) +
-    geom_ribbon(aes(x=date, ymin=pred_count_lcl, ymax=pred_count_ucl),alpha=0.2)+
+    geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
     ggtitle('Model 29')+
     geom_hline(yintercept=43.75, col='gray', lty=2)
   p2
