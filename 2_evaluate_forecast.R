@@ -55,7 +55,8 @@ out <- readRDS( "./cleaned_scores/all_crps_slim.rds") %>%  #CRPS score from mode
   full_join(obs_case, by=c('date','district'))
 
 obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
-  dplyr::select(date, district, starts_with('epidemic_flag'), starts_with('threshold'))
+  rename(case_vintage=m_DHF_cases) %>%
+  dplyr::select(date, district,case_check, starts_with('epidemic_flag'), starts_with('threshold'))
 
 miss.dates <- out %>% 
   group_by(date, horizon) %>%   
