@@ -19,7 +19,7 @@ N_cores = detectCores()
 
 file.names <- list.files('./Results')
 
-ds.list <- mclapply(file.names,function(X){
+ds.list <- lapply(file.names,function(X){
   
   d1 <- readRDS(file=file.path(paste0('./Results/',X)))
   
@@ -31,11 +31,12 @@ ds.list <- mclapply(file.names,function(X){
   preds_df <- d1$scores %>%
     mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
-           date.test.in=date.test.in)
+           date.test.in=date.test.in,
+           form=d1$form)
     
    
   return(preds_df)
-},  mc.cores=N_cores)
+})
 
 
   bind_rows(ds.list) %>%
@@ -50,15 +51,16 @@ obs_case <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_facto
   dplyr::select(date, district,m_DHF_cases, pop)
 
 out <- readRDS( "./cleaned_scores/all_crps_slim.rds") %>%  #CRPS score from model
+  dplyr::select(-pop,-m_DHF_cases) %>%
   full_join(obs_case, by=c('date','district'))
 
-obs_epidemics <- readRDS( './Data/observed_alarms.rds') #observed alarms, as flagged in outbreak_quant.R
-
+obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
+  dplyr::select(date, district, starts_with('epidemic_flag'), starts_with('threshold'))
 
 miss.dates <- out %>% 
   group_by(date, horizon) %>%   
-  filter(!(modN %in% c('mod31','mod32', 'mod39'))) %>%
-  summarize(N_mods=n(),N_cases=sum(m_DHF_cases )) %>%
+  filter(!(modN %in% c('mod31','mod32', 'mod39')) & horizon %in% c(1,2)) %>%
+  summarize(N_mods=n(), N_cases=mean(m_DHF_cases)) %>%
   ungroup() %>%
   group_by(horizon) %>%
   mutate(miss_date = if_else(N_mods< max(N_mods),1,0 )) %>%
@@ -72,23 +74,13 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
   geom_point(aes(x=date, y=N_cases, color=miss_date))
 
 #FILTER OUT months when an epidemic has been recognized by the time forecast is made in a specific district (using fixed epidemic threshold)
-
-
 out_1a <- out %>%
-  dplyr::select(-pop,-m_DHF_cases,-m_DHF_cases_hold) %>%
+  dplyr::select(-pop,-m_DHF_cases) %>%
   left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   %>%
   filter(epidemic_flag_fixed==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
 View(out_1a %>% group_by(district,date, horizon) %>% summarize(N=n()))
 
-#check
-View(out %>%
-  dplyr::select(-pop,-m_DHF_cases,-m_DHF_cases_hold) %>%
-  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date')) %>%
-  filter(district=='BA TRI' & date>= '2015-09-01' & date<='2015-11-01' & horizon==2) %>%
-  dplyr::select(district,date, modN,epidemic_flag_fixed ) %>%
-    arrange(date, modN)
-)
 
 #Overall
 out2 <- out_1a %>%
@@ -200,53 +192,17 @@ mod.weights <- out3 %>%
 
 #note this looks very different when looking at data with epidemics filtered out using out
 p1.ds <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
   filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
-  mutate(pred_count =exp(pred)*pop/100000) %>% #CHECK THIS!!
+  mutate(pred_count = pred_mean*pop/100000) %>% #CHECK THIS!!
   group_by(modN,date) %>%
-  summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_count)) %>%
+  summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
   mutate(month=month(date)) %>%
   left_join(mod.weights, by=c('modN','month')) %>%
   ungroup() %>%
   group_by(date) %>%
   mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count)  )
-
-# check <- out_1a %>%
-#   filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
-#   dplyr::select(-form) %>%
-#   mutate(pred_count =exp(pred)) %>%
-#   filter(district=="BA TRI") %>%
-#   group_by(modN) %>%
-#   summarize(N=n())
-
-# check <- out_1a %>%
-#   filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
-#   dplyr::select(-form) %>%
-#   mutate(pred_count =exp(pred)) %>%
-#  # filter(district=="BA TRI") %>%
-#   group_by(date) %>%
-#   summarize(N=n())
-
-check <- out_1a %>%
-  mutate(  pred_count1 =exp(pred),
-           pred_count2 =exp(pred)*pop/100000) %>%  #CHECK THIS!!
-  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
-  dplyr::select(modN ,district,date,m_DHF_cases,pred_count2,pred_count1,pop ) %>%
-  group_by(modN,date) %>%
-  summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_count2)) %>%
-  mutate(month=month(date)) %>%
-  left_join(mod.weights, by=c('modN','month')) %>%
-  ungroup() %>%
-  group_by(date) %>%
-  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count)  ) %>%
-  filter(modN=='mod33') %>%
-  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-  geom_line() +
-  theme_classic()+
-  ylim(0,NA)+
-  geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
-  geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='gray')
-
 
 p1 <- p1.ds %>%
   filter(modN=='mod33') %>%
@@ -258,12 +214,6 @@ p1 <- p1.ds %>%
   geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='gray')
 
 ggplotly(p1)  
-# miss_pattern <- out %>% 
-#   group_by(date, modN, horizon) %>%
-#   summarize(N=n()) %>%
-#   reshape2::dcast(., date + horizon~modN) %>%
-#   arrange(horizon, date)
-
 
   district.plot <- unique(out$district)[1:8]
   p2 <- out_1a %>%
