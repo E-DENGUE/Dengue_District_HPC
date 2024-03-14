@@ -1,3 +1,8 @@
+
+mod0 <- 'm_DHF_cases_hold~    1'
+                
+
+
 ###############best model based on CRPS (full posterior) ############
 mod1 <- 'm_DHF_cases_hold~   lag_y + 
                         f(districtID,model = "iid")+
