@@ -77,8 +77,8 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
 #FILTER OUT months when an epidemic has been recognized by the time forecast is made in a specific district (using fixed epidemic threshold)
 out_1a <- out %>%
   dplyr::select(-pop,-m_DHF_cases) %>%
-  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   %>%
-  filter(epidemic_flag_fixed==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
+  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))  # %>%
+ # filter(epidemic_flag_fixed==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
 View(out_1a %>% group_by(district,date, horizon) %>% summarize(N=n()))
 
@@ -191,22 +191,20 @@ mod.weights <- out3 %>%
   filter(horizon==2) %>%
   dplyr::select(w_i1, modN,  month)
 
-#note this looks very different when looking at data with epidemics filtered out using out
 p1.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
   filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
-  mutate(pred_count = pred_mean*pop/100000) %>% #CHECK THIS!!
   group_by(modN,date) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
   mutate(month=month(date)) %>%
-  left_join(mod.weights, by=c('modN','month')) %>%
+  left_join(mod.weights, by=c('modN','month')) %>% #weights determined by month-specific  predictions
   ungroup() %>%
   group_by(date) %>%
   mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count)  )
 
 p1 <- p1.ds %>%
-  filter(modN=='mod33') %>%
+  #filter(modN=='mod33') %>%
   ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
   geom_line() +
   theme_classic()+
@@ -216,10 +214,10 @@ p1 <- p1.ds %>%
 
 ggplotly(p1)  
 
-  district.plot <- unique(out$district)[1:8]
+  district.plot <- unique(out$district)[9:18]
   p2 <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter( horizon==2 & !(modN %in% c( 'mod39') )  & modN=='mod33'  & district %in% district.plot) %>%
+    filter( horizon==2 &  modN=='mod19'  & district %in% district.plot) %>%
     dplyr::select(-form) %>%
     ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
     geom_point() +
@@ -228,25 +226,39 @@ ggplotly(p1)
     geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
     facet_wrap(~district,nrow=2) +
     geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
-    ggtitle('Model 20')+
+    ggtitle('Model 19')+
     geom_hline(yintercept=43.75, col='gray', lty=2)
   p2
   
-  district.plot <- unique(out$district)[1:8]
-  p2 <- out_1a %>%
-    left_join(obs_case, by=c('date','district')) %>%
-    filter( horizon==2 & !(modN %in% c( 'mod39') )  & modN=='mod29'  & district %in% district.plot) %>%
-    dplyr::select(-form) %>%
-    ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-    geom_point() +
-    theme_classic()+
-    ylim(0,NA)+
-    geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
-    facet_wrap(~district,nrow=2) +
-    geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
-    ggtitle('Model 29')+
-    geom_hline(yintercept=43.75, col='gray', lty=2)
-  p2
+obs_vs_expected_district <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 &  modN=='mod19' ) %>%
+  group_by(district) %>%
+  summarize(obs=sum(m_DHF_cases), pred=sum(pred_mean)) %>%
+  mutate(diff= obs - pred, rr=obs/pred)
+  
+
+obs_vs_expected_district <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 &  modN=='mod19' ) %>%
+  group_by(district) %>%
+  summarize(obs=sum(m_DHF_cases), pred=sum(pred_mean)) %>%
+  mutate(diff= obs - pred, rr=obs/pred)
+  
+p2 <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 &  modN=='mod19'  & district %in% c('CHO MOI')) %>%
+  dplyr::select(-form) %>%
+  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+  geom_point() +
+  theme_classic()+
+  ylim(0,NA)+
+  geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
+  facet_wrap(~district,nrow=2) +
+  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
+  ggtitle('Model 19')+
+  geom_hline(yintercept=43.75, col='gray', lty=2)
+p2
 
 
 
