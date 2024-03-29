@@ -61,10 +61,14 @@ ds1.in <- d2 %>%
   mutate(monthN=lubridate::month(date),
          epidemic_flag=-9999,
          epidemic_flag_poisson=-9999,
+         epidemic_flag_poisson2=-9999,
+         epidemic_flag_nb=-9999,
          epidemic_flag_quant=-9999,
          
                   threshold_poisson=9999,
-         threshold=9999,
+         threshold_poisson2=9999,
+         threshold_nb=9999,
+            threshold=9999,
          threshold_quant=9999
          )
 
@@ -112,8 +116,13 @@ for(j in 1:length(unique(ds1.in$district))){
   }else{
     pois.ucl <- 5 #if no cases observed, just set arbitrary threshold of 5
   }
-    
+  
+  #Alternative Poisson prediction interval (as in surveillance package)
+  pois.ucl2 <- qpois(0.95,lambda=mean(most.recent$m_DHF_cases))
 
+  #NegBin prediction interval, as in algo.bayes in surveillance package
+  nb.ucl <- qnbinom(0.95, size=sum(most.recent$m_DHF_cases)+0.5 , length(most.recent$m_DHF_cases)/(length(most.recent$m_DHF_cases) + 1) ) 
+  
   #for the most recent date, determine if an epidemic has occurred
   add.ds <- ds1.in.dist[[j]] %>% filter(date==X)
   ds1.in.dist.init[[j]] <- bind_rows(ds1.in.dist.init[[j]], add.ds) #add on latest observation 
@@ -124,6 +133,12 @@ for(j in 1:length(unique(ds1.in$district))){
             
             threshold_poisson= if_else(date==X,pois.ucl ,threshold_poisson),
             epidemic_flag_poisson = if_else(date==X,1*(m_DHF_cases>threshold_poisson),epidemic_flag_poisson),
+            
+            threshold_poisson2= if_else(date==X,pois.ucl2 ,threshold_poisson2),
+            epidemic_flag_poisson2 = if_else(date==X,1*(m_DHF_cases>threshold_poisson2),epidemic_flag_poisson2),
+            
+            threshold_nb= if_else(date==X,nb.ucl,threshold_nb),
+            epidemic_flag_nb = if_else(date==X,1*(m_DHF_cases>threshold_nb),epidemic_flag_nb),
             
             threshold_quant= if_else(date==X,ds1.test_quant$mquant ,threshold_quant),
             epidemic_flag_quant = if_else(date==X,1*(m_DHF_cases>threshold_quant),epidemic_flag_quant),
@@ -181,6 +196,9 @@ ds2_pois <- out.ds %>%
   mutate(epidemic_flag_fixed = if_else(obs_inc>50,1,0)) # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
 
 mean(ds2_pois$epidemic_flag_poisson)
+mean(ds2_pois$epidemic_flag_poisson2)
+mean(ds2_pois$epidemic_flag_nb)
+
 mean(ds2_pois$epidemic_flag_quant)
 mean(ds2_pois$epidemic_flag)
 mean(ds2_pois$epidemic_flag_fixed, na.rm=T)
@@ -199,10 +217,10 @@ e1 <- ds2_pois %>%
          alarmN_fixed=RcppRoll::roll_sum(epidemic_flag_fixed, n=4,align = "right", fill = NA,partial = FALSE))%>%
   ungroup()%>%
   #Count how many cases occur during the alarm period
-  mutate(N_epidemic_sd = if_else(alarmN>0,m_DHF_cases,NA_real_) ,
-         N_epidemic_pois = if_else(alarmN_pois>0,m_DHF_cases,NA_real_) ,
-         N_epidemic_quant = if_else(alarmN_quant>0,m_DHF_cases,NA_real_) ,
-         N_epidemic_fixed = if_else(alarmN_fixed>0,m_DHF_cases,NA_real_) ,
+  mutate(N_epidemic_sd = ifelse(alarmN>0,m_DHF_cases,NA_real_) ,
+         N_epidemic_pois = ifelse(alarmN_pois>0,m_DHF_cases,NA_real_) ,
+         N_epidemic_quant = ifelse(alarmN_quant>0,m_DHF_cases,NA_real_) ,
+         N_epidemic_fixed = ifelse(alarmN_fixed>0,m_DHF_cases,NA_real_) ,
          inc=m_DHF_cases/pop*100000
         ) %>%
   filter(!is.na(alarmN)) 
@@ -271,7 +289,7 @@ threshold_app <- function(){
     output$threshPlot = renderPlot({
       ds.plot <- out.ds %>%
         filter( threshold_quant !=9999 ) %>%
-        mutate(epidemic_flag_fixed = if_else(obs_inc>input$threshold,1,0)) %>% # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
+        mutate(epidemic_flag_fixed = ifelse(obs_inc>input$threshold,1,0)) %>% # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
         arrange(district, date) %>%
         mutate(year=year(date)) %>%
         group_by(district) %>%
@@ -279,7 +297,7 @@ threshold_app <- function(){
         ungroup()%>%
         #Count how many cases occur during the alarm period
         mutate( inc=m_DHF_cases/pop*100000,
-                N_epidemic_fixed = if_else(alarmN_fixed>0,m_DHF_cases,NA_real_) 
+                N_epidemic_fixed = ifelse(alarmN_fixed>0,m_DHF_cases,NA_real_) 
         ) %>%
         group_by(district, year) %>% 
         summarize(
