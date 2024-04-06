@@ -39,9 +39,9 @@ c1 <- d2 %>%
   mutate( t = interval(min(date), date) %/% months(1) + 1) %>%
   group_by(district) %>%
   mutate(district2=district,
-         Dengue_fever_rates = m_DHF_cases / pop *100000,
-         log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
-         log_pop=log(pop/100000),
+         Dengue_fever_rates = m_DHF_cases / pop *10000,
+         log_df_rate = log((m_DHF_cases +1)/ pop *10000) , 
+         log_pop=log(pop/10000),
          year = year(date) ,
          m_DHF_cases_hold= ifelse( date>= (date.test.in[1]), NA_real_,
                                    m_DHF_cases),
@@ -56,7 +56,7 @@ c1 <- d2 %>%
          cos12 = cos(2*pi*t/12),
          month=as.factor(month(date)),
          monthN=month(date),
-         offset1 = pop/100000,
+         offset1 = pop/10000,
          #log_offset=log(pop/100000)
   ) %>%
   filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>%  #only keep test date and 1 month ahead of that
@@ -101,9 +101,9 @@ formula1 <- 'm_DHF_cases_hold~
 
 
 formula1 <- 'm_DHF_cases_hold~ 1 +  Outmigration_Rate +
-Inmigration_Rate +   Monthly_Average_Income_Percapita + Urbanization_Rate +
-                          lag2_avg_daily_temp+  
-                            lag2_avg_max_daily_temp +
+Inmigration_Rate +   Monthly_Average_Income_Percapita + urban_dic +
+                          lag2_avg_daily_temp+  urban_dic*lag2_avg_daily_temp+
+                            lag2_avg_max_daily_temp + urban_dic*lag2_avg_max_daily_temp +
                             f(districtID,model = "iid") +
                             f(t, model="ar1") + #single national-level AR(1)
                             f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
