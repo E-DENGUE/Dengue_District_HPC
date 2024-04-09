@@ -47,3 +47,4 @@ c1.train.dist <- c1 %>%
   mutate( m_DHF_cases_train = if_else(date<='2021-06-01',m_DHF_cases, NA_real_  ) ) %>%
   group_by(district) %>%
   mutate(districtID =cur_group_id()     )
+write.csv(c1.train.dist,'./Data/test2.csv')
