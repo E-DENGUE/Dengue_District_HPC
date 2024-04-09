@@ -34,7 +34,7 @@ c1 <- d2 %>%
   dplyr::select(date, district, m_DHF_cases,pop,Dengue_fever_rates)
 
 c1.train <- c1 %>%
-  filter(date<='2012-06-01' & district=='VINH HUNG')
+  filter(date<='2021-06-01' & district=='VINH HUNG')
 
 plot(c1.train$date,c1.train$Dengue_fever_rates)
 
