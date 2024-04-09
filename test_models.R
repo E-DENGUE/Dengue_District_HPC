@@ -100,12 +100,14 @@ formula1 <- 'm_DHF_cases_hold~
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
 
+
 formula1 <- 'm_DHF_cases_hold~ 1 +  Outmigration_Rate +
 Inmigration_Rate +   Monthly_Average_Income_Percapita + urban_dic +
                           lag2_avg_daily_temp+  urban_dic*lag2_avg_daily_temp+
                             lag2_avg_max_daily_temp + urban_dic*lag2_avg_max_daily_temp +
                             f(districtID,model = "iid") +
-                            f(t, model="ar1") + #single national-level AR(1)
+                            f(time_id1, group=districtID3, model="ar1", hyper =  hyper.ar1,control.group=list(model="iid" )) + #district-level AR(1) with shared ariance
+                            f(time_id2, model="ar1") + #single national-level AR(1)
                             f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 # formula1 <- 'm_DHF_cases_hold~
 #                             f(districtID,model = "iid")+
