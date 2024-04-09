@@ -38,3 +38,4 @@ c1.train <- c1 %>%
 
 plot(c1.train$date,c1.train$Dengue_fever_rates)
 
+write.csv(c1.train,'./Data/test1.csv')
