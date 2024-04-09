@@ -40,3 +40,10 @@ c1.train <- c1 %>%
 plot(c1.train$date,c1.train$Dengue_fever_rates)
 
 write.csv(c1.train,'./Data/test1.csv')
+
+
+c1.train.dist <- c1 %>%
+  filter(date<='2021-08-01' ) %>%
+  mutate( m_DHF_cases_train = if_else(date<='2021-06-01',m_DHF_cases, NA_real_  ) ) %>%
+  group_by(district) %>%
+  mutate(districtID =cur_group_id()     )
