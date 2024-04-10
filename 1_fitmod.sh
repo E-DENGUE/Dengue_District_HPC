@@ -25,14 +25,11 @@ task_id=$SLURM_ARRAY_TASK_ID
 j=$(( (task_id-1)  / N_models + 1 )) # $(( )) does arithmetic evaluation; Bash performs integer division so floor() is default
 k=$(( task_id  % N_models  + 1 )) # $(( )) does arithmetic evaluation
 
-    # Run your R script with the task-specific J and K
-Rscript 1_fitmod.R "$j" "$k"
-
 # Start time
 start_time=$(date +"%Y-%m-%d %H:%M:%S")
 
 # Run your R script with the task-specific J and K
-Rscript mod5.R "$j" "$k"
+Rscript 1_fitmod.R "$j" "$k"
 
 # End time
 end_time=$(date +"%Y-%m-%d %H:%M:%S")
