@@ -20,6 +20,7 @@ MDR.adj <- paste(getwd(), "/MDR.graph", sep = "")
 
 date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2022-12-01') , by='month')
 
+all.districts <- unique(d2$district)
 
 
 ##Priors from Gibb ms 
