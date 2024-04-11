@@ -8,11 +8,11 @@ lag_district_mod <- function(date.test.in, district.select){
     mutate( t = interval(min(date), date) %/% months(1) + 1) %>%
     group_by(district) %>%
     mutate(district2=district,
-           Dengue_fever_rates = m_DHF_cases / pop *10000,
-           log_df_lag2 = lag(log((m_DHF_cases+0.5) / pop *10000),n=2),
-           log_df_lag3 = lag(log((m_DHF_cases+0.5) / pop *10000),n=3),
-           log_df_lag4 = lag(log((m_DHF_cases+0.5) / pop *10000),n=4),
-           log_df_lag5 = lag(log((m_DHF_cases+0.5) / pop *10000),n=5),
+           Dengue_fever_rates = m_DHF_cases / pop *100000,
+           log_df_lag2 = lag(log((m_DHF_cases+0.5) / pop *100000),n=2),
+           log_df_lag3 = lag(log((m_DHF_cases+0.5) / pop *100000),n=3),
+           log_df_lag4 = lag(log((m_DHF_cases+0.5) / pop *100000),n=4),
+           log_df_lag5 = lag(log((m_DHF_cases+0.5) / pop *100000),n=5),
            sin12 = sin(2*pi*t/12),
            cos12 = cos(2*pi*t/12),
            
@@ -41,7 +41,7 @@ lag_district_mod <- function(date.test.in, district.select){
   c1b <- c1a %>%
     filter( district==district.select) %>%
     left_join(all.lags, by='date') %>%
-    mutate(offset1= pop/10000,
+    mutate(offset1= pop/100000,
            m_DHF_cases_hold= ifelse( date>= (date.test.in), NA_real_,
                                      m_DHF_cases)
     )
@@ -124,7 +124,7 @@ lag_district_mod <- function(date.test.in, district.select){
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
   
   out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=as.character(form2))
-  saveRDS(out.list,paste0('./Results/', 'lag_mod_',district.select,'_',date.test.in  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Results_b/', 'lag_mod_',district.select,'_',date.test.in  ,'.rds' )   )
   return(out.list)
 }
 

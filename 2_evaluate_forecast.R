@@ -17,11 +17,12 @@ library(lubridate)
 
 N_cores = detectCores()
 
-file.names <- list.files('./Results')
+##Results from spatiotemporal models
+file.names1 <- list.files('./Results')
 
-ds.list <- lapply(file.names,function(X){
+ds.list1 <- lapply(file.names1,function(X){
   
-  d1 <- readRDS(file=file.path(paste0('./Results/',X)))
+  d1 <- readRDS(file=paste0('./Results/',file.path(X)))
   
   modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
@@ -38,8 +39,29 @@ ds.list <- lapply(file.names,function(X){
   return(preds_df)
 })
 
+##Results from PCA aware analysis
+  file.names2 <- paste0('./Results_b/',list.files('./Results_b'))
+  
+ds.list2 <- lapply(file.names2,function(X){
+  
+  d1 <- readRDS(file=file.path(X))
+  
+  modN <-  'PC1'
+  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  # Extract the date from the string using gsub
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  
+  preds_df <- d1$scores %>%
+    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+           modN=modN,
+           date.test.in=date.test.in,
+           form=paste(d1$form, collapse=' '))
+  
+  
+  return(preds_df)
+})
 
-  bind_rows(ds.list) %>%
+ bind_rows(c(ds.list1,ds.list2)) %>%
   filter(horizon>=1) %>%
  saveRDS( "./cleaned_scores/all_crps_slim.rds")
 
@@ -201,7 +223,8 @@ p1.ds <- out_1a %>%
   left_join(mod.weights, by=c('modN','month')) %>% #weights determined by month-specific  predictions
   ungroup() %>%
   group_by(date) %>%
-  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count)  )
+  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count) ,
+         pred_count= if_else(modN=='PC1',pred_count*10,pred_count))
 
 p1 <- p1.ds %>%
   #filter(modN=='mod33') %>%
