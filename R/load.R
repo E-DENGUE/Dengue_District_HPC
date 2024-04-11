@@ -4,6 +4,7 @@ source('./R/deseasonalize_climate.R')
 source('./R/all_district_fwd1.R')
 source('./R/scoring_func.R')
 source('./0_specify_models.R')
+source('./R/lag_district_mod.R')
 
 #d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
 #cleaned in format_input_data.R
@@ -21,7 +22,6 @@ MDR.adj <- paste(getwd(), "/MDR.graph", sep = "")
 date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2022-12-01') , by='month')
 
 all.districts <- unique(d2$district)
-
 
 ##Priors from Gibb ms 
 # iid model 
