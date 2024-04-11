@@ -89,6 +89,13 @@ miss.dates <- out %>%
   mutate(miss_date = if_else(N_mods< max(N_mods),1,0 )) %>%
   ungroup()
 
+miss.mod <- out %>%
+  filter(horizon==2) %>%
+  group_by(modN) %>%
+  summarize(N=n()) %>%
+  mutate(exclude_miss_mod = N<max(N))
+
+
 #note this is not a proper time series--we are double counting cases across models.
 ggplot(miss.dates, aes(x=date, y=N_cases)) +
   theme_classic()+
@@ -98,9 +105,11 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
 
 #FILTER OUT months when an epidemic has been recognized by the time forecast is made in a specific district (using fixed epidemic threshold)
 out_1a <- out %>%
+  left_join(miss.mod, by='modN') %>%
+  filter(exclude_miss_mod!=1) %>%
   dplyr::select(-pop,-m_DHF_cases) %>%
-  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))  # %>%
- # filter(epidemic_flag_fixed==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
+  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   %>%
+  filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
 View(out_1a %>% group_by(district,date, horizon) %>% summarize(N=n()))
 
@@ -223,8 +232,7 @@ p1.ds <- out_1a %>%
   left_join(mod.weights, by=c('modN','month')) %>% #weights determined by month-specific  predictions
   ungroup() %>%
   group_by(date) %>%
-  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count) ,
-         pred_count= if_else(modN=='PC1',pred_count*10,pred_count))
+  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count) )
 
 p1 <- p1.ds %>%
   #filter(modN=='mod33') %>%
@@ -233,14 +241,44 @@ p1 <- p1.ds %>%
   theme_classic()+
   ylim(0,NA)+
   geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
-  geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='gray')
+  geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='red')
 
 ggplotly(p1)  
 
-  district.plot <- unique(out$district)[9:18]
+#same but weights vary by district
+mod.weights2 <- out4 %>%
+  ungroup() %>%
+  filter(horizon==2) %>%
+  dplyr::select(w_i1, modN,   district)
+
+p2.ds <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
+  dplyr::select(-form) %>%
+  group_by(modN,date,district) %>%
+  summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
+  mutate(month=month(date)) %>%
+  left_join(mod.weights2, by=c('modN','district')) %>% #weights determined by month-specific  predictions
+  ungroup() %>%
+  group_by(date) %>%
+  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count),
+         m_DHF_cases=sum(m_DHF_cases))
+
+p2 <- p2.ds %>%
+  #filter(modN=='mod33') %>%
+  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+  geom_line() +
+  theme_classic()+
+  ylim(0,NA)+
+  geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
+  geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='red')
+
+ggplotly(p2)  
+
+  district.plot <- unique(out$district)[1:6]
   p2 <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter( horizon==2 &  modN=='mod19'  & district %in% district.plot) %>%
+    filter( horizon==2 &  modN=='PC1'  & district %in% district.plot) %>%
     dplyr::select(-form) %>%
     ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
     geom_point() +
@@ -252,13 +290,6 @@ ggplotly(p1)
     ggtitle('Model 19')+
     geom_hline(yintercept=43.75, col='gray', lty=2)
   p2
-  
-obs_vs_expected_district <- out_1a %>%
-  left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod19' ) %>%
-  group_by(district) %>%
-  summarize(obs=sum(m_DHF_cases), pred=sum(pred_mean)) %>%
-  mutate(diff= obs - pred, rr=obs/pred)
   
 
 obs_vs_expected_district <- out_1a %>%
