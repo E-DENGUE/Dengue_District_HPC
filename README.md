@@ -18,7 +18,7 @@ The code in this repository is intended to be run on an HPC.
 
 > options(timeout=300)
 
-> inla.binary.install()
+> inla.binary.install()  #select option 2 to work on the Yale HPC
 
 > library(INLA)
 
