@@ -12,13 +12,21 @@ The code in this repository is intended to be run on an HPC.
  
 > R
 
-> install.packages("INLA",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
+remotes::install_version("INLA", version="23.04.24",repos=c(getOption("repos"),INLA="https://inla.r-inla-download.org/R/testing"), dep=TRUE)
+
+####choose option 3 to say don't update any packages
+> 3
 
 > library(INLA)
+>
 
 > options(timeout=300)
 
-> inla.binary.install()  #select option 2 to work on the Yale HPC
+> inla.binary.install()
+>
+> #select option 2 to work on the Yale HPC
+
+>2
 
 > library(INLA)
 
