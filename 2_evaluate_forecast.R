@@ -14,6 +14,8 @@ library(broom)
 library(plotly)
 library(viridis)
 library(lubridate)
+library(gifski)
+library(gganimate)
 
 N_cores = detectCores()
 
@@ -108,14 +110,15 @@ out_1a <- out %>%
   left_join(miss.mod, by='modN') %>%
   filter(exclude_miss_mod!=1) %>%
   dplyr::select(-pop,-m_DHF_cases) %>%
-  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   %>%
-  filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
+  left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   #%>%
+ # filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
 View(out_1a %>% group_by(district,date, horizon) %>% summarize(N=n()))
 
 
 #Overall
 out2 <- out_1a %>%
+  filter(epidemic_flag==0) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 & !(modN %in% c('mod39')) ) %>%
   group_by(horizon, modN, form) %>%
@@ -142,6 +145,7 @@ summary(mod1)
 
 #By calendar month
 out3 <- out_1a %>%
+  filter(epidemic_flag==0) %>%
   filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 ) %>%
@@ -151,7 +155,8 @@ out3 <- out_1a %>%
   arrange(horizon,month, crps2)%>%
   ungroup() %>%
   group_by(horizon,month) %>%
-  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) )%>%
+  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),
+         w_i2 = (1/crps2^2)/sum(1/crps2^2) )%>%
   filter(horizon==2)%>%
   mutate(rw_season = grepl('cyclic=TRUE', form),
          harm_season = grepl('sin12', form),
@@ -167,6 +172,7 @@ View(out3)
 
 ## How does best model differ by district?
 out4 <- out_1a %>%
+  filter(epidemic_flag==0) %>%
   filter(!(modN %in% c('mod31','mod32', 'mod39')) & !is.na(crps2)) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 ) %>%
@@ -187,7 +193,16 @@ out4 <- out_1a %>%
          rw_time_spatial=grepl(' f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) ',form, fixed=T),
          type4_spatial_bym = grepl('model="bym"', form, fixed=T) *grepl('control.group=list(model="ar1"', form, fixed=T) *grepl('group=time_id1', form, fixed=T)
   ) %>%
-  dplyr::select(-form)
+  dplyr::select(-form) %>%
+  ungroup() %>%
+  arrange(district, crps2) %>%
+  group_by(district) %>%
+  mutate(mod_rank = row_number()) %>%
+  ungroup()
+
+out4_ranks <- out4 %>% group_by(modN) %>% summarize(ave_rank=mean())
+
+
 View(out4)
 
 out4%>%
@@ -217,10 +232,29 @@ View(mods)
 #################################################
 #Observed vs expected
 
-mod.weights <- out3 %>%
+mod.weights_overall <- out2 %>%
+  ungroup() %>%
+  dplyr::select( w_i2 ,modN)
+
+#ensemble, weight based on overall performance
+p0.ds <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
+  dplyr::select(-form) %>%
+  group_by(modN,date) %>%
+  summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
+  mutate(month=month(date)) %>%
+  left_join(mod.weights_overall, by=c('modN')) %>% #weights determined by month-specific  predictions
+  ungroup() %>%
+  group_by(date) %>%
+  mutate(ensemble_overall = sum(w_i2/sum(w_i2) *pred_count) ) %>%
+  dplyr::select(date,modN ,ensemble_overall)
+
+#ensemble; varying weights by calendar month
+mod.weights_t <- out3 %>%
   ungroup() %>%
   filter(horizon==2) %>%
-  dplyr::select(w_i1, modN,  month)
+  dplyr::select(w_i2, modN,  month)
 
 p1.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
@@ -229,10 +263,10 @@ p1.ds <- out_1a %>%
   group_by(modN,date) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
   mutate(month=month(date)) %>%
-  left_join(mod.weights, by=c('modN','month')) %>% #weights determined by month-specific  predictions
+  left_join(mod.weights_t, by=c('modN','month')) %>% #weights determined by month-specific  predictions
   ungroup() %>%
   group_by(date) %>%
-  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count) )
+  mutate(ensemble_month = sum(w_i2/sum(w_i2) *pred_count) )
 
 p1 <- p1.ds %>%
   #filter(modN=='mod33') %>%
@@ -241,15 +275,18 @@ p1 <- p1.ds %>%
   theme_classic()+
   ylim(0,NA)+
   geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
-  geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='red')
+  geom_line(aes(x=date, y=ensemble_month,group=modN), alpha=0.5 ,lwd=1, col='red')
 
+p1
 ggplotly(p1)  
 
+#########################
 #same but weights vary by district
-mod.weights2 <- out4 %>%
+mod.weights_dist<- out4 %>%
   ungroup() %>%
   filter(horizon==2) %>%
-  dplyr::select(w_i1, modN,   district)
+  dplyr::select(w_i1, modN,   district) %>%
+  arrange(district, -w_i1)
 
 p2.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
@@ -258,40 +295,67 @@ p2.ds <- out_1a %>%
   group_by(modN,date,district) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
   mutate(month=month(date)) %>%
-  left_join(mod.weights2, by=c('modN','district')) %>% #weights determined by month-specific  predictions
+  left_join(mod.weights_dist, by=c('modN','district')) %>% #weights determined by month-specific  predictions
+  ungroup() %>%
+  group_by(date, district) %>%
+  summarize(ensemble_dist_wgt = sum(w_i1/sum(w_i1) *pred_count) #summarize across the different models to get date and district-specific estimate
+         ) %>%
   ungroup() %>%
   group_by(date) %>%
-  mutate(ensemble = sum(w_i1/sum(w_i1) *pred_count),
-         m_DHF_cases=sum(m_DHF_cases))
+  summarize( ensemble_dist_wgt=sum(ensemble_dist_wgt)) %>% #sum across the districts
+  right_join(p1.ds, by='date') %>%
+  left_join(p0.ds, by=c('date', 'modN'))
 
-p2 <- p2.ds %>%
-  #filter(modN=='mod33') %>%
+
+p2.ensembles <- p2.ds %>%
   ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
   geom_line() +
   theme_classic()+
-  ylim(0,NA)+
-  geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
-  geom_line(aes(x=date, y=ensemble,group=modN), alpha=0.5 ,lwd=1, col='red')
+  ylim(0,NA) +
+ # geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
+  geom_line(aes(x=date, y=ensemble_dist_wgt,group=modN,), alpha=0.5 ,lwd=1, col='red')+ #weight by 
+geom_line(aes(x=date, y=ensemble_month,group=modN,), alpha=0.5 ,lwd=1, col='blue')+
+  geom_line(aes(x=date, y=ensemble_overall,group=modN,), alpha=0.5 ,lwd=1, col='orange')+
+  ggtitle("Differential weighting of ensemble has little effect")
 
-ggplotly(p2)  
+p2.ensembles #the 3 ensembles looks almost identical
 
-  district.plot <- unique(out$district)[1:6]
-  p2 <- out_1a %>%
+
+#ggplotly(p2)  
+## DISTRICT-LEVEL PLOTS--make gifs showing observed and expected
+
+  gif.ds <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter( horizon==2 &  modN=='PC1'  & district %in% district.plot) %>%
-    dplyr::select(-form) %>%
-    ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-    geom_point() +
-    theme_classic()+
-    ylim(0,NA)+
-    geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
-    facet_wrap(~district,nrow=2) +
-    geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
-    ggtitle('Model 19')+
-    geom_hline(yintercept=43.75, col='gray', lty=2)
-  p2
+    filter(horizon==2 & modN %in% c('mod25','mod33','PC1'))
   
+    all.districts <- unique(out$district)
+    
+    plot.dist.fun <- function(district.select){
+  
+       p2 <- gif.ds %>%
+        filter(district %in% district.select) %>%
+         ungroup() %>%
+        ggplot(aes(x=date, y=m_DHF_cases, group=modN), size=2, color='black') +
+         geom_line() +
+        theme_classic()+
+        ylim(0,NA)+
+        geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl, fill=modN, group=modN),linetype=0,alpha=0.1)+
+         geom_line(aes(x=date, y=pred_mean, group=modN, color=modN, linetype=modN), alpha=0.5,color='red')+
+         ggtitle('Ensemble')+
+        geom_hline(yintercept=43.75, col='gray', lty=2)+
+         ggtitle(district.select) +
+         transition_reveal(as.Date(date))
+       animate(p2, fps=5, nframes=100, renderer = gifski_renderer())
+       
+       anim_save(paste0("./obs_exp_gifs/obs_exp_",district.select, ".gif"))
+       
+    }
+    
+    all.plots <- lapply(all.districts,plot.dist.fun)
+    
 
+    
+    
 obs_vs_expected_district <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
   filter( horizon==2 &  modN=='mod19' ) %>%
