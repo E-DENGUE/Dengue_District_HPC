@@ -71,6 +71,11 @@ ds.list2 <- lapply(file.names2,function(X){
 ##################################
 ##DESKTOP EVALUATION OF OUTPUTS
 ############################################
+ ##NOTE THIS METHOD OF WEIGHTING THE ENSEMBLE IS NOT OPIMAL--JUST A PLACEHOLDER--NEED TO USE FULL POSTERIOR WITH AN OPTIMIZATION ROUTINE##
+ ##THIS METHOD WAS EMPLOYED IN https://journals.plos.org/plosmedicine/article?id=10.1371/journal.pmed.1003542
+ #epiforecasts::stackr or a method that uses the quantile summary of the posterior would be preferred
+ 
+ 
 obs_case <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
   dplyr::select(date, district,m_DHF_cases, pop)
 
