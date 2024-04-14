@@ -1,3 +1,5 @@
+#devtools::install_github("epiforecasts/stackr",upgrade='never', build=F)
+
 ##In console:
 # salloc
 # module load R/4.2.0-foss-2020b
@@ -16,6 +18,7 @@ library(viridis)
 library(lubridate)
 library(gifski)
 library(gganimate)
+library(stackr)
 
 N_cores = detectCores()
 
@@ -36,9 +39,20 @@ ds.list1 <- lapply(file.names1,function(X){
            modN=modN,
            date.test.in=date.test.in,
            form=d1$form)
-    
-   
-  return(preds_df)
+     
+  
+   pred.iter <- d1$log.samps.inc %>%
+    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+     left_join(preds_df, by=c('district','date', 'horizon')) %>%
+     mutate(y_obs = log((m_DHF_cases+0.5)/pop*100000),
+            sample_nr= as.numeric(gsub('rep','',as.character(variable))),
+                                  model=modN)%>%
+     rename(geography=district ,
+            y_pred=value) %>%
+     dplyr::select(geography,model,sample_nr,date, y_pred,y_obs)
+     
+  preds.out <- list('pred.iter'=pred.iter,'preds_df'=preds_df)
+  return(preds.out)
 })
 
 ##Results from PCA aware analysis
@@ -59,15 +73,32 @@ ds.list2 <- lapply(file.names2,function(X){
            date.test.in=date.test.in,
            form=paste(d1$form, collapse=' '))
   
+  pred.iter <- d1$log.samps.inc %>%
+    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+    left_join(preds_df, by=c('district','date', 'horizon')) %>%
+    mutate(y_obs = log((m_DHF_cases+0.5)/pop*100000),
+           sample_nr= as.numeric(gsub('rep','',as.character(variable))),
+           model=modN)%>%
+    rename(geography=district ,
+           y_pred=value) %>%
+    dplyr::select(geography,model,sample_nr,date, y_pred,y_obs)
   
-  return(preds_df)
-})
+  
+  preds.out <- list('pred.iter'=pred.iter,'preds_df'=preds_df)
+  return(preds.out)
+  })
 
- bind_rows(c(ds.list1,ds.list2)) %>%
+
+bind_rows(c(lapply(ds.list1, '[[', 'preds_df'),lapply(ds.list2, '[[', 'preds_df'))) %>%
   filter(horizon>=1) %>%
- saveRDS( "./cleaned_scores/all_crps_slim.rds")
+  saveRDS( "./cleaned_scores/all_crps_slim.rds")
 
+ ##TEST: for these two models, if use full posterior, modd33 has weight of 0.53 to 0.47; if go based on CRPS2, it is 0.54 to 0.46
+ wgt.df <- bind_rows(lapply(ds.list1,'[[','pred.iter'))
+ crps_wgt <- crps_weights(wgt.df,lambda = "equal",dirichlet_alpha = 1.001)
 
+ 
+ 
 ##################################
 ##DESKTOP EVALUATION OF OUTPUTS
 ############################################

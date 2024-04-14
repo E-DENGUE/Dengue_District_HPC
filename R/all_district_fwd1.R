@@ -58,7 +58,7 @@ filter( date>='2004-09-01')%>%
   offset1 <- c1$offset1
   mod1 <- inla(form2, data = c1,  family = "poisson",E=offset1,
                control.compute = list(dic = FALSE, 
-                                      waic = FALSE, 
+                                      waic = TRUE, 
                                       config = T,
                                       return.marginals=F
                ),
@@ -175,7 +175,7 @@ filter( date>='2004-09-01')%>%
   c1.out <- c1 %>%
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
 
-  out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=formula1)
+  out.list =  list ('ds'=c1.out, 'scores'=scores$crps3,'log.samps.inc'=scores$log.samps.inc,  'fixed.eff'=mod1$summary.fixed, 'waic'=mod1$waic,'form'=formula1)
   saveRDS(out.list,paste0('./Results/', 'mod',modN,'_',date.test.in  ,'.rds' )   )
   return(out.list)
 }

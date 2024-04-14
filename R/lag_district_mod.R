@@ -1,6 +1,5 @@
 lag_district_mod <- function(date.test.in, district.select){
   
-  
   c1a <- d2 %>%
     filter( date>='2004-09-01')%>%
     left_join(spat_IDS, by='district') %>%
@@ -123,7 +122,8 @@ lag_district_mod <- function(date.test.in, district.select){
   c1.out <- c1 %>%
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
   
-  out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=as.character(form2))
+  out.list =  list ('ds'=c1.out, 'scores'=scores$crps3,'log.samps.inc'=scores$log.samps.inc,  'fixed.eff'=mod1$summary.fixed)
+  
   saveRDS(out.list,paste0('./Results_b/', 'lag_mod_',district.select,'_',date.test.in  ,'.rds' )   )
   return(out.list)
 }

@@ -18,7 +18,7 @@ scoring_func <- function(Y){
          
   forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2))
 
-  test1 <-inla.posterior.sample(1000, Y$mod, seed=0)
+  test1 <-inla.posterior.sample(10000, Y$mod, seed=0)
   
   #this function extracts the samples for the mean of lambda ('Predictor'), and then generates samples
   #from the predictive distribution using rpois or rnbinom
@@ -28,9 +28,9 @@ scoring_func <- function(Y){
     lambda2 <- lambda1[forecast.index1]
     if(dist=='nb'){
       nb.size1 = sample.ds$hyperpar['size for the nbinomial observations (1/overdispersion)']
-      pred <- replicate(10, rnbinom(n=length(lambda2), mu=lambda2, size=nb.size1), simplify = 'array')
+      pred <- replicate(1, rnbinom(n=length(lambda2), mu=lambda2, size=nb.size1), simplify = 'array')
     }else{
-      pred <- replicate(10, rpois(n=length(lambda2), lambda=lambda2), simplify = 'array')
+      pred <- replicate(1, rpois(n=length(lambda2), lambda=lambda2), simplify = 'array')
     }
     return(pred)
   }
@@ -68,9 +68,16 @@ scoring_func <- function(Y){
 
   crps2 <- crps_sample(log_obs_inc, log.samps.inc) #on the log scale, as recommended by https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1011393#sec008
   
-  crps3 <- cbind.data.frame(crps1, crps2,out_ds) 
+  crps3 <- cbind.data.frame(crps1, crps2,out_ds)
   
-  return(crps3)
+  colnames(log.samps.inc) <- paste0('rep',1:ncol(log.samps.inc))
+  
+  samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+  
+  out.list = list('crps3'=crps3, 'log.samps.inc'=samps.out)
+  
+  
+  return(out.list)
 }
 
 

@@ -1,4 +1,4 @@
-
+#devtools::install_github("epiforecasts/stackr",upgrade='never', build=F)
 source('./R/predict.rlm.R')
 source('./R/deseasonalize_climate.R')
 source('./R/all_district_fwd1.R')

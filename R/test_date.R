@@ -1,10 +1,27 @@
+library(parallel)
+library(stats)
+library(dplyr)
+library(readr)
+library(readxl)
+library(tidyr)
+library(tidyverse)
+library(zoo)
+library(lubridate)
+library(pbapply)
+library(INLA)
+#inla.setOption(mkl=TRUE)
+library(MASS)
+library(scoringutils)
+library(sf)
+library(spdep)
+library(ggmap) # plotting shapefiles 
+library(lattice)  # Load the lattice package if you are using lattice graphics
+library(stringr)
+library(janitor)
 source('./R/load.R')
   date.test.in <- as.Date('2014-02-01')
   modN=4
-  formula1 ='m_DHF_cases_hold~   lag2_y +
-                        f(districtID,model = "iid")+
-                        f(t, replicate=districtID3, model="rw1", hyper = hyper2.rw) + #shared AR(1) across districts
-                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+  formula1 ='m_DHF_cases_hold~   lag2_y '
   
   
   c1 <- d2 %>%
@@ -16,7 +33,7 @@ source('./R/load.R')
            log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
            log_pop=log(pop/100000),
            year = year(date) ,
-           m_DHF_cases_hold= if_else( date>= (date.test.in[1]), NA_real_,
+           m_DHF_cases_hold= ifelse( date>= (date.test.in[1]), NA_real_,
                                       m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
