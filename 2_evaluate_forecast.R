@@ -20,6 +20,8 @@ library(lubridate)
 library(gifski)
 library(gganimate)
 library(stackr)
+library(pbapply)
+options(dplyr.summarise.inform = FALSE)
 
 N_cores = detectCores()
 
@@ -60,42 +62,6 @@ ds.list1 <- lapply(file.names1,function(X){
   preds.out <- list('pred.iter'=pred.iter,'preds_df'=preds_df)
   return(preds.out)
 })
-
-
-brier1 <- lapply(file.names1,function(X){
-  d1 <- readRDS(file=paste0('./Results/',file.path(X)))
-  
-  modN <-  sub("^(.*?)_.*$", "\\1", X)
-  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-  # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
-  
-  pred.iter <- d1$log.samps.inc %>%
-    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
-    left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate(pred_epidemic_2sd = value > threshold,
-           pred_epidemic_nb = value > threshold_nb) %>%
-    group_by(date, district, horizon) %>%
-    summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
-              prob_pred_epidemic_nb= mean(pred_epidemic_nb),
-              obs_epidemic_2sd=mean(epidemic_flag),
-              obs_epidemic_nb = mean(epidemic_flag_nb))
-  
-  brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
-  brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
-  
-  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
-})
-
-#0=perfect prediction,1=bad
-brier1 %>% 
-  bind_rows() %>%
-  mutate(monthN=month(date))%>%
-  ungroup() %>% 
-  group_by(monthN,modN) %>%
-  summarize(brier_nb=mean(brier_nb),
-            brier_2sd =mean(brier_2sd))
-
 
 ##Results from PCA aware analysis
   file.names2 <- paste0('./Results_b/',list.files('./Results_b'))
@@ -139,7 +105,70 @@ bind_rows(c(lapply(ds.list1, '[[', 'preds_df'),lapply(ds.list2, '[[', 'preds_df'
  wgt.df <- bind_rows(lapply(ds.list1,'[[','pred.iter'))
  crps_wgt <- crps_weights(wgt.df,lambda = "equal",dirichlet_alpha = 1.001)
 
- 
+ ## BRIER SCORES
+       brier1 <- pblapply(file.names1,function(X){
+         d1 <- readRDS(file=paste0('./Results/',file.path(X)))
+         
+         modN <-  sub("^(.*?)_.*$", "\\1", X)
+         date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+         # Extract the date from the string using gsub
+         date.test.in <- regmatches(X, regexpr(date_pattern, X))
+         
+         pred.iter <- d1$log.samps.inc %>%
+           reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+           left_join(obs_epidemics, by=c('date','district')) %>%
+           mutate(pred_epidemic_2sd = value > threshold,
+                  pred_epidemic_nb = value > threshold_nb) %>%
+           group_by(date, district, horizon) %>%
+           summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
+                      prob_pred_epidemic_nb= mean(pred_epidemic_nb),
+                      obs_epidemic_2sd=mean(epidemic_flag),
+                      obs_epidemic_nb = mean(epidemic_flag_nb))
+         
+         brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
+         brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
+         
+         brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+       })
+     
+     file.names2 <- paste0('./Results_b/',list.files('./Results_b'))
+     
+     options(dplyr.summarise.inform = FALSE)
+     
+     brier2 <- pblapply(file.names2,function(X){
+       d1 <- readRDS(file=file.path(X))
+       
+       modN <-  'PC1'
+       
+       date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+       # Extract the date from the string using gsub
+       date.test.in <- regmatches(X, regexpr(date_pattern, X))
+       
+       pred.iter <- d1$log.samps.inc %>%
+         reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+         left_join(obs_epidemics, by=c('date','district')) %>%
+         mutate(pred_epidemic_2sd = value > threshold,
+                pred_epidemic_nb = value > threshold_nb) %>%
+         group_by(date, district, horizon) %>%
+         summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
+                    prob_pred_epidemic_nb= mean(pred_epidemic_nb),
+                    obs_epidemic_2sd=mean(epidemic_flag),
+                    obs_epidemic_nb = mean(epidemic_flag_nb))
+       
+       brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
+       brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
+       
+       brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+     })
+     
+     #0=perfect prediction,1=bad
+     brier_summary <- c(brier1, brier2) %>% 
+       bind_rows() %>%
+       mutate(monthN=month(date))%>%
+       ungroup() %>% 
+       group_by(monthN,modN) %>%
+       summarize(brier_nb=mean(brier_nb),
+                 brier_2sd =mean(brier_2sd))
  
 ##################################
 ##DESKTOP EVALUATION OF OUTPUTS
