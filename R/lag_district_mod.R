@@ -1,7 +1,7 @@
 lag_district_mod <- function(date.test.in, district.select){
   
   c1a <- d2 %>%
-    filter( date>='2004-09-01')%>%
+    filter( date>='2004-09-01') %>%
     left_join(spat_IDS, by='district') %>%
     arrange(district, date) %>%
     mutate( t = interval(min(date), date) %/% months(1) + 1) %>%
@@ -66,10 +66,29 @@ lag_district_mod <- function(date.test.in, district.select){
       pcs<- as.data.frame(apply(pcs,2, scale)) #SCALE THE PCS prior to regression!
       names(pcs) <- paste0('PC', 1:ncol(pcs))
     pc.df <- cbind.data.frame('date'=df2$date, pcs[,1:n.pcs.keep])
-  
-    c1 <- c1b %>%
-      left_join(pc.df, by='date') 
-      
+
+    ##Map the loadings  
+    # loadings <- pca1$rotation %>%
+    #   as.data.frame() %>%
+    #   mutate(district=sub("_log_.*", "", row.names(pca1$rotation)),
+    #          district = toupper(gsub('_',' ',district)),
+    #          varname=row.names(pca1$rotation)) %>%
+    # group_by(district) %>%
+    #   mutate( PC1_extreme  = PC1[which.max( abs(PC1) ) ], #pull out the most extreme PCA value per district
+    #           PC2_extreme  = PC2[which.max( abs(PC2) ) ]) %>%
+    #   filter(grepl('lag4', varname))
+    # 
+    # library(sf)
+    # library(viridis)
+    # shp <- st_read("./Data/shapefiles/MDR_NEW_Boundaries_Final.shp", as_tibble  = T) %>%
+    #   mutate(district = toupper(VARNAME)) %>%
+    #   full_join(loadings, by='district')
+    # 
+    # map <- ggplot(data = shp) + 
+    #   geom_sf(aes(fill=PC1_extreme)) +
+    #   scale_fill_viridis() 
+    # map
+
         
   all.vars <- paste(names(pc.df)[-1], collapse="+")
   form2 <- as.formula(paste0("m_DHF_cases_hold ~", all.vars, " +lag2_monthly_cum_ppt + lag2_avg_daily_temp + sin12 +cos12 + f(t, model='ar1')"))
