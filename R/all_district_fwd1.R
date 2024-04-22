@@ -22,8 +22,8 @@ filter( date>='2004-09-01')%>%
            horizon = if_else(if_else(date== (vintage.date[1] %m+% weeks(8)),8, 0
                              )
            ),
-           sin12 = sin(2*pi*t/12),
-           cos12 = cos(2*pi*t/12),
+           sin12 = sin(2*pi*t/52.1775),
+           cos12 = cos(2*pi*t/52.1775),
            month=as.factor(month(date)),
            monthN=month(date),
            offset1 = pop/100000,
