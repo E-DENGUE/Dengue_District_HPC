@@ -1,23 +1,33 @@
-lag_district_mod <- function(date.test.in, district.select){
+lag_district_mod <- function(vintage.date, district.select){
   
   
   c1a <- d2 %>%
     filter( date>='2004-09-01')%>%
     left_join(spat_IDS, by='district') %>%
     arrange(district, date) %>%
-    mutate( t = interval(min(date), date) %/% months(1) + 1) %>%
+    mutate( t = interval(min(date), date) %/% weeks(1) + 1) %>%
     group_by(district) %>%
     mutate(district2=district,
            Dengue_fever_rates = m_DHF_cases / pop *100000,
-           log_df_lag2 = lag(log((m_DHF_cases+0.5) / pop *100000),n=2),
-           log_df_lag3 = lag(log((m_DHF_cases+0.5) / pop *100000),n=3),
-           log_df_lag4 = lag(log((m_DHF_cases+0.5) / pop *100000),n=4),
-           log_df_lag5 = lag(log((m_DHF_cases+0.5) / pop *100000),n=5),
-           sin12 = sin(2*pi*t/12),
-           cos12 = cos(2*pi*t/12),
+           log_df_lag8 = lag(log((m_DHF_cases+0.5) / pop *100000),n=8),
+           log_df_lag9 = lag(log((m_DHF_cases+0.5) / pop *100000),n=9),
+           log_df_lag10 = lag(log((m_DHF_cases+0.5) / pop *100000),n=10),
+           log_df_lag11 = lag(log((m_DHF_cases+0.5) / pop *100000),n=11),
+           log_df_lag12 = lag(log((m_DHF_cases+0.5) / pop *100000),n=12),
+           log_df_lag13 = lag(log((m_DHF_cases+0.5) / pop *100000),n=13),
+           log_df_lag14 = lag(log((m_DHF_cases+0.5) / pop *100000),n=14),
+           log_df_lag15 = lag(log((m_DHF_cases+0.5) / pop *100000),n=15),
+           log_df_lag16 = lag(log((m_DHF_cases+0.5) / pop *100000),n=16),
+           log_df_lag17 = lag(log((m_DHF_cases+0.5) / pop *100000),n=17),
+           log_df_lag18 = lag(log((m_DHF_cases+0.5) / pop *100000),n=18),
+           log_df_lag19 = lag(log((m_DHF_cases+0.5) / pop *100000),n=19),
+           log_df_lag20 = lag(log((m_DHF_cases+0.5) / pop *100000),n=20),
+           
+           sin12 = sin(2*pi*t/52.1775 ),
+           cos12 = cos(2*pi*t/52.1775 ),
            
     ) %>%
-    filter(date<= (date.test.in[1] %m+% months(1) )) %>%  #only keep test date and 1 month ahead of that
+    filter(date<= (vintage.date[1] %m+% weeks(8) )) %>%  #only keep test date and 8 weeks ahead of that
     ungroup() %>%
     mutate(t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
            time_id1= t ) 
@@ -42,7 +52,7 @@ lag_district_mod <- function(date.test.in, district.select){
     filter( district==district.select) %>%
     left_join(all.lags, by='date') %>%
     mutate(offset1= pop/100000,
-           m_DHF_cases_hold= ifelse( date>= (date.test.in), NA_real_,
+           m_DHF_cases_hold= ifelse( date> (vintage.date), NA_real_,
                                      m_DHF_cases)
     )
   # dplyr::select(-contains(district.select)) #filters out lags from the select district--fix this to work with tidy names
@@ -103,13 +113,10 @@ lag_district_mod <- function(date.test.in, district.select){
   c1 <- c1 %>%
     ungroup() %>%
     mutate(forecast= as.factor(if_else(is.na(m_DHF_cases_hold),1,0)),
-           horizon = if_else(date== (date.test.in[1]),1,
-                             if_else(date== (date.test.in[1] %m+% months(1)),2, 0
-                             )
-           ),
-           max_allowed_lag = 2
-    )%>%
-    filter(horizon <= max_allowed_lag) #get rid of lag2 if lag1 is included as covariate
+           horizon = if_else(if_else(date== (vintage.date[1] %m+% weeks(8)),8, 0
+           )
+           )
+    )
   #View(c1 %>% dplyr::select(district, date,m_DHF_cases_hold,Dengue_fever_rates,log_df_rate,lag_y,lag2_y, forecast, horizon)  %>% filter(date>=as.Date('2012-01-01')))
   
   
@@ -124,7 +131,7 @@ lag_district_mod <- function(date.test.in, district.select){
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
   
   out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=as.character(form2))
-  saveRDS(out.list,paste0('./Results_b/', 'lag_mod_',district.select,'_',date.test.in  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Results_b/', 'lag_mod_',district.select,'_',vintage.date  ,'.rds' )   )
   return(out.list)
 }
 

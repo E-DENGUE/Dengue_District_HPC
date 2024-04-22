@@ -5,10 +5,10 @@ deseasonalize_climate <- function(climate_var, ds=d1){
     group_by(district) %>%
     mutate( Climate_Train = if_else(date<as.Date('2005-01-01'), .data[[climate_var]], NA_real_),
             t=row_number(),
-            sin12=sin(2*pi*t/12),
-            cos12=cos(2*pi*t/12),
-            sin6=sin(2*pi*t/6),
-            cos6=cos(2*pi*t/6),
+            sin12=sin(2*pi*t/52.1775),
+            cos12=cos(2*pi*t/52.1775),
+            sin6=sin(2*pi*t*2/52.1775),
+            cos6=cos(2*pi*t*2/52.1775),
     )  %>%
     ungroup()
   

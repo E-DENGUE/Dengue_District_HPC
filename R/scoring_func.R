@@ -8,16 +8,14 @@ scoring_func <- function(Y){
          filter(forecast==1 )
          
          
-  forecast.index_horizon1 <- forecast_ds %>%
-         filter(forecast==1 & horizon==1) %>%
-         pull(index)
-         
-  forecast.index_horizon2 <- forecast_ds %>%
-         filter(forecast==1 & horizon==2) %>%
-         pull(index)
-         
-  forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2))
 
+  forecast.index_horizon8 <- forecast_ds %>%
+         filter(forecast==1 & horizon==8) %>%
+         pull(index)
+         
+  #forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2))
+  forecast.index1 <- sort(c(forecast.index_horizon8))
+  
   test1 <-inla.posterior.sample(1000, Y$mod, seed=0)
   
   #this function extracts the samples for the mean of lambda ('Predictor'), and then generates samples

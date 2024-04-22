@@ -29,12 +29,11 @@ ds.list1 <- lapply(file.names1,function(X){
   modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
   # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  vintage_date <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+    mutate(vintage_date=vintage_date, #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
-           date.test.in=date.test.in,
            form=d1$form)
     
    
@@ -51,10 +50,10 @@ ds.list2 <- lapply(file.names2,function(X){
   modN <-  'PC1'
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
   # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  vintage_date <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+    mutate(vintage_date=vintage_date, #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
            date.test.in=date.test.in,
            form=paste(d1$form, collapse=' '))
@@ -64,7 +63,7 @@ ds.list2 <- lapply(file.names2,function(X){
 })
 
  bind_rows(c(ds.list1,ds.list2)) %>%
-  filter(horizon>=1) %>%
+  filter(horizon>=8) %>%
  saveRDS( "./cleaned_scores/all_crps_slim.rds")
 
 
@@ -89,7 +88,7 @@ obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as
 
 miss.dates <- out %>% 
   group_by(date, horizon) %>%   
-  filter(!(modN %in% c('mod31','mod32', 'mod39')) & horizon %in% c(1,2)) %>%
+  filter(!(modN %in% c('mod31','mod32', 'mod39')) & horizon %in% c(8)) %>%
   summarize(N_mods=n(), N_cases=mean(m_DHF_cases)) %>%
   ungroup() %>%
   group_by(horizon) %>%
@@ -97,7 +96,7 @@ miss.dates <- out %>%
   ungroup()
 
 miss.mod <- out %>%
-  filter(horizon==2) %>%
+  filter(horizon==8) %>%
   group_by(modN) %>%
   summarize(N=n()) %>%
   mutate(exclude_miss_mod = N<max(N))
@@ -132,7 +131,7 @@ out2 <- out_1a %>%
   arrange(horizon, crps2) %>%
   group_by(horizon) %>%
   mutate( w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) ) %>%
-  filter(horizon==2)%>%
+  filter(horizon==8)%>%
   mutate(rw_season = grepl('cyclic=TRUE', form),
          harm_season = grepl('sin12', form),
          lag2_y = grepl('lag2_y', form),
@@ -162,7 +161,7 @@ out3 <- out_1a %>%
   group_by(horizon,month) %>%
   mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),
          w_i2 = (1/crps2^2)/sum(1/crps2^2) )%>%
-  filter(horizon==2)%>%
+  filter(horizon==8)%>%
   mutate(rw_season = grepl('cyclic=TRUE', form),
          harm_season = grepl('sin12', form),
          lag2_y = grepl('lag2_y', form),
@@ -188,7 +187,7 @@ out4 <- out_1a %>%
   ungroup() %>%
   group_by(horizon,district) %>%
   mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2), rel_wgt1= w_i1/max(w_i1) )%>%
-  filter(horizon==2)%>%
+  filter(horizon==8)%>%
   mutate(rw_season = grepl('cyclic=TRUE', form),
          harm_season = grepl('sin12', form),
          lag2_y = grepl('lag2_y', form),
@@ -244,7 +243,7 @@ mod.weights_overall <- out2 %>%
 #ensemble, weight based on overall performance
 p0.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
+  filter( horizon==8 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
   group_by(modN,date) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
@@ -258,12 +257,12 @@ p0.ds <- out_1a %>%
 #ensemble; varying weights by calendar month
 mod.weights_t <- out3 %>%
   ungroup() %>%
-  filter(horizon==2) %>%
+  filter(horizon==8) %>%
   dplyr::select(w_i2, modN,  month)
 
 p1.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
+  filter( horizon==8 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
   group_by(modN,date) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
@@ -289,13 +288,13 @@ ggplotly(p1)
 #same but weights vary by district
 mod.weights_dist<- out4 %>%
   ungroup() %>%
-  filter(horizon==2) %>%
+  filter(horizon==8) %>%
   dplyr::select(w_i1, modN,   district) %>%
   arrange(district, -w_i1)
 
 p2.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
+  filter( horizon==8 & !(modN %in% c( 'mod39', 'mod31','mod32'))) %>%
   dplyr::select(-form) %>%
   group_by(modN,date,district) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
@@ -331,7 +330,7 @@ p2.ensembles #the 3 ensembles looks almost identical
 
   gif.ds <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter(horizon==2 & modN %in% c('mod25','mod33','PC1'))
+    filter(horizon==8 & modN %in% c('mod25','mod33','PC1'))
   
     all.districts <- unique(out$district)
     
@@ -363,14 +362,14 @@ p2.ensembles #the 3 ensembles looks almost identical
     
 obs_vs_expected_district <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod19' ) %>%
+  filter( horizon==8 &  modN=='mod19' ) %>%
   group_by(district) %>%
   summarize(obs=sum(m_DHF_cases), pred=sum(pred_mean)) %>%
   mutate(diff= obs - pred, rr=obs/pred)
   
 p2 <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod19'  & district %in% c('CHO MOI')) %>%
+  filter( horizon==8 &  modN=='mod19'  & district %in% c('CHO MOI')) %>%
   dplyr::select(-form) %>%
   ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
   geom_point() +
