@@ -40,6 +40,13 @@ pop <- d2 %>%
   dplyr::select(unique(MDR_NEW$VARNAME))%>%
   as.matrix()
 
+temp_lag2 <- d2 %>% 
+  mutate(lag2_avg_daily_temp = scale(lag2_avg_daily_temp)) %>%
+  reshape2::dcast(date~district, value.var= 'lag2_avg_daily_temp') %>%
+  filter(date>=start.date) %>%
+  dplyr::select(unique(MDR_NEW$VARNAME))%>%
+  as.matrix()
+
 unique(MDR_NEW$VARNAME) == colnames(pop)
 
 #Define STS object
@@ -93,11 +100,39 @@ districts2plot <- which(colSums(observed(dengue_df)) > 50)
  AIC(dengueFit_nepop_powerlaw)
  AIC(dengueFit_np2) #winner
  
+ #covariate--best is if the ar1 and neighbor are effects of temp
+ dengueFit_temp1 <- update(dengueFit_np2,
+                        end = list(f = update(formula(dengueFit_np2)$end, ~. +1)),
+                        ar = list(f = update(formula(dengueFit_np2)$ar, ~. + temp_lag2)),
+                        ne = list(f = update(formula(dengueFit_np2)$ne, ~. + temp_lag2))
+  )
+ 
+ dengueFit_temp2 <- update(dengueFit_np2,
+                           end = list(f = update(formula(dengueFit_np2)$end, ~. +1 + temp_lag2)),
+                           ar = list(f = update(formula(dengueFit_np2)$ar, ~. +1)),
+                           ne = list(f = update(formula(dengueFit_np2)$ne, ~. + temp_lag2))
+ )
+ dengueFit_temp3 <- update(dengueFit_np2,
+                           end = list(f = update(formula(dengueFit_np2)$end, ~. +1)),
+                           ar = list(f = update(formula(dengueFit_np2)$ar, ~. + 1)),
+                           ne = list(f = update(formula(dengueFit_np2)$ne, ~. + temp_lag2))
+ )
+ dengueFit_temp4 <- update(dengueFit_np2,
+                           end = list(f = update(formula(dengueFit_np2)$end, ~. +1)),
+                           ar = list(f = update(formula(dengueFit_np2)$ar, ~. + temp_lag2)),
+                           ne = list(f = update(formula(dengueFit_np2)$ne, ~. + 1))
+ )
+ summary(dengueFit_temp1)
+ AIC(dengueFit_temp1)
+ AIC(dengueFit_temp2)
+ AIC(dengueFit_temp3)
+ AIC(dengueFit_temp4)
+ 
  #add random intercept
- dengueFit_ri <- update(dengueFit_np2,
-                          end = list(f = update(formula(dengueFit_np2)$end, ~. + ri() - 1)),
-                          ar = list(f = update(formula(dengueFit_np2)$ar, ~. + ri() - 1)),
-                          ne = list(f = update(formula(dengueFit_np2)$ne, ~. + ri() - 1)))
+ dengueFit_ri <- update(dengueFit_temp1,
+                          end = list(f = update(formula(dengueFit_temp1)$end, ~. + ri() - 1)),
+                          ar = list(f = update(formula(dengueFit_temp1)$ar, ~. + ri() - 1)),
+                          ne = list(f = update(formula(dengueFit_temp1)$ne, ~. + ri() - 1)))
   summary(dengueFit_ri)
  par(mfrow = c(2,3), mar = c(3, 5, 2, 1), las = 1)
   plot(dengueFit_ri, type = "fitted", units = districts2plot,
@@ -106,34 +141,43 @@ districts2plot <- which(colSums(observed(dengue_df)) > 50)
           hide0s = TRUE, par.settings = NULL, legend = FALSE)
  
   
-  models2compare <- c("dengueFit_np2", "dengueFit_ri", "dengueFit_basic")
+  models2compare <- c("dengueFit_np2","dengueFit_temp", "dengueFit_ri", "dengueFit_basic")
   tp = c(80,100)
   
-  #This takes some time when doing rolling; RI model is best in both instances
-  dengue_preds1 <- lapply(mget(models2compare), oneStepAhead,    tp = tp, type = "rolling")
+  #This takes some time when doing rolling; random intercept model is best in both instances
+  dengue_preds1 <- lapply(mget(models2compare), oneStepAhead,    tp = tp, type = "final")
   
   SCORES <- c("logs", "rps", "dss", "ses")
   dengueScores1 <- lapply(dengue_preds1, scores, which = SCORES, individual = TRUE)
   t(sapply(dengueScores1, colMeans, dims = 2))  
   
-  #Forward simulation
-  dengue_mod_ri <- list(
+  #Forward simulation; fit up to time t, then simulate forward
+  last_fit_t = 90
+  dengue_mod_ri_temp <- list(
     end = list(f = addSeason2formula(~0 + t + ri() , period = dengue_df@freq),
                offset = population(dengue_df)),
-    ar = list(f = ~0 + ri() ),
-    ne = list(f = ~0 + ri() - 1, weights = W_np(maxlag = 2)),
+    ar = list(f = ~0 + temp_lag2 + ri() ),
+    ne = list(f = ~0 + temp_lag2 + ri() - 1, weights = W_np(maxlag = 2)),
     family = "NegBin1",
-    subset = 2:100
+    subset = 2:last_fit_t
     )
   
-  dengueFit_ri <- hhh4(stsObj = dengue_df, control = dengue_mod_ri)
+  #fit the model to time t
+  dengueFit_ri <- hhh4(stsObj = dengue_df, control = dengue_mod_ri_temp)
   
+  #simulate forward
     dengueSim <- simulate(dengueFit_ri,
-                          nsim = 99, seed = 1, subset = 101:102)
+                          nsim = 999, seed = 1, subset = (last_fit_t+1):(last_fit_t+12))
 
   par(mfrow = c(1,1), mar = c(3, 5, 2, 1), las = 1)
   
   plot(dengueFit_ri, type = "fitted", total = TRUE,
        hide0s = TRUE, par.settings = NULL, legend = FALSE)
-  plot(dengueSim, "fan", means.args = list(), key.args = list(), add=T)
+  plot(dengueSim, "fan", means.args = list(), key.args = list(), add=F)
+
+  #for CRPS evaluation:
+  horizon=2
+  samps <- matrix(dengueSim[horizon,,], nrow=dim(dengueSim)[2])
+  pop_forecast <- population(dengue_df)[last_fit_t+horizon,]
+  obs_forecast <- observed(dengue_df)[last_fit_t+horizon,]
   
