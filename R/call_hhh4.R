@@ -20,7 +20,6 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
   start.week <- lubridate::week(start.date)
   start.month <- lubridate::month(start.date)
   
-  
   vintage_date <- as.Date(date.test.in[1]) %m-% months(1)
   
   cases <- c1 %>% 
@@ -102,18 +101,18 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
   #for CRPS evaluation:
   samps <- matrix(dengueSim[max_horizon,,], nrow=dim(dengueSim)[2])
   
-  pop_forecast <- population(dengue_df)[last_fit_t+max_horizon,]
+  pop_forecast <- population(dengue_df)[last_fit_t+max_horizon,] #NOTE THIS IS ALREADY DIVIDED BY 100,000
   obs_forecast <- observed(dengue_df)[last_fit_t+max_horizon,]
   
-  samps.inc <- apply(samps,2, function(x) x/pop_forecast*100000)
+  samps.inc <- apply(samps,2, function(x) x/pop_forecast)
   
   #Log(Incidence)
-  log.samps.inc <- log(apply(samps,2, function(x)  (x+1)/pop_forecast*100000))
+  log.samps.inc <- log(apply(samps,2, function(x)  (x+1)/pop_forecast))
   
   log.samps.inc_mean <-apply(log.samps.inc,1,mean)
   
-  obs_inc <- obs_forecast/pop_forecast*100000
-  log_obs_inc <- log((obs_forecast+1)/pop_forecast*100000)
+  obs_inc <- obs_forecast/pop_forecast
+  log_obs_inc <- log((obs_forecast+1)/pop_forecast)
   
   #combine the CRPS scores with the 95% posterior predictive distribution (equal tailed)
   forecast_ds <- c1 %>%
