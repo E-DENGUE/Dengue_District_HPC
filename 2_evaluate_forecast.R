@@ -187,7 +187,7 @@ out4 <- out_1a %>%
   arrange(horizon,district, crps2)%>%
   ungroup() %>%
   group_by(horizon,district) %>%
-  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2), rel_wgt1= w_i1/max(w_i1) )%>%
+  mutate(w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2), rel_wgt2= w_i2/max(w_i2) )%>%
   filter(horizon==2)%>%
   mutate(rw_season = grepl('cyclic=TRUE', form),
          harm_season = grepl('sin12', form),
@@ -205,17 +205,17 @@ out4 <- out_1a %>%
   mutate(mod_rank = row_number()) %>%
   ungroup()
 
-out4_ranks <- out4 %>% group_by(modN) %>% summarize(ave_rank=mean())
+out4_ranks <- out4 %>% group_by(modN) %>% summarize(ave_rank=mean(mod_rank), min_rank=min(mod_rank), max=max(mod_rank))
 
 
 View(out4)
 
 out4%>%
-ggplot(aes(x=modN,y=rel_wgt1, group=district )) +
+ggplot(aes(x=modN,y=rel_wgt2, group=district )) +
   geom_line()+
   theme_classic()
 
-ggplot(out4, aes(x = district, y = modN, fill = rel_wgt1)) +
+ggplot(out4, aes(x = district, y = modN, fill = rel_wgt2)) +
   geom_tile() +
   scale_fill_viridis(discrete = FALSE)+
   labs(title = "CRPS Heatmap",
@@ -223,7 +223,7 @@ ggplot(out4, aes(x = district, y = modN, fill = rel_wgt1)) +
        y = "ModelN")
 
 #mean of relative weghts across all districts--this basically agrees with what is seen in out2
-out4 %>% group_by(modN) %>% summarize(rel_wgt1=mean(rel_wgt1)) %>% arrange(-rel_wgt1)
+out4 %>% group_by(modN) %>% summarize(rel_wgt2=mean(rel_wgt2)) %>% arrange(-rel_wgt2)
 
 #how much does inclusion of different components affect model weight?
 mods <- out3 %>%
