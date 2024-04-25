@@ -29,6 +29,5 @@ k <- as.numeric(args[2])
 
 #i=1 #108 dates total
 #k=1 #10 models
-modN_extract = as.numeric(str_match(names(all.mods)[k], "mod(\\d+)")[1,2])
 
-mod1 <- all_district_fwd1(date.test.in = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 
+mod1 <- call_hhh4(date.test.in = date.test2[j], modN=k,max_horizon=2) 
