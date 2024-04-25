@@ -22,20 +22,30 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
   
   vintage_date <- as.Date(date.test.in[1]) %m-% months(1)
   
-  cases <- c1 %>% 
+  c1.fit <- c1 %>% 
+    filter( date <= (vintage_date %m+% months(max_horizon))) %>%
+    mutate(m_DHF_cases_fit = if_else(date > vintage_date, NA_real_,m_DHF_cases))
+  
+  cases <- c1.fit %>% 
     reshape2::dcast(date~district, value.var= 'm_DHF_cases') %>%
     filter(date>=start.date) %>%
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
   
-  pop <- c1 %>% 
+  cases.fit <- c1.fit %>% 
+    reshape2::dcast(date~district, value.var= 'm_DHF_cases_fit') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  pop <- c1.fit %>% 
     mutate(pop2=pop/100000) %>%
     reshape2::dcast(date~district, value.var= 'pop2') %>%
     filter(date>=start.date) %>%
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
   
-  temp_lag2 <- c1 %>% 
+  temp_lag2 <- c1.fit %>% 
     mutate(lag2_avg_daily_temp = scale(lag2_avg_daily_temp)) %>%
     reshape2::dcast(date~district, value.var= 'lag2_avg_daily_temp') %>%
     filter(date>=start.date) %>%
@@ -45,7 +55,7 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
   #unique(MDR_NEW$VARNAME) == colnames(pop)
   
   #Define STS object
-  dengue_df <- sts(cases, start = c(start.year, start.month), frequency = 12,
+  dengue_df <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
                    population = pop, neighbourhood = dist_nbOrder, map=map1)
   
   all_dates <- sort(unique(c1$date))
@@ -56,14 +66,15 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
   mod.select = mods[as.numeric(modN)]
   
   if(mod.select=='hhh4_np'){
-  dengue_mod_ri_temp <- list(
-    end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
-               offset = population(dengue_df)),
-    ar = list(f = ~ -1 + temp_lag2 + ri() ),
-    ne = list(f = ~ -1 + temp_lag2 + ri() , weights = W_np(maxlag = 2)),
-    family = "NegBin1",
-    subset = 2:last_fit_t,data=list(temp_lag2=temp_lag2)
-  )
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 + ri() ),
+      ne = list(f = ~ -1 + temp_lag2 + ri() , weights = W_np(maxlag = 2)),
+      family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2)
+    )
   } else if(mod.select=='hhh4_power'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
@@ -71,30 +82,36 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
       ar = list(f = ~ -1 + temp_lag2 + ri() ),
       ne = list(f = ~ -1 + temp_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
-      subset = 2:last_fit_t,data=list(temp_lag2=temp_lag2)
-    )
-      
-    }else if(mod.select=='hhh4_basic'){ 
-      dengue_mod_ri_temp <- list(
-        end = list(f = addSeason2formula(~ -1 + t + ri(), period = dengue_df@freq),
-                   offset = population(dengue_df)),
-        ar = list(f = ~ -1 + temp_lag2 + ri() ),
-        ne = list(f = ~ -1 + temp_lag2 + ri() , weights = neighbourhood(dengue_df) == 1),
-        family = "NegBin1",
       subset = 2:last_fit_t,
       data=list(temp_lag2=temp_lag2)
-      )
-    }
+    )
+    
+  }else if(mod.select=='hhh4_basic'){ 
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t + ri(), period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 + ri() , lag=1),
+      ne = list(f = ~ -1 + temp_lag2 + ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
+      family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2)
+    )
+  }
   
   #fit the model to time t
   dengueFit_ri <- hhh4(stsObj = dengue_df, control = dengue_mod_ri_temp)
-
+  
+  last.y <- observed(dengue_df)[last_fit_t,]
+  
   #simulate forward
   dengueSim <- simulate(dengueFit_ri,
-                        nsim = 999, seed = 1, subset = (last_fit_t+1):(last_fit_t+max_horizon))
+                        nsim = 999, seed = 1, subset = (last_fit_t+1):(last_fit_t+max_horizon),
+                        y.start = last.y)
+  
+  plot(dengueSim, type = "time", average = median)
   
   #par(mfrow = c(1,1), mar = c(3, 5, 2, 1), las = 1)
-    # plot(dengueFit_ri, type = "fitted", total = TRUE,
+  # plot(dengueFit_ri, type = "fitted", total = TRUE,
   #      hide0s = TRUE, par.settings = NULL, legend = FALSE)
   # plot(dengueSim, "fan", means.args = list(), key.args = list(), add=T)
   
@@ -102,7 +119,7 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
   samps <- matrix(dengueSim[max_horizon,,], nrow=dim(dengueSim)[2])
   
   pop_forecast <- population(dengue_df)[last_fit_t+max_horizon,] #NOTE THIS IS ALREADY DIVIDED BY 100,000
-  obs_forecast <- observed(dengue_df)[last_fit_t+max_horizon,]
+  obs_forecast <- cases[last_fit_t+max_horizon,]
   
   samps.inc <- apply(samps,2, function(x) x/pop_forecast)
   
