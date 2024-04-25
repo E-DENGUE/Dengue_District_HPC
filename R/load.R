@@ -5,6 +5,7 @@ source('./R/all_district_fwd1.R')
 source('./R/scoring_func.R')
 source('./0_specify_models.R')
 source('./R/lag_district_mod.R')
+source('./R/call_hhh4.R')
 
 #d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
 #cleaned in format_input_data.R

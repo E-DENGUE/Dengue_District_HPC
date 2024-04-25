@@ -28,6 +28,12 @@ ds.list1 <- lapply(file.names1,function(X){
   
   modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  
+  # Find the position of the date pattern in the input string
+  date_match <- str_locate(X, date_pattern)
+  
+  modN <- str_sub(X, end = date_match[,'start'] - 1)
+  
   # Extract the date from the string using gsub
   date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
@@ -36,7 +42,10 @@ ds.list1 <- lapply(file.names1,function(X){
            modN=modN,
            date.test.in=date.test.in,
            form=d1$form)
-    
+  
+  if(grepl('hhh4',X)){
+    preds_df$forecast <- as.factor(preds_df$forecast)
+}
    
   return(preds_df)
 })
