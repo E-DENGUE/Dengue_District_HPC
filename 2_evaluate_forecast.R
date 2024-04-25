@@ -14,8 +14,6 @@ library(broom)
 library(plotly)
 library(viridis)
 library(lubridate)
-library(gifski)
-library(gganimate)
 
 N_cores = detectCores()
 
@@ -28,12 +26,6 @@ ds.list1 <- lapply(file.names1,function(X){
   
   modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-  
-  # Find the position of the date pattern in the input string
-  date_match <- str_locate(X, date_pattern)
-  
-  modN <- str_sub(X, end = date_match[,'start'] - 1)
-  
   # Extract the date from the string using gsub
   date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
@@ -45,14 +37,14 @@ ds.list1 <- lapply(file.names1,function(X){
   
   if(grepl('hhh4',X)){
     preds_df$forecast <- as.factor(preds_df$forecast)
-}
-   
+  }
+  
   return(preds_df)
 })
 
 ##Results from PCA aware analysis
-  file.names2 <- paste0('./Results_b/',list.files('./Results_b'))
-  
+file.names2 <- paste0('./Results_b/',list.files('./Results_b'))
+
 ds.list2 <- lapply(file.names2,function(X){
   
   d1 <- readRDS(file=file.path(X))
@@ -72,9 +64,53 @@ ds.list2 <- lapply(file.names2,function(X){
   return(preds_df)
 })
 
- bind_rows(c(ds.list1,ds.list2)) %>%
+file.names3 <- paste0('./Results_c/',list.files('./Results_c'))
+
+ds.list3 <- lapply(file.names3,function(X){
+  
+  d1 <- readRDS(file=file.path(X))
+  
+  modN <-  'PC2'
+  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  # Extract the date from the string using gsub
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  
+  preds_df <- d1$scores %>%
+    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+           modN=modN,
+           date.test.in=date.test.in,
+           form=paste(d1$form, collapse=' '))
+  
+  
+  return(preds_df)
+})
+
+file.names4 <- paste0('./Results_d/',list.files('./Results_d'))
+
+ds.list4 <- lapply(file.names4,function(X){
+  
+  d1 <- readRDS(file=file.path(X))
+  
+  modN <-  'PC3'
+  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  # Extract the date from the string using gsub
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  
+  preds_df <- d1$scores %>%
+    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+           modN=modN,
+           date.test.in=date.test.in,
+           form=paste(d1$form, collapse=' '))
+  
+  
+  return(preds_df)
+})
+
+
+bind_rows(c(ds.list1,ds.list2,ds.list3, ds.list4)) %>%
   filter(horizon>=1) %>%
- saveRDS( "./cleaned_scores/all_crps_slim.rds")
+  saveRDS( "./cleaned_scores/all_crps_slim.rds")
+
 
 
 ##################################
