@@ -1,0 +1,159 @@
+call_hhh4 <- function(date.test.in, modN,max_horizon=2){
+  MDR_NEW <- readRDS( "./Data/MDR_NEW.rds") %>%
+    arrange(ID)
+  
+  row.names(MDR_NEW) <- MDR_NEW$VARNAME
+  
+  neighb <- surveillance::poly2adjmat(st_make_valid(MDR_NEW))
+  
+  dist_nbOrder <- nbOrder(neighb)
+  
+  colnames(dist_nbOrder) <- MDR_NEW$VARNAME
+  
+  map1 <- sf:::as_Spatial(MDR_NEW)
+  
+  c1 <- d2 %>%
+    filter( date>='2004-09-01' & date <= (as.Date(date.test.in) %m-% months(1) %m+% months(max_horizon)))
+  
+  start.date <- min(c1$date)
+  start.year <- lubridate::year(start.date)
+  start.week <- lubridate::week(start.date)
+  start.month <- lubridate::month(start.date)
+  
+  
+  vintage_date <- as.Date(date.test.in[1]) %m-% months(1)
+  
+  cases <- c1 %>% 
+    reshape2::dcast(date~district, value.var= 'm_DHF_cases') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  pop <- c1 %>% 
+    mutate(pop2=pop/100000) %>%
+    reshape2::dcast(date~district, value.var= 'pop2') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  temp_lag2 <- c1 %>% 
+    mutate(lag2_avg_daily_temp = scale(lag2_avg_daily_temp)) %>%
+    reshape2::dcast(date~district, value.var= 'lag2_avg_daily_temp') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  #unique(MDR_NEW$VARNAME) == colnames(pop)
+  
+  #Define STS object
+  dengue_df <- sts(cases, start = c(start.year, start.month), frequency = 12,
+                   population = pop, neighbourhood = dist_nbOrder, map=map1)
+  
+  all_dates <- sort(unique(c1$date))
+  
+  last_fit_t = which(all_dates == vintage_date )
+  
+  mods <- c('hhh4_np','hhh4_power','hhh4_basic')
+  mod.select = mods[as.numeric(modN)]
+  
+  if(mod.select=='hhh4_np'){
+  dengue_mod_ri_temp <- list(
+    end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
+               offset = population(dengue_df)),
+    ar = list(f = ~ -1 + temp_lag2 + ri() ),
+    ne = list(f = ~ -1 + temp_lag2 + ri() , weights = W_np(maxlag = 2)),
+    family = "NegBin1",
+    subset = 2:last_fit_t,data=list(temp_lag2=temp_lag2)
+  )
+  } else if(mod.select=='hhh4_power'){
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 + ri() ),
+      ne = list(f = ~ -1 + temp_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
+      family = "NegBin1",
+      subset = 2:last_fit_t,data=list(temp_lag2=temp_lag2)
+    )
+      
+    }else if(mod.select=='hhh4_basic'){ 
+      dengue_mod_ri_temp <- list(
+        end = list(f = addSeason2formula(~ -1 + t + ri(), period = dengue_df@freq),
+                   offset = population(dengue_df)),
+        ar = list(f = ~ -1 + temp_lag2 + ri() ),
+        ne = list(f = ~ -1 + temp_lag2 + ri() , weights = neighbourhood(dengue_df) == 1),
+        family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2)
+      )
+    }
+  
+  #fit the model to time t
+  dengueFit_ri <- hhh4(stsObj = dengue_df, control = dengue_mod_ri_temp)
+
+  #simulate forward
+  dengueSim <- simulate(dengueFit_ri,
+                        nsim = 999, seed = 1, subset = (last_fit_t+1):(last_fit_t+max_horizon))
+  
+  #par(mfrow = c(1,1), mar = c(3, 5, 2, 1), las = 1)
+    # plot(dengueFit_ri, type = "fitted", total = TRUE,
+  #      hide0s = TRUE, par.settings = NULL, legend = FALSE)
+  # plot(dengueSim, "fan", means.args = list(), key.args = list(), add=T)
+  
+  #for CRPS evaluation:
+  samps <- matrix(dengueSim[max_horizon,,], nrow=dim(dengueSim)[2])
+  
+  pop_forecast <- population(dengue_df)[last_fit_t+max_horizon,]
+  obs_forecast <- observed(dengue_df)[last_fit_t+max_horizon,]
+  
+  samps.inc <- apply(samps,2, function(x) x/pop_forecast*100000)
+  
+  #Log(Incidence)
+  log.samps.inc <- log(apply(samps,2, function(x)  (x+1)/pop_forecast*100000))
+  
+  log.samps.inc_mean <-apply(log.samps.inc,1,mean)
+  
+  obs_inc <- obs_forecast/pop_forecast*100000
+  log_obs_inc <- log((obs_forecast+1)/pop_forecast*100000)
+  
+  #combine the CRPS scores with the 95% posterior predictive distribution (equal tailed)
+  forecast_ds <- c1 %>%
+    filter(date == vintage_date %m+% months(max_horizon))
+  
+  out_ds <- forecast_ds %>%
+    dplyr::select(date, district,   pop, m_DHF_cases)%>%
+    mutate( forecast=1,
+            horizon = max_horizon,
+            pred_mean = apply(samps,1,mean),
+            pred_lcl = apply(samps,1,quantile, probs=0.025),
+            pred_ucl = apply(samps,1,quantile, probs=0.975))
+  
+  crps1 <- crps_sample(obs_inc, samps.inc)
+  
+  crps2 <- crps_sample(log_obs_inc, log.samps.inc) #on the log scale, as recommended by https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1011393#sec008
+  
+  crps3 <- cbind.data.frame(crps1, crps2,out_ds) 
+  
+  c1b <- c1 %>%
+    ungroup() %>%
+    mutate(forecast= if_else( date==(vintage_date %m+% months(max_horizon)),1,0),
+           horizon = if_else(date== (vintage_date %m+% months(1) ),1,
+                             if_else(date== (vintage_date %m+% months(2)),2, 0
+                             )
+           ),
+    )%>%
+    filter(date <= (vintage_date %m+% months(max_horizon))) 
+  
+  c1.out <- c1b %>%
+    dplyr::select(date, district, m_DHF_cases,pop, forecast,horizon ) 
+  
+  out.list =  list ('ds'=c1.out, 'scores'=crps3)
+  saveRDS(out.list,paste0('./Results/', 'mod',mod.select,'_',date.test.in  ,'.rds' )   )
+  
+  return(out.list)
+}
+
+# ptm <- proc.time()
+# test1 <- call_hhh4(date.test.in=as.Date('2015-01-01'), modN='hhh4_np')
+# proc.time() - ptm
+
+#problem is with CAO-LANH-CITY
