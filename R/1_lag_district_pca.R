@@ -25,8 +25,11 @@ source('./R/load.R')
 args <- commandArgs(trailingOnly = TRUE)
 j <- as.numeric(args[1])  
 k <- as.numeric(args[2])
+i <- as.numeric(args[3])
 
-#i=1 #108 dates total
-#k=1 #10 models
+mods <- c('PC_lags_weather','PC_lags','PC_weather')
 
-mod1 <- lag_district_mod(date.test.in = date.test2[j], district.select=all.districts[k] ) 
+#j=1 #108 dates total
+#i=3 #10 models
+
+mod1 <- lag_district_pca(date.test.in = date.test2[j], district.select=all.districts[k],modN=i ) 
