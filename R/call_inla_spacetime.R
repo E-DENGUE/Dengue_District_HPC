@@ -1,4 +1,4 @@
-all_district_fwd1 <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
+call_inla_spacetime <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
 
   c1 <- d2 %>%
 filter( date>='2004-09-01')%>%
