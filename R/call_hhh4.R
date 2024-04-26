@@ -52,6 +52,14 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
   
+  precip_lag2 <- c1.fit %>% 
+    mutate(lag2_monthly_cum_ppt = scale(lag2_monthly_cum_ppt)) %>%
+    reshape2::dcast(date~district, value.var= 'lag2_monthly_cum_ppt') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  
   #unique(MDR_NEW$VARNAME) == colnames(pop)
   
   #Define STS object
@@ -62,7 +70,6 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
   
   last_fit_t = which(all_dates == vintage_date )
   
-  mods <- c('hhh4_np','hhh4_power','hhh4_basic')
   mod.select = mods[as.numeric(modN)]
   
   if(mod.select=='hhh4_np'){
@@ -85,7 +92,16 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
       subset = 2:last_fit_t,
       data=list(temp_lag2=temp_lag2)
     )
-    
+  } else if(mod.select=='hhh4_power_precip_temp'){
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() ),
+      ne = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
+      family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+    )
   }else if(mod.select=='hhh4_basic'){ 
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t + ri(), period = dengue_df@freq),
@@ -95,6 +111,26 @@ call_hhh4 <- function(date.test.in, modN,max_horizon=2){
       family = "NegBin1",
       subset = 2:last_fit_t,
       data=list(temp_lag2=temp_lag2)
+    )
+  }else if(mod.select=='hhh4_power_precip_temp_endmc1'){ 
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t +temp_lag2 +precip_lag2+ ri(), period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 + precip_lag2+ ri() , lag=1),
+      ne = list(f = ~ -1 + temp_lag2 + precip_lag2+ ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
+      family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+    )
+  }else if(mod.select=='hhh4_power_precip_temp_endmc2'){ 
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t +temp_lag2 +precip_lag2+ ri(), period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 +  ri() , lag=1),
+      ne = list(f = ~ -1 +  ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
+      family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
     )
   }
   
