@@ -24,8 +24,13 @@ ds.list1 <- lapply(file.names1,function(X){
   
   d1 <- readRDS(file=paste0('./Results/',file.path(X)))
   
-  modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  
+  # Find the position of the date pattern in the input string
+  date_match <- str_locate(X, date_pattern)
+  
+  modN <- str_sub(X, end = date_match[,'start'] - 1)
+  
   # Extract the date from the string using gsub
   date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
@@ -266,6 +271,12 @@ ggplot(out4, aes(x = district, y = modN, fill = rel_wgt2)) +
   labs(title = "CRPS Heatmap",
        x = "District",
        y = "ModelN")
+
+out4 %>%
+  reshape2::dcast(district~modN, value.var='rel_wgt2') %>%
+  dplyr::select(-district) %>%
+  as.matrix() %>%
+  cor() 
 
 #mean of relative weghts across all districts--this basically agrees with what is seen in out2
 out4 %>% group_by(modN) %>% summarize(rel_wgt2=mean(rel_wgt2)) %>% arrange(-rel_wgt2)
