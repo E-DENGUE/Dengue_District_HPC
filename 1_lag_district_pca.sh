@@ -11,7 +11,10 @@
 
 #Define the number of models being tested
 
-N_districts=112
+N_models=3
+K=112
+J=84
+
 
 #Load R
 module load R/4.2.0-foss-2020b
@@ -20,15 +23,18 @@ module load R/4.2.0-foss-2020b
 # K 1:N_districts 
 
 # Use modulos to iterate through all task IDs
+# Use modulos to calculate i, j, and k
 task_id=$SLURM_ARRAY_TASK_ID
-j=$(( (task_id-1)  / N_districts + 1 )) # $(( )) does arithmetic evaluation; Bash performs integer division so floor() is default
-k=$(( task_id  % N_districts  + 1 )) # $(( )) does arithmetic evaluation
+i=$(( (task_id - 1) / (J * K) + 1 )) # Calculate i based on the number of models, J, and K
+remainder=$(( (task_id - 1) % (J * K) )) # Calculate the remainder to find j and k
+j=$(( remainder / K + 1 )) # Calculate j based on the remainder and K
+k=$(( remainder % K + 1 )) # Calculate k based on the remainder
 
 # Start time
 start_time=$(date +"%Y-%m-%d %H:%M:%S")
 
     # Run your R script with the task-specific J and K
-Rscript 1b_fitmod.R "$j" "$k"
+Rscript ~/R/1_lag_district_pca.R "$j" "$k" "$i"
 
 # End time
 end_time=$(date +"%Y-%m-%d %H:%M:%S")
@@ -39,5 +45,5 @@ end_seconds=$(date -d "$end_time" +%s)
 running_time=$((end_seconds - start_seconds))
 
 # Output j, k, model number, and running time to a log file
-echo "j=$j, k=$k, district_number=$task_id, running_time=$running_time seconds" >> ./Report/log1.txt
+echo "j=$j, k=$k, i=$i, district_number=$task_id, running_time=$running_time seconds" >> ./Report/log1.txt
 # done

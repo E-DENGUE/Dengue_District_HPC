@@ -1,11 +1,11 @@
 
 source('./R/predict.rlm.R')
 source('./R/deseasonalize_climate.R')
-source('./R/all_district_fwd1.R')
 source('./R/scoring_func.R')
-source('./0_specify_models.R')
-source('./R/lag_district_mod.R')
+source('./R/define_inla_spacetime_mods.R')
+source('./R/call_lag_district_pca.R')
 source('./R/call_hhh4.R')
+source('./R/call_inla_spacetime.R')
 
 #d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
 #cleaned in format_input_data.R

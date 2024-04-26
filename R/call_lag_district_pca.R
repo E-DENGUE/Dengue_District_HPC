@@ -1,4 +1,4 @@
-lag_district_mod <- function(date.test.in, district.select){
+lag_district_pca <- function(date.test.in, district.select, modN){
   
   
   c1a <- d2 %>%
@@ -73,7 +73,17 @@ lag_district_mod <- function(date.test.in, district.select){
       
         
   all.vars <- paste(names(pc.df)[-1], collapse="+")
+  
+  mod.select = mods[as.numeric(modN)]
+  
+  if(mod.select == 'PC_lags_weather'){
   form2 <- as.formula(paste0("m_DHF_cases_hold ~", all.vars, " +lag2_monthly_cum_ppt + lag2_avg_daily_temp + sin12 +cos12 + f(t, model='ar1')"))
+  }else   if(mod.select == 'PC_lags'){
+    form2 <- as.formula(paste0("m_DHF_cases_hold ~", all.vars, " + sin12 +cos12 + f(t, model='ar1')"))
+  }else   if(mod.select == 'PC_weather'){
+    form2 <- as.formula(paste0("m_DHF_cases_hold ~", "lag2_monthly_cum_ppt + lag2_avg_daily_temp + sin12 +cos12 + f(t, model='ar1')"))
+    
+  }
   
   offset1 <- c1$offset1
   #ptm <- proc.time()
@@ -124,7 +134,7 @@ lag_district_mod <- function(date.test.in, district.select){
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
   
   out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=as.character(form2))
-  saveRDS(out.list,paste0('./Results_b/', 'lag_mod_',district.select,'_',date.test.in  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Results_/', mod.select,'_',district.select,'_',date.test.in  ,'.rds' )   )
   return(out.list)
 }
 
