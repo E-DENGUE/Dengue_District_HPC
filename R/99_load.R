@@ -1,5 +1,5 @@
 source('./R/99_helper_funcs.R')
-source('./R/0_define_inla_spacetime_mods.R')
+source('./R/99_define_inla_spacetime_mods.R')
 source('./R/fun_lag_district_pca.R')
 source('./R/fun_hhh4.R')
 source('./R/fun_inla_spacetime.R')
