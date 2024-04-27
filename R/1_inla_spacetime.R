@@ -31,4 +31,4 @@ k <- as.numeric(args[2])
 #k=1 #10 models
 modN_extract = as.numeric(str_match(names(all.mods)[k], "mod(\\d+)")[1,2])
 
-mod1 <- call_inla_spacetime(date.test.in = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 
+mod1 <- inla_spacetime_mod(date.test.in = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 
