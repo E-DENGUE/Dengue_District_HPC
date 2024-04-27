@@ -33,4 +33,4 @@ k <- as.numeric(args[2])
 #i=1 #108 dates total
 #k=1 #10 models
 
-mod1 <- call_hhh4(date.test.in = date.test2[j], modN=k,max_horizon=2) 
+mod1 <- hhh4_mod(date.test.in = date.test2[j], modN=k,max_horizon=2) 
