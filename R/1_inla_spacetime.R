@@ -20,7 +20,7 @@ library(stringr)
 library(janitor)
 library(surveillance)
 
-source('./R/load.R')
+source('./R/99_load.R')
 
 # Parse command-line arguments
 args <- commandArgs(trailingOnly = TRUE)

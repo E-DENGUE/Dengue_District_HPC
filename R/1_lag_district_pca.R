@@ -19,7 +19,7 @@ library(lattice)  # Load the lattice package if you are using lattice graphics
 library(stringr)
 library(janitor)
 
-source('./R/load.R')
+source('./R/99_load.R')
 
 # Parse command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
