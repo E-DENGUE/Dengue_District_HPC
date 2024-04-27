@@ -134,7 +134,7 @@ lag_district_pca <- function(date.test.in, district.select, modN){
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
   
   out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=as.character(form2))
-  saveRDS(out.list,paste0('./Results_/', mod.select,'_',district.select,'_',date.test.in  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Results/', mod.select,'_',district.select,'_',date.test.in  ,'.rds' )   )
   return(out.list)
 }
 
