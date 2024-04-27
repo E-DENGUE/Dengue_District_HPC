@@ -1,23 +1,32 @@
+#Helper functions
+## scoring_func()
+## deseasonalize_climate()
+## predict.rlm()
+
+
+#############################
+## Scoring function
+#############################
 scoring_func <- function(Y){
   
   in.ds <- Y$ds %>%
     arrange(date,districtID)  #SORTED AS MODEL DS IS SORTED
-    
+  
   forecast_ds <- in.ds %>%
-         mutate(index=row_number()) %>%
-         filter(forecast==1 )
-         
-         
+    mutate(index=row_number()) %>%
+    filter(forecast==1 )
+  
+  
   forecast.index_horizon1 <- forecast_ds %>%
-         filter(forecast==1 & horizon==1) %>%
-         pull(index)
-         
+    filter(forecast==1 & horizon==1) %>%
+    pull(index)
+  
   forecast.index_horizon2 <- forecast_ds %>%
-         filter(forecast==1 & horizon==2) %>%
-         pull(index)
-         
+    filter(forecast==1 & horizon==2) %>%
+    pull(index)
+  
   forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2))
-
+  
   test1 <-inla.posterior.sample(1000, Y$mod, seed=0)
   
   #this function extracts the samples for the mean of lambda ('Predictor'), and then generates samples
@@ -50,7 +59,7 @@ scoring_func <- function(Y){
   
   obs_inc <- (forecast_ds$m_DHF_cases/forecast_ds$pop*100000)
   log_obs_inc <- log((forecast_ds$m_DHF_cases+1)/forecast_ds$pop*100000)
-    
+  
   miss.obs <- which(is.na(forecast_ds$m_DHF_cases))
   if(length(miss.obs>0)){
     obs <- obs[-miss.obs]
@@ -65,7 +74,7 @@ scoring_func <- function(Y){
             pred_ucl = apply(samps,1,quantile, probs=0.975))
   
   crps1 <- crps_sample(obs_inc, samps.inc)
-
+  
   crps2 <- crps_sample(log_obs_inc, log.samps.inc) #on the log scale, as recommended by https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1011393#sec008
   
   crps3 <- cbind.data.frame(crps1, crps2,out_ds) 
@@ -73,20 +82,54 @@ scoring_func <- function(Y){
   return(crps3)
 }
 
+############################
+##deseasonalize_climate()
+############################
 
-# Y = rpois(100, lambda=10)
-# E1= rep(15, 100)
-# library(INLA)
-# ds <- cbind.data.frame(Y,E1)
-# mod1 <- inla(Y~1, E=E1, family='poisson', data=ds,control.compute=list(config = TRUE))
-# 
-# exp(mod1$summary.linear.predictor$mean)*15
-# 
-# test1 <-inla.posterior.sample(1000, mod1,  num.threads=8,seed=123)
-# 
-# preds <- sapply(test1, function(X){
-#   mu1 <- exp(X$latent[grep('Predictor', row.names(X$latent))])
-# })
-# 
-# hist(preds*15)
+deseasonalize_climate <- function(climate_var, ds=d1){
+  
+  seas.mod <-ds %>% 
+    arrange(district, date) %>%
+    group_by(district) %>%
+    mutate( Climate_Train = if_else(date<as.Date('2005-01-01'), .data[[climate_var]], NA_real_),
+            t=row_number(),
+            sin12=sin(2*pi*t/12),
+            cos12=cos(2*pi*t/12),
+            sin6=sin(2*pi*t/6),
+            cos6=cos(2*pi*t/6),
+    )  %>%
+    ungroup()
+  
+  form1 <-as.formula(paste0('Climate_Train', '~ sin12 + cos12+ sin6 +cos6'))
+  
+  fitted_models = seas.mod %>% 
+    group_by(district) %>% 
+    do(mod1 = rlm(form1, data=.))
+  
+  
+  fun1 <- function(X, Y){
+    seas.mod %>% filter(district==X) %>%
+      cbind.data.frame(., predict.rlm( Y, newdata = seas.mod[seas.mod$district==X,], interval = "prediction"))
+  }
+  
+  all_preds <-  mapply( fun1, fitted_models$district, fitted_models$mod1, SIMPLIFY=F) %>%
+    bind_rows()
+  
+  all_mods <- all_preds %>%
+    mutate(climate_diff = (.data[[climate_var]] - upr),
+           climate_aberration = if_else(.data[[climate_var]] > upr,climate_diff , 0 ) 
+    ) %>% 
+    dplyr::select(district,district, date,climate_aberration)
+  
+  return(all_mods)
+}  
 
+#######################################
+###PREDICT.RLM
+predict.rlm <- function (object, newdata = NULL, scale = NULL, ...)
+{
+  ## problems with using predict.lm are the scale and
+  ## the QR decomp which has been done on down-weighted values.
+  object$qr <- qr(sqrt(object$weights) * object$x)
+  predict.lm(object, newdata = newdata, scale = object$s, ...)
+}

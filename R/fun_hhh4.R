@@ -1,4 +1,4 @@
-call_hhh4 <- function(date.test.in, modN,max_horizon=2){
+hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   MDR_NEW <- readRDS( "./Data/MDR_NEW.rds") %>%
     arrange(ID)
   
