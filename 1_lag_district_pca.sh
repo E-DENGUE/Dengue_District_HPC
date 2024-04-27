@@ -34,7 +34,7 @@ k=$(( remainder % K + 1 )) # Calculate k based on the remainder
 start_time=$(date +"%Y-%m-%d %H:%M:%S")
 
     # Run your R script with the task-specific J and K
-Rscript ~/R/1_lag_district_pca.R "$j" "$k" "$i"
+Rscript ./R/1_lag_district_pca.R "$j" "$k" "$i"
 
 # End time
 end_time=$(date +"%Y-%m-%d %H:%M:%S")
