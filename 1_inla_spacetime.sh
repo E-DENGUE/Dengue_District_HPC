@@ -29,7 +29,7 @@ k=$(( task_id  % N_models  + 1 )) # $(( )) does arithmetic evaluation
 start_time=$(date +"%Y-%m-%d %H:%M:%S")
 
 # Run your R script with the task-specific J and K
-Rscript ~/R/1_inla_spacetime.R "$j" "$k"
+Rscript ./R/1_inla_spacetime.R "$j" "$k"
 
 # End time
 end_time=$(date +"%Y-%m-%d %H:%M:%S")
