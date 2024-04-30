@@ -18,6 +18,8 @@ library(ggmap) # plotting shapefiles
 library(lattice)  # Load the lattice package if you are using lattice graphics
 library(stringr)
 library(janitor)
+library(roll)
+
 
 source('./R/99_load.R')
 
