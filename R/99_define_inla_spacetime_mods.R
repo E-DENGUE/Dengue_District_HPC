@@ -365,12 +365,18 @@ mod32 <- 'm_DHF_cases_hold~ 1+
                                    scale.model = TRUE) +
                      lag2_avg_min_daily_temp + lag2_monthly_cum_ppt '  
 
+
+mod39 <- 'm_DHF_cases_hold~   lag2_y + log_cum_inc_12m +log_cum_inc_24m +log_cum_inc_36m +
+                            f(districtID, 
+                                   model="besag", 
+                                   constr= TRUE, 
+                                   graph=MDR.adj,
+                                    hyper = hyper1,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+
    
-#all.mods <- list('mod1'=mod1,'mod2'=mod2,'mod3'=mod3,'mod4'=mod4,'mod5'=mod5,'mod6'=mod6,'mod7'=mod7,
-#'mod8'=mod8,'mod9'=mod9,'mod10'=mod10, 'mod11'=mod11, 'mod12'=mod12, 'mod13'=mod13, 'mod14'=mod14, 'mod15'=mod15, 'mod16'=mod16, 'mod17'=mod17, 'mod18'=mod18, 'mod19'=mod19, 'mod20'=mod20)
 
-#all.mods <- list( 'mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32)
-#all.mods <- list( 'mod37'=mod37,'mod38'=mod38)
-
-#all.mods <- list('mod39_type4'=mod39_type4)
 
