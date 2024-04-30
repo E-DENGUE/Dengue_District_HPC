@@ -13,7 +13,12 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   map1 <- sf:::as_Spatial(MDR_NEW)
   
   c1 <- d2 %>%
-    filter( date>='2004-09-01' & date <= (as.Date(date.test.in) %m-% months(1) %m+% months(max_horizon)))
+    arrange(district, date) %>%
+    filter( date>='2004-09-01' & date <= (as.Date(date.test.in) %m-% months(1) %m+% months(max_horizon))) %>%
+    group_by(district) %>%
+    mutate( log_inc=log((m_DHF_cases+1)/pop*100000),
+      log_lag12_inc= scale(dplyr::lag(log_inc,12) )[,1] ) %>%
+    ungroup()
   
   start.date <- min(c1$date)
   start.year <- lubridate::year(start.date)
@@ -63,6 +68,13 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   log_cum_inc_24m <- c1.fit %>% 
     mutate(log_cum_inc_24m = scale(log_cum_inc_24m)) %>%
     reshape2::dcast(date~district, value.var= 'log_cum_inc_24m') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  log_lag12_inc <- c1.fit %>% 
+    mutate(log_lag12_inc = scale(log_lag12_inc)) %>%
+    reshape2::dcast(date~district, value.var= 'log_lag12_inc') %>%
     filter(date>=start.date) %>%
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
@@ -146,11 +158,21 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t +  log_cum_inc_24m +  ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 + log_cum_inc_24m +  ri() ),
+      ar = list(f = ~ -1 + temp_lag2 +   ri() +log_cum_inc_24m), #log_lag12_inc not associated with AR
       ne = list(f = ~ -1 + temp_lag2 +  log_cum_inc_24m +  ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
-      subset = 23:last_fit_t,
+      subset = 24:last_fit_t,
       data=list(temp_lag2=temp_lag2,log_cum_inc_24m=log_cum_inc_24m)
+    )
+  } else if(mod.select=='hhh4_power_lag12'){
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t +  log_lag12_inc +  ri() , period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 +   ri() ), #log_lag12_inc not associated with AR
+      ne = list(f = ~ -1 + temp_lag2 +  log_lag12_inc +  ri() , weights =  W_powerlaw(maxlag = 5)),
+      family = "NegBin1",
+      subset = 13:last_fit_t,
+      data=list(temp_lag2=temp_lag2,log_lag12_inc=log_lag12_inc)
     )
   }
   
