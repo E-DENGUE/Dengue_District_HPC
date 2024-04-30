@@ -374,12 +374,12 @@ p2.ensembles <- p2.ds %>%
   theme_classic()+
   ylim(0,NA) +
  # geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
-  geom_line(aes(x=date, y=ensemble_dist_wgt,group=modN,), alpha=0.5 ,lwd=1, col='red')+ #weight by 
-geom_line(aes(x=date, y=ensemble_month,group=modN,), alpha=0.5 ,lwd=1, col='blue')+
+  geom_line(aes(x=date, y=ensemble_dist_wgt,group=modN,), alpha=0.5 ,lwd=1, col='red')+ #weight by district
+geom_line(aes(x=date, y=ensemble_month,group=modN,), alpha=0.5 ,lwd=1, col='blue')+ #weight by calendar month 
   geom_line(aes(x=date, y=ensemble_overall,group=modN,), alpha=0.5 ,lwd=1, col='orange')+
   ggtitle("Differential weighting of ensemble has little effect")
 
-p2.ensembles #the 3 ensembles looks almost identical
+p2.ensembles #the first 2 ensembles looks almost identical; weighting by district slightly different
 
 
 #ggplotly(p2)  
@@ -387,7 +387,7 @@ p2.ensembles #the 3 ensembles looks almost identical
 
   gif.ds <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter(horizon==2 & modN %in% c('mod25','mod33','PC1'))
+    filter(horizon==2 & modN %in% c('mod39','modhhh4_power_cum_lag12_'))
   
     all.districts <- unique(out$district)
     

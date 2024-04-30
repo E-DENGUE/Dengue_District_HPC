@@ -10,25 +10,14 @@ d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cle
   rename(District_province = prov_dis) %>%
   arrange(district, date) %>%
   group_by(district) %>%
-  mutate(   cumsum_cases_12m =  roll_sum(m_DHF_cases,12, min_obs=1), #partial backward moving sum
-            cumsum_pop_12m =  roll_sum(pop,12, min_obs=1), #partial backward moving sum
-            cum_inc_12m = (cumsum_cases_12m+1)/cumsum_pop_12m*100000,
-            
-            cumsum_cases_24m =  roll_sum(m_DHF_cases,24, min_obs=1), #partial backward moving sum
+  mutate(   cumsum_cases_24m =  roll_sum(m_DHF_cases,24, min_obs=1), #partial backward moving sum
             cumsum_pop_24m =  roll_sum(pop,24, min_obs=1), #partial backward moving sum
             cum_inc_24m = (cumsum_cases_24m+1)/cumsum_pop_24m*100000,
-            
-            cumsum_cases_36m =  roll_sum(m_DHF_cases,36, min_obs=1), #partial backward moving sum
-            cumsum_pop_36m =  roll_sum(pop,36, min_obs=1), #partial backward moving sum
-            cum_inc_36m = (cumsum_cases_36m+1)/cumsum_pop_36m*100000
-            
-) %>%
-  ungroup() %>%
-  mutate(log_cum_inc_12m=scale(log(cum_inc_12m)),
-         log_cum_inc_24m=scale(log(cum_inc_24m)),
-         log_cum_inc_36m=scale(log(cum_inc_36m))
-         )
-
+    ) %>%
+  mutate(log_cum_inc_24m=lag(scale(log(cum_inc_24m)),24) #window and lag based on Window_size_lags.R
+         ) %>%
+ungroup() 
+  
 MDR_NEW <- readRDS( "./Data/MDR_NEW.rds")
 
 spat_IDS <- readRDS( "./Data/spatial_IDS.rds")
@@ -68,3 +57,4 @@ hyper1.rw = list(prec = list(prior='pc.prec', param=c(0.1, 0.01))) # strictest s
 hyper2.rw = list(prec = list(prior='pc.prec', param=c(0.3, 0.01))) # medium
 hyper3.rw = list(prec = list(prior='pc.prec', param=c(1, 0.01))) # weaker (suggested INLA default) 
 hyper4.rw = list(prec = list(prior='pc.prec', param=c(2, 0.01))) # weakest; sd can be quite wide 
+
