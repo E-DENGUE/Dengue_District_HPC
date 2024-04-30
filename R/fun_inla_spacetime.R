@@ -10,7 +10,7 @@ filter( date>='2004-09-01')%>%
            Dengue_fever_rates = m_DHF_cases / pop *100000,
            log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
            log_pop=log(pop/100000),
-           year = year(date) ,
+           year = lubridate::year(date) ,
            m_DHF_cases_hold= ifelse( date>= (date.test.in[1]), NA_real_,
                                       m_DHF_cases),
            lag_y = lag(log_df_rate, 1),

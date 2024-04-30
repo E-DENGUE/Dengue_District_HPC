@@ -24,7 +24,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   
   c1.fit <- c1 %>% 
     filter( date <= (vintage_date %m+% months(max_horizon))) %>%
-    mutate(m_DHF_cases_fit = if_else(date > vintage_date, NA_real_,m_DHF_cases))
+    mutate(m_DHF_cases_fit = ifelse(date > vintage_date, NA_real_,m_DHF_cases))
   
   cases <- c1.fit %>% 
     reshape2::dcast(date~district, value.var= 'm_DHF_cases') %>%
@@ -163,7 +163,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
       ne = list(f = ~ -1 + temp_lag2 + log_cum_inc_12m  + ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2)
+      data=list(temp_lag2=temp_lag2,log_cum_inc_12m=log_cum_inc_12m)
     )
   } else if(mod.select=='hhh4_power_cum_lag24'){
     dengue_mod_ri_temp <- list(
@@ -173,7 +173,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
       ne = list(f = ~ -1 + temp_lag2 +  log_cum_inc_24m +  ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2)
+      data=list(temp_lag2=temp_lag2,log_cum_inc_24m=log_cum_inc_24m)
     )
   } else if(mod.select=='hhh4_power_cum_lag36'){
     dengue_mod_ri_temp <- list(
@@ -183,7 +183,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
       ne = list(f = ~ -1 + temp_lag2 + log_cum_inc_36m + ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2)
+      data=list(temp_lag2=temp_lag2,log_cum_inc_36m=log_cum_inc_36m)
     )
   }
   
