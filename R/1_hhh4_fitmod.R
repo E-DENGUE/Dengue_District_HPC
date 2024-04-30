@@ -6,7 +6,6 @@ library(readxl)
 library(tidyr)
 library(tidyverse)
 library(zoo)
-library(lubridate)
 library(pbapply)
 library(INLA)
 #inla.setOption(mkl=TRUE)
@@ -19,6 +18,9 @@ library(lattice)  # Load the lattice package if you are using lattice graphics
 library(stringr)
 library(janitor)
 library(surveillance)
+library(roll)
+library(lubridate)
+
 
 source('./R/99_load.R')
 
@@ -27,8 +29,8 @@ args <- commandArgs(trailingOnly = TRUE)
 j <- as.numeric(args[1])  
 k <- as.numeric(args[2])
 
- mods <- c('hhh4_np','hhh4_power','hhh4_basic','hhh4_power_precip_temp','hhh4_power_precip_temp_endmc1','hhh4_power_precip_temp_endmc2')
-#mods <- c('hhh4_power_precip_temp')
+ #mods <- c('hhh4_np','hhh4_power','hhh4_basic','hhh4_power_precip_temp','hhh4_power_precip_temp_endmc1','hhh4_power_precip_temp_endmc2')
+mods <- c('hhh4_power_cum_lag12','hhh4_power_cum_lag24','hhh4_power_cum_lag36')
 
 #i=1 #108 dates total
 #k=1 #10 models
