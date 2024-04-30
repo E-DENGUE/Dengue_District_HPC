@@ -6,7 +6,6 @@ library(readxl)
 library(tidyr)
 library(tidyverse)
 library(zoo)
-library(lubridate)
 library(pbapply)
 library(INLA)
 #inla.setOption(mkl=TRUE)
@@ -20,6 +19,8 @@ library(stringr)
 library(janitor)
 library(surveillance)
 library(roll)
+library(lubridate)
+
 
 source('./R/99_load.R')
 

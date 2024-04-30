@@ -59,6 +59,29 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
   
+  log_cum_inc_12m <- c1.fit %>% 
+    mutate(log_cum_inc_12m = scale(log_cum_inc_12m)) %>%
+    reshape2::dcast(date~district, value.var= 'log_cum_inc_12m') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  log_cum_inc_24m <- c1.fit %>% 
+    mutate(log_cum_inc_24m = scale(log_cum_inc_24m)) %>%
+    reshape2::dcast(date~district, value.var= 'log_cum_inc_24m') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  log_cum_inc_36m <- c1.fit %>% 
+    mutate(log_cum_inc_36m = scale(log_cum_inc_36m)) %>%
+    reshape2::dcast(date~district, value.var= 'log_cum_inc_36m') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  
+  
   
   #unique(MDR_NEW$VARNAME) == colnames(pop)
   
