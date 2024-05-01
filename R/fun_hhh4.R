@@ -196,6 +196,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
       subset = 2:last_fit_t,
       data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
     )
+  }
   
   #fit the model to time t
   dengueFit_ri <- hhh4(stsObj = dengue_df, control = dengue_mod_ri_temp)
