@@ -129,5 +129,5 @@ D <-
 C
 D
 distmat <- dtw_hc@distmat
-sim.mat <- 1-distmat #similarity matrix
+sim.mat <- 1-distmat/max(distmat) #similarity matrix
 saveRDS(sim.mat,'./Data/tsclust_simmat.rds')

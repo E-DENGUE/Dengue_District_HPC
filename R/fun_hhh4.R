@@ -1,4 +1,8 @@
 hhh4_mod <- function(date.test.in, modN,max_horizon=2){
+  
+  sim.mat <- readRDS('./Data/tsclust_simmat.rds')
+  
+  
   MDR_NEW <- readRDS( "./Data/MDR_NEW.rds") %>%
     arrange(ID)
   
@@ -87,6 +91,14 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   dengue_df <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
                    population = pop, neighbourhood = dist_nbOrder, map=map1)
   
+  sim.mat <- as.matrix(sim.mat)
+  
+  colnames(sim.mat) <- MDR_NEW$VARNAME
+  
+  
+  dengue_df_dist <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
+                   population = pop, neighbourhood =sim.mat , map=map1)
+  
   all_dates <- sort(unique(c1$date))
   
   last_fit_t = which(all_dates == vintage_date )
@@ -174,7 +186,16 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
       subset = 13:last_fit_t,
       data=list(temp_lag2=temp_lag2,log_lag12_inc=log_lag12_inc)
     )
-  }
+  } else if(mod.select=='hhh4_power_precip_temp_dist'){
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df_dist@freq),
+                 offset = population(dengue_df_dist)),
+      ar = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() ),
+      ne = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
+      family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+    )
   
   #fit the model to time t
   dengueFit_ri <- hhh4(stsObj = dengue_df, control = dengue_mod_ri_temp)
