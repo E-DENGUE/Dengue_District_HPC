@@ -14,6 +14,7 @@ library(broom)
 library(plotly)
 library(viridis)
 library(lubridate)
+library(gganimate)
 
 N_cores = detectCores()
 
@@ -147,10 +148,11 @@ miss.dates <- out %>%
   ungroup()
 
 miss.mod <- out %>%
-  filter(horizon==2) %>%
+  filter(horizon==2 & date <= '2018-12-01') %>%
   group_by(modN) %>%
   summarize(N=n()) %>%
   mutate(exclude_miss_mod = N<max(N))
+
 
 
 #note this is not a proper time series--we are double counting cases across models.
@@ -387,7 +389,7 @@ p2.ensembles #the first 2 ensembles looks almost identical; weighting by distric
 
   gif.ds <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter(horizon==2 & modN %in% c('mod39','modhhh4_power_cum_lag12_'))
+    filter(horizon==2 & modN %in% c('mod33','modhhh4_power_lag12_'))
   
     all.districts <- unique(out$district)
     
