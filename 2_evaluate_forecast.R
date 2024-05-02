@@ -168,7 +168,7 @@ out_1a <- out %>%
   filter(exclude_miss_mod!=1) %>%
   dplyr::select(-pop,-m_DHF_cases) %>%
   left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   #%>%
- # filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
+  #filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
 View(out_1a %>% group_by(district,date, horizon) %>% summarize(N=n()))
 
@@ -389,7 +389,7 @@ p2.ensembles #the first 2 ensembles looks almost identical; weighting by distric
 
   gif.ds <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter(horizon==2 & modN %in% c('mod33','modhhh4_power_lag12_'))
+    filter(horizon==2 & modN %in% c('mod33_','modhhh4_power_lag12_','modhhh4_power_precip_temp_'))
   
     all.districts <- unique(out$district)
     
@@ -414,7 +414,7 @@ p2.ensembles #the first 2 ensembles looks almost identical; weighting by distric
        
     }
     
-    all.plots <- lapply(all.districts,plot.dist.fun)
+    all.plots <- lapply(all.districts[1:20],plot.dist.fun)
     
 
     
