@@ -21,7 +21,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
     filter( date>='2004-09-01' & date <= (as.Date(date.test.in) %m-% months(1) %m+% months(max_horizon))) %>%
     group_by(district) %>%
     mutate( log_inc=log((m_DHF_cases+1)/pop*100000),
-      log_lag12_inc= scale(dplyr::lag(log_inc,12) )[,1] ) %>%
+            log_lag12_inc= scale(dplyr::lag(log_inc,12) )[,1] ) %>%
     ungroup()
   
   start.date <- min(c1$date)
@@ -67,7 +67,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
     filter(date>=start.date) %>%
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
-
+  
   
   log_cum_inc_24m <- c1.fit %>% 
     mutate(log_cum_inc_24m = scale(log_cum_inc_24m)) %>%
@@ -82,7 +82,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
     filter(date>=start.date) %>%
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
-
+  
   
   
   #unique(MDR_NEW$VARNAME) == colnames(pop)
@@ -91,13 +91,15 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   dengue_df <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
                    population = pop, neighbourhood = dist_nbOrder, map=map1)
   
-  sim.mat <- as.matrix(sim.mat)
+  #sim.mat <- as.matrix(sim.mat)
   
-  colnames(sim.mat) <- MDR_NEW$VARNAME
+  sim.mat2 <- `dim<-`(c(sim.mat), dim(sim.mat))
+  
+  colnames(sim.mat2) <- MDR_NEW$VARNAME
   
   
   dengue_df_dist <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
-                   population = pop, neighbourhood =sim.mat , map=map1)
+                        population = pop, neighbourhood =sim.mat2 , map=map1)
   
   all_dates <- sort(unique(c1$date))
   
@@ -165,7 +167,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
       subset = 2:last_fit_t,
       data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
     )
-  
+    
   } else if(mod.select=='hhh4_power_cum_lag24'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t +  log_cum_inc_24m +  ri() , period = dengue_df@freq),
