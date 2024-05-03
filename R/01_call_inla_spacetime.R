@@ -1,30 +1,3 @@
-<<<<<<< HEAD:R/1_inla_spacetime.R
-library(parallel)
-library(stats)
-library(dplyr)
-library(readr)
-library(readxl)
-library(tidyr)
-library(tidyverse)
-library(zoo)
-library(pbapply)
-library(INLA)
-#inla.setOption(mkl=TRUE)
-library(MASS)
-library(scoringutils)
-library(sf)
-library(spdep)
-library(ggmap) # plotting shapefiles 
-library(lattice)  # Load the lattice package if you are using lattice graphics
-library(stringr)
-library(janitor)
-library(surveillance)
-library(roll)
-library(lubridate)
-
-
-=======
->>>>>>> clean_repo:R/01_call_inla_spacetime.R
 source('./R/99_load.R')
 
 # Parse command-line arguments
@@ -41,4 +14,4 @@ all.mods <-list('mod39'=mod39)
 
 modN_extract = as.numeric(str_match(names(all.mods)[k], "mod(\\d+)")[1,2])
 
-mod1 <- inla_spacetime_mod(date.test.in = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 
+mod1 <- inla_spacetime_mod(vintage.date = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 

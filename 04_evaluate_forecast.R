@@ -33,12 +33,11 @@ ds.list1 <- lapply(file.names1,function(X){
   modN <- str_sub(X, end = date_match[,'start'] - 1)
   
   # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  date.test <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+    mutate(vintage_date=as.Date(date.test) , #vintage.date-=date when forecast was made 
            modN=modN,
-           date.test.in=date.test.in,
            form=d1$form)
   
   if(grepl('hhh4',X)){
@@ -58,12 +57,11 @@ ds.list2 <- lapply(file.names2,function(X){
   modN <-  'PC1'
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
   # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  date.test <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+    mutate(vintage_date=as.Date(date.test), #vintage.date-=date when forecast was made
            modN=modN,
-           date.test.in=date.test.in,
            form=paste(d1$form, collapse=' '))
   
   
