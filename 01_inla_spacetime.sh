@@ -1,18 +1,18 @@
 #!/bin/bash
-#SBATCH --time=00:04:00
+#SBATCH --time=24:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --partition day,scavenge
 #SBATCH --requeue
 #SBATCH --mail-user=daniel.weinberger@yale.edu
-#SBATCH --cpus-per-task=4
-#SBATCH --mem-per-cpu=1G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem-per-cpu=10G
 #SBATCH -o ./Report/output.%a.out # STDOUT
-#SBATCH --array=1-504   # If k models and J hold out time points this is 1- j*k  J=84, K=15
+#SBATCH --array=1-84   # If k models and J hold out time points this is 1- j*k  J=84, K=15
 
 
 #Define the number of models being tested
 
-N_models=6
+N_models=1
 
 #Load R
 module load R/4.2.0-foss-2020b
@@ -29,7 +29,7 @@ k=$(( task_id  % N_models  + 1 )) # $(( )) does arithmetic evaluation
 start_time=$(date +"%Y-%m-%d %H:%M:%S")
 
 # Run your R script with the task-specific J and K
-Rscript ./R/1_hhh4_fitmod.R "$j" "$k"
+Rscript ./R/01_call_inla_spacetime.R "$j" "$k"
 
 # End time
 end_time=$(date +"%Y-%m-%d %H:%M:%S")

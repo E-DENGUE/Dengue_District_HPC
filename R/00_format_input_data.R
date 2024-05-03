@@ -18,11 +18,8 @@ library(ggmap) # plotting shapefiles
 library(lattice)  # Load the lattice package if you are using lattice graphics
 library(stringr)
 
-source('./R/predict.rlm.R')
-source('./R/deseasonalize_climate.R')
-source('./R/all_district_fwd1.R')
-source('./R/scoring_func.R')
-source('./0_specify_models.R')
+source('./R/99_helper_funcs.R')
+
 d1 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors.rds') 
   
 names(d1)[names(d1) == "Dengue"] <- "m_DHF_cases"
