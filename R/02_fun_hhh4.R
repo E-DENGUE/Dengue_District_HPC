@@ -1,4 +1,4 @@
-hhh4_mod <- function(date.test.in, modN,max_horizon=2){
+hhh4_mod <- function(vintage.date, modN,max_horizon=2){
   
   sim.mat <- readRDS('./Data/tsclust_simmat.rds')
   
@@ -18,7 +18,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   
   c1 <- d2 %>%
     arrange(district, date) %>%
-    filter( date>='2004-09-01' & date <= (as.Date(date.test.in) %m-% months(1) %m+% months(max_horizon))) %>%
+    filter( date>='2004-09-01' & date <= (as.Date(vintage.date)  %m+% months(max_horizon))) %>%
     group_by(district) %>%
     mutate( log_inc=log((m_DHF_cases+1)/pop*100000),
             log_lag12_inc= scale(dplyr::lag(log_inc,12) )[,1] ) %>%
@@ -28,8 +28,6 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   start.year <- lubridate::year(start.date)
   start.week <- lubridate::week(start.date)
   start.month <- lubridate::month(start.date)
-  
-  vintage_date <- as.Date(date.test.in[1]) %m-% months(1)
   
   c1.fit <- c1 %>% 
     filter( date <= (vintage_date %m+% months(max_horizon))) %>%
@@ -228,6 +226,8 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   #Log(Incidence)
   log.samps.inc <- log(apply(samps,2, function(x)  (x+1)/pop_forecast))
   
+  colnames(log.samps.inc) <- paste0('rep',1:ncol(log.samps.inc))
+  
   log.samps.inc_mean <-apply(log.samps.inc,1,mean)
   
   obs_inc <- obs_forecast/pop_forecast
@@ -264,8 +264,10 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   c1.out <- c1b %>%
     dplyr::select(date, district, m_DHF_cases,pop, forecast,horizon ) 
   
-  out.list =  list ('ds'=c1.out, 'scores'=crps3)
-  saveRDS(out.list,paste0('./Results/Results_spacetime/', 'mod',mod.select,'_',date.test.in  ,'.rds' )   )
+  samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+  
+  out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
+  saveRDS(out.list,paste0('./Results/Results_spacetime/', 'mod',mod.select,'_',vintage.date  ,'.rds' )   )
   
   return(out.list)
 }

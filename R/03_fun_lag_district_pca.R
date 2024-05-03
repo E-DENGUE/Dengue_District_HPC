@@ -1,4 +1,4 @@
-lag_district_pca <- function(date.test.in, district.select, modN){
+lag_district_pca <- function(vintage.date, district.select, modN){
   
   
   c1a <- d2 %>%
@@ -17,7 +17,7 @@ lag_district_pca <- function(date.test.in, district.select, modN){
            cos12 = cos(2*pi*t/12),
            
     ) %>%
-    filter(date<= (date.test.in[1] %m+% months(1) )) %>%  #only keep test date and 1 month ahead of that
+    filter(date<= (vintage.date %m+% months(2) )) %>%  #only keep vintage date and 2 month ahead of that
     ungroup() %>%
     mutate(t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
            time_id1= t ) 
@@ -42,7 +42,7 @@ lag_district_pca <- function(date.test.in, district.select, modN){
     filter( district==district.select) %>%
     left_join(all.lags, by='date') %>%
     mutate(offset1= pop/100000,
-           m_DHF_cases_hold= ifelse( date>= (date.test.in), NA_real_,
+           m_DHF_cases_hold= ifelse( date> (vintage.date), NA_real_,
                                      m_DHF_cases)
     )
   # dplyr::select(-contains(district.select)) #filters out lags from the select district--fix this to work with tidy names
@@ -113,8 +113,8 @@ lag_district_pca <- function(date.test.in, district.select, modN){
   c1 <- c1 %>%
     ungroup() %>%
     mutate(forecast= as.factor(if_else(is.na(m_DHF_cases_hold),1,0)),
-           horizon = if_else(date== (date.test.in[1]),1,
-                             if_else(date== (date.test.in[1] %m+% months(1)),2, 0
+           horizon = if_else(date== (vintage.date %m+% months(1)),1,
+                             if_else(date== (vintage.date %m+% months(2)),2, 0
                              )
            ),
            max_allowed_lag = 2
@@ -133,8 +133,9 @@ lag_district_pca <- function(date.test.in, district.select, modN){
   c1.out <- c1 %>%
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
   
-  out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=as.character(form2))
-  saveRDS(out.list,paste0('./Results/Results_pca', mod.select,'_',district.select,'_',date.test.in  ,'.rds' )   )
+  out.list =  list ('ds'=c1.out, 'scores'=scores$crps3,'log.samps.inc'=scores$log.samps.inc,  'fixed.eff'=mod1$summary.fixed, 'form'==as.character(form2))
+  
+  saveRDS(out.list,paste0('./Results/Results_pca', mod.select,'_',district.select,'_',vintage.date  ,'.rds' )   )
   return(out.list)
 }
 

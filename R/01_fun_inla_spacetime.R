@@ -1,4 +1,4 @@
-inla_spacetime_mod <- function(date.test.in, modN,type4mod=F, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
+inla_spacetime_mod <- function(vintage.date, modN,type4mod=F, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
 
   c1 <- d2 %>%
 filter( date>='2004-09-01')%>%
@@ -11,13 +11,13 @@ filter( date>='2004-09-01')%>%
            log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
            log_pop=log(pop/100000),
            year = lubridate::year(date) ,
-           m_DHF_cases_hold= ifelse( date>= (date.test.in[1]), NA_real_,
+           m_DHF_cases_hold= ifelse( date> vintage.date, NA_real_,
                                       m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
            max_allowed_lag = if_else(grepl('lag_y',formula1 )|grepl('lag1',formula1 ),1,2),
-           horizon = if_else(date== (date.test.in[1]),1,
-                             if_else(date== (date.test.in[1] %m+% months(1)),2, 0
+           horizon = if_else(date== (vintage.date %m+% months(1)),1,
+                             if_else(date== (vintage.date %m+% months(2)),2, 0
                              )
            ),
            sin12 = sin(2*pi*t/12),
@@ -27,7 +27,7 @@ filter( date>='2004-09-01')%>%
            offset1 = pop/100000,
            #log_offset=log(pop/100000)
     ) %>%
-    filter(date<= (date.test.in[1] %m+% months(1) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>%  #only keep test date and 1 month ahead of that
+    filter(date<= (vintage.date %m+% months(2) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>%  #only keep test date and 1 month ahead of that
     ungroup() %>%
     mutate(
            districtID2 = districtID,
@@ -155,8 +155,8 @@ filter( date>='2004-09-01')%>%
     c1 <- c1 %>%
       ungroup() %>%
       mutate(forecast= as.factor(if_else(is.na(m_DHF_cases_hold),1,0)),
-             horizon = if_else(date== (date.test.in[1]),1,
-                               if_else(date== (date.test.in[1] %m+% months(1)),2, 0
+             horizon = if_else(date== (vintage.date %m+% months(1)),1,
+                               if_else(date== (vintage.date %m+% months(2)),2, 0
                                )
              ),
              max_allowed_lag = if_else(grepl('lag_y',formula1 ),1,2)
@@ -175,7 +175,7 @@ filter( date>='2004-09-01')%>%
   c1.out <- c1 %>%
     dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
 
-  out.list =  list ('ds'=c1.out, 'scores'=scores,  'fixed.eff'=mod1$summary.fixed, 'form'=formula1)
-  saveRDS(out.list,paste0('./Results/Results_spacetime/', 'mod',modN,'_',date.test.in  ,'.rds' )   )
+  out.list =  list ('ds'=c1.out, 'scores'=scores$crps3,'log.samps.inc'=scores$log.samps.inc,  'fixed.eff'=mod1$summary.fixed, 'waic'=mod1$waic,'form'=formula1)
+  saveRDS(out.list,paste0('./Results/Results_spacetime/', 'mod',modN,'_',vintage.date  ,'.rds' )   )
   return(out.list)
 }

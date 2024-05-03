@@ -79,6 +79,12 @@ scoring_func <- function(Y){
   
   crps3 <- cbind.data.frame(crps1, crps2,out_ds) 
   
+  colnames(log.samps.inc) <- paste0('rep',1:ncol(log.samps.inc))
+  
+  samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+  
+  out.list = list('crps3'=crps3, 'log.samps.inc'=samps.out)
+  
   return(crps3)
 }
 
