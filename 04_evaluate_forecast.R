@@ -14,6 +14,7 @@ library(broom)
 library(plotly)
 library(viridis)
 library(lubridate)
+library(gganimate)
 
 N_cores = detectCores()
 
@@ -105,10 +106,11 @@ miss.dates <- out %>%
   ungroup()
 
 miss.mod <- out %>%
-  filter(horizon==2) %>%
+  filter(horizon==2 & date <= '2018-12-01') %>%
   group_by(modN) %>%
   summarize(N=n()) %>%
   mutate(exclude_miss_mod = N<max(N))
+
 
 
 #note this is not a proper time series--we are double counting cases across models.
@@ -124,7 +126,7 @@ out_1a <- out %>%
   filter(exclude_miss_mod!=1) %>%
   dplyr::select(-pop,-m_DHF_cases) %>%
   left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   #%>%
- # filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
+  #filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
 
 View(out_1a %>% group_by(district,date, horizon) %>% summarize(N=n()))
 
@@ -332,12 +334,12 @@ p2.ensembles <- p2.ds %>%
   theme_classic()+
   ylim(0,NA) +
  # geom_line(aes(x=date, y=pred_count,group=modN, color=modN), lwd=0.5, alpha=0.5) +
-  geom_line(aes(x=date, y=ensemble_dist_wgt,group=modN,), alpha=0.5 ,lwd=1, col='red')+ #weight by 
-geom_line(aes(x=date, y=ensemble_month,group=modN,), alpha=0.5 ,lwd=1, col='blue')+
+  geom_line(aes(x=date, y=ensemble_dist_wgt,group=modN,), alpha=0.5 ,lwd=1, col='red')+ #weight by district
+geom_line(aes(x=date, y=ensemble_month,group=modN,), alpha=0.5 ,lwd=1, col='blue')+ #weight by calendar month 
   geom_line(aes(x=date, y=ensemble_overall,group=modN,), alpha=0.5 ,lwd=1, col='orange')+
   ggtitle("Differential weighting of ensemble has little effect")
 
-p2.ensembles #the 3 ensembles looks almost identical
+p2.ensembles #the first 2 ensembles looks almost identical; weighting by district slightly different
 
 
 
@@ -375,7 +377,7 @@ p2
 
   gif.ds <- out_1a %>%
     left_join(obs_case, by=c('date','district')) %>%
-    filter(horizon==2 & modN %in% c('mod25','mod33','PC1'))
+    filter(horizon==2 & modN %in% c('mod33_','modhhh4_power_lag12_','modhhh4_power_precip_temp_'))
   
     all.districts <- unique(out$district)
     
@@ -400,7 +402,7 @@ p2
        
     }
     
-    all.plots <- lapply(all.districts,plot.dist.fun)
+    all.plots <- lapply(all.districts[1:20],plot.dist.fun)
     
 
     

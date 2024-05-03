@@ -1,4 +1,8 @@
 hhh4_mod <- function(date.test.in, modN,max_horizon=2){
+  
+  sim.mat <- readRDS('./Data/tsclust_simmat.rds')
+  
+  
   MDR_NEW <- readRDS( "./Data/MDR_NEW.rds") %>%
     arrange(ID)
   
@@ -13,7 +17,12 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   map1 <- sf:::as_Spatial(MDR_NEW)
   
   c1 <- d2 %>%
-    filter( date>='2004-09-01' & date <= (as.Date(date.test.in) %m-% months(1) %m+% months(max_horizon)))
+    arrange(district, date) %>%
+    filter( date>='2004-09-01' & date <= (as.Date(date.test.in) %m-% months(1) %m+% months(max_horizon))) %>%
+    group_by(district) %>%
+    mutate( log_inc=log((m_DHF_cases+1)/pop*100000),
+            log_lag12_inc= scale(dplyr::lag(log_inc,12) )[,1] ) %>%
+    ungroup()
   
   start.date <- min(c1$date)
   start.year <- lubridate::year(start.date)
@@ -24,7 +33,7 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
   
   c1.fit <- c1 %>% 
     filter( date <= (vintage_date %m+% months(max_horizon))) %>%
-    mutate(m_DHF_cases_fit = if_else(date > vintage_date, NA_real_,m_DHF_cases))
+    mutate(m_DHF_cases_fit = ifelse(date > vintage_date, NA_real_,m_DHF_cases))
   
   cases <- c1.fit %>% 
     reshape2::dcast(date~district, value.var= 'm_DHF_cases') %>%
@@ -60,11 +69,37 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
     as.matrix()
   
   
+  log_cum_inc_24m <- c1.fit %>% 
+    mutate(log_cum_inc_24m = scale(log_cum_inc_24m)) %>%
+    reshape2::dcast(date~district, value.var= 'log_cum_inc_24m') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  log_lag12_inc <- c1.fit %>% 
+    mutate(log_lag12_inc = scale(log_lag12_inc)) %>%
+    reshape2::dcast(date~district, value.var= 'log_lag12_inc') %>%
+    filter(date>=start.date) %>%
+    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    as.matrix()
+  
+  
+  
   #unique(MDR_NEW$VARNAME) == colnames(pop)
   
   #Define STS object
   dengue_df <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
                    population = pop, neighbourhood = dist_nbOrder, map=map1)
+  
+  #sim.mat <- as.matrix(sim.mat)
+  
+  sim.mat2 <- `dim<-`(c(sim.mat), dim(sim.mat))
+  
+  colnames(sim.mat2) <- MDR_NEW$VARNAME
+  
+  
+  dengue_df_dist <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
+                        population = pop, neighbourhood =sim.mat2 , map=map1)
   
   all_dates <- sort(unique(c1$date))
   
@@ -128,6 +163,37 @@ hhh4_mod <- function(date.test.in, modN,max_horizon=2){
                  offset = population(dengue_df)),
       ar = list(f = ~ -1 +  ri() , lag=1),
       ne = list(f = ~ -1 +  ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
+      family = "NegBin1",
+      subset = 2:last_fit_t,
+      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+    )
+    
+  } else if(mod.select=='hhh4_power_cum_lag24'){
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t +  log_cum_inc_24m +  ri() , period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 +   ri() +log_cum_inc_24m), #log_lag12_inc not associated with AR
+      ne = list(f = ~ -1 + temp_lag2 +  log_cum_inc_24m +  ri() , weights =  W_powerlaw(maxlag = 5)),
+      family = "NegBin1",
+      subset = 24:last_fit_t,
+      data=list(temp_lag2=temp_lag2,log_cum_inc_24m=log_cum_inc_24m)
+    )
+  } else if(mod.select=='hhh4_power_lag12'){
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t +  log_lag12_inc +  ri() , period = dengue_df@freq),
+                 offset = population(dengue_df)),
+      ar = list(f = ~ -1 + temp_lag2 +   ri() ), #log_lag12_inc not associated with AR
+      ne = list(f = ~ -1 + temp_lag2 +  log_lag12_inc +  ri() , weights =  W_powerlaw(maxlag = 5)),
+      family = "NegBin1",
+      subset = 13:last_fit_t,
+      data=list(temp_lag2=temp_lag2,log_lag12_inc=log_lag12_inc)
+    )
+  } else if(mod.select=='hhh4_power_precip_temp_dist'){
+    dengue_mod_ri_temp <- list(
+      end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df_dist@freq),
+                 offset = population(dengue_df_dist)),
+      ar = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() ),
+      ne = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 2:last_fit_t,
       data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
