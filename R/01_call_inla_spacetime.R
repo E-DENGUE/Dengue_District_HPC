@@ -1,25 +1,3 @@
-library(parallel)
-library(stats)
-library(dplyr)
-library(readr)
-library(readxl)
-library(tidyr)
-library(tidyverse)
-library(zoo)
-library(lubridate)
-library(pbapply)
-library(INLA)
-#inla.setOption(mkl=TRUE)
-library(MASS)
-library(scoringutils)
-library(sf)
-library(spdep)
-library(ggmap) # plotting shapefiles 
-library(lattice)  # Load the lattice package if you are using lattice graphics
-library(stringr)
-library(janitor)
-library(surveillance)
-
 source('./R/99_load.R')
 
 # Parse command-line arguments
