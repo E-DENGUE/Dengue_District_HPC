@@ -19,7 +19,7 @@ library(gganimate)
 N_cores = detectCores()
 
 ##Results from spatiotemporal models
-file.names1 <- list.files('./Results')
+file.names1 <- list.files('./Results/Results_spacetime')
 
 ds.list1 <- lapply(file.names1,function(X){
   
@@ -49,7 +49,7 @@ ds.list1 <- lapply(file.names1,function(X){
 })
 
 ##Results from PCA aware analysis
-file.names2 <- paste0('./Results_b/',list.files('./Results_b'))
+file.names2 <- paste0('./Results_b/',list.files('./Results_pca'))
 
 ds.list2 <- lapply(file.names2,function(X){
   
@@ -70,50 +70,8 @@ ds.list2 <- lapply(file.names2,function(X){
   return(preds_df)
 })
 
-file.names3 <- paste0('./Results_c/',list.files('./Results_c'))
 
-ds.list3 <- lapply(file.names3,function(X){
-  
-  d1 <- readRDS(file=file.path(X))
-  
-  modN <-  'PC2'
-  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-  # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
-  
-  preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
-           modN=modN,
-           date.test.in=date.test.in,
-           form=paste(d1$form, collapse=' '))
-  
-  
-  return(preds_df)
-})
-
-file.names4 <- paste0('./Results_d/',list.files('./Results_d'))
-
-ds.list4 <- lapply(file.names4,function(X){
-  
-  d1 <- readRDS(file=file.path(X))
-  
-  modN <-  'PC3'
-  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-  # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
-  
-  preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
-           modN=modN,
-           date.test.in=date.test.in,
-           form=paste(d1$form, collapse=' '))
-  
-  
-  return(preds_df)
-})
-
-
-bind_rows(c(ds.list1,ds.list2,ds.list3, ds.list4)) %>%
+bind_rows(c(ds.list1,ds.list2)) %>%
   filter(horizon>=1) %>%
   saveRDS( "./cleaned_scores/all_crps_slim.rds")
 
@@ -130,7 +88,7 @@ bind_rows(c(ds.list1,ds.list2,ds.list3, ds.list4)) %>%
 obs_case <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
   dplyr::select(date, district,m_DHF_cases, pop)
 
-out <- readRDS( "./cleaned_scores/all_crps_slim.rds") %>%  #CRPS score from model
+out <- readRDS( "./Data/cleaned_scores/all_crps_slim.rds") %>%  #CRPS score from model
   dplyr::select(-pop,-m_DHF_cases) %>%
   full_join(obs_case, by=c('date','district'))
 
@@ -384,6 +342,36 @@ geom_line(aes(x=date, y=ensemble_month,group=modN,), alpha=0.5 ,lwd=1, col='blue
 p2.ensembles #the first 2 ensembles looks almost identical; weighting by district slightly different
 
 
+
+obs_vs_expected_district <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 &  modN=='mod19' ) %>%
+  group_by(district) %>%
+  summarize(obs=sum(m_DHF_cases), pred=sum(pred_mean)) %>%
+  mutate(diff= obs - pred, rr=obs/pred)
+
+p2 <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 &  modN=='mod19'  & district %in% c('CHO MOI')) %>%
+  dplyr::select(-form) %>%
+  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+  geom_point() +
+  theme_classic()+
+  ylim(0,NA)+
+  geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
+  facet_wrap(~district,nrow=2) +
+  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
+  ggtitle('Model 19')+
+  geom_hline(yintercept=43.75, col='gray', lty=2)
+p2
+
+
+
+# ds <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
+# 
+# View(ds %>% group_by(date) %>% summarize(N=n()))
+
+
 #ggplotly(p2)  
 ## DISTRICT-LEVEL PLOTS--make gifs showing observed and expected
 
@@ -419,30 +407,3 @@ p2.ensembles #the first 2 ensembles looks almost identical; weighting by distric
 
     
     
-obs_vs_expected_district <- out_1a %>%
-  left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod19' ) %>%
-  group_by(district) %>%
-  summarize(obs=sum(m_DHF_cases), pred=sum(pred_mean)) %>%
-  mutate(diff= obs - pred, rr=obs/pred)
-  
-p2 <- out_1a %>%
-  left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod19'  & district %in% c('CHO MOI')) %>%
-  dplyr::select(-form) %>%
-  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-  geom_point() +
-  theme_classic()+
-  ylim(0,NA)+
-  geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
-  facet_wrap(~district,nrow=2) +
-  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
-  ggtitle('Model 19')+
-  geom_hline(yintercept=43.75, col='gray', lty=2)
-p2
-
-
-
-# ds <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
-# 
-# View(ds %>% group_by(date) %>% summarize(N=n()))

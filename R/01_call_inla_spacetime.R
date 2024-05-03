@@ -1,3 +1,4 @@
+<<<<<<< HEAD:R/1_inla_spacetime.R
 library(parallel)
 library(stats)
 library(dplyr)
@@ -22,6 +23,8 @@ library(roll)
 library(lubridate)
 
 
+=======
+>>>>>>> clean_repo:R/01_call_inla_spacetime.R
 source('./R/99_load.R')
 
 # Parse command-line arguments
@@ -29,10 +32,13 @@ args <- commandArgs(trailingOnly = TRUE)
 j <- as.numeric(args[1])  
 k <- as.numeric(args[2])
 
- #mods <- c('hhh4_np','hhh4_power','hhh4_basic','hhh4_power_precip_temp','hhh4_power_precip_temp_endmc1','hhh4_power_precip_temp_endmc2')
-mods <- c('hhh4_power_precip_temp_dist')
-
 #i=1 #108 dates total
 #k=1 #10 models
 
-mod1 <- hhh4_mod(date.test.in = date.test2[j], modN=k,max_horizon=2) 
+#which models to run?
+#all.mods <- list('mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32,  'mod33'=mod33,  'mod34'=mod34,  'mod35'=mod35,  'mod36'=mod36,  'mod37'=mod37,  'mod38'=mod38)
+all.mods <-list('mod39'=mod39)
+
+modN_extract = as.numeric(str_match(names(all.mods)[k], "mod(\\d+)")[1,2])
+
+mod1 <- inla_spacetime_mod(date.test.in = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 
