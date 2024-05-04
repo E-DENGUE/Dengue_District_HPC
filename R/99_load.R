@@ -19,6 +19,7 @@ library(lattice)  # Load the lattice package if you are using lattice graphics
 library(stringr)
 library(janitor)
 library(surveillance)
+library(roll)
 
 source('./R/99_helper_funcs.R')
 source('./R/99_define_inla_spacetime_mods.R')
