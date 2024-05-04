@@ -85,7 +85,7 @@ scoring_func <- function(Y){
   
   out.list = list('crps3'=crps3, 'log.samps.inc'=samps.out)
   
-  return(crps3)
+  return(out.list)
 }
 
 ############################

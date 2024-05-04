@@ -99,7 +99,7 @@ lag_district_pca <- function(vintage_date, district.select, modN){
                control.inla = list(strategy='adaptive', # adaptive gaussian
                                    cmin=0),
                control.fixed = list(mean.intercept=0, 
-                                    prec.intercept=1, # precision 1
+                                    prec.intercept=0.04, # precision 1
                                     mean=0, 
                                     prec=1), # weakly regularising on fixed effects (sd of 1)
                inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
