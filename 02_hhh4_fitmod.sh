@@ -6,7 +6,7 @@
 #SBATCH --mail-user=daniel.weinberger@yale.edu
 #SBATCH --cpus-per-task=4
 #SBATCH --mem-per-cpu=1G
-#SBATCH -o ./Report/output02.%a.out # STDOUT
+#SBATCH -o ./Report/output02/output02.%a.out # STDOUT
 #SBATCH --array=1-252   # If k models and J hold out time points this is 1- j*k  J=84, K=15
 
 
