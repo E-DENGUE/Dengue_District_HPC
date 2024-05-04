@@ -377,6 +377,7 @@ mod39 <- 'm_DHF_cases_hold~   lag2_y + log_cum_inc_12m +log_cum_inc_24m +log_cum
                         f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
                       f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
-   
+mod99 <- 'm_DHF_cases_hold~   lag2_y '
+
 
 

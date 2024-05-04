@@ -1,4 +1,4 @@
-inla_spacetime_mod <- function(vintage_date, modN,type4mod=F, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
+inla_spacetime_mod <- function(vintage_date, modN, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
 
   c1 <- d2 %>%
 filter( date>='2004-09-01')%>%
@@ -54,7 +54,6 @@ filter( date>='2004-09-01')%>%
   
   
   #nbinomial or poisson
-  if(type4mod==F){
   offset1 <- c1$offset1
   mod1 <- inla(form2, data = c1,  family = "poisson",E=offset1,
                control.compute = list(dic = FALSE, 
@@ -67,89 +66,13 @@ filter( date>='2004-09-01')%>%
             control.inla = list(strategy='adaptive', # adaptive gaussian
                    cmin=0),
             control.fixed = list(mean.intercept=0, 
-                   prec.intercept=1, # precision 1
+                   prec.intercept=0.04, # precision 1
                    mean=0, 
                    prec=1), # weakly regularising on fixed effects (sd of 1)
             inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
             num.threads=8
                )    
-  }else if(type4mod==T){
-    #Type 4 spatial model in INLA; code provided by 	Esmail Abdul Fattah
-    #Called when all_district_fwd1() has a value of T for type4mod
-    
-    mydata <- list()
-    mydata$m_DHF_cases_hold <- c1$m_DHF_cases_hold
-    mydata$E <- c1$offset1
-    mydata$cov <- c1$time_id1
-    mydata$lag2_y <- c1$lag2_y
-    mydata$lag2_avg_min_daily_temp  <- c1$lag2_avg_min_daily_temp
-    mydata$lag2_monthly_cum_ppt <- c1$lag2_monthly_cum_ppt
-    mydata$sin12 <- c1$sin12
-    mydata$cos12<- c1$cos12
-    
-    ##---------------------------
-    #-------> Time
-    ##---------------------------
-    order_t <- 2
-    nt <- length(unique(c1$time_id1))
-    Qt <- INLA:::inla.rw(nt, order = order_t)
-    con_t <- eigen(Qt)$vectors[,(nt-order_t+1):nt]
-    Qt = inla.scale.model(Qt,list(A=t(con_t),e=rep(0,order_t)))
-    mydata$id_t <- c1$time_id1
-    
-    ##---------------------------
-    #-------> Space
-    ##---------------------------
-    order_s <- 1
-    R <- inla.read.graph(paste(getwd(),"/MDR.graph", sep=""))
-    graph_M <- inla.graph2matrix(R)
-    graph_M[graph_M != 0] <- -1
-    diag(graph_M) <- 0
-    diag(graph_M) <- abs(rowSums(graph_M))
-    Qs <- graph_M
-    ns <- dim(Qs)[1]
-    con_s <- eigen(Qs)$vectors[,ns]
-    Qs = inla.scale.model(Qs,list(A=t(con_s),e=0))
-    #id_s=rep(seq(1,ns),each=1)
-    mydata$id_s <- c1$districtID
-    
-    
-    ##---------------------------
-    #-------> Time x Space
-    ##---------------------------
-    #id_ts=rep(seq(1,ns*nt),each=1)
-    R_QtQs <- Qt%x%Qs
-    nts <- dim(R_QtQs)[1]
-    num_con_ts <- nts - (nt-order_t)*(ns-1)
-    con_ts <- eigen(R_QtQs)$vectors[,(dim(R_QtQs)[1]-num_con_ts+1):dim(R_QtQs)[1]]
-    mydata$id_ts <- as.numeric(as.factor(paste(c1$timeIDpad,c1$districtIDpad, sep='_'))) #should be arranged as t1_s1, t1_s2, t1_s3...t2_s1, t2_d2, t2_d3...
-    
-    
-    ##---------------------------
-    #-------> Formula
-    ##---------------------------
-    INIT_THETA <- rep(1,3)
-    fix_th <- FALSE
-    
-    mod1 <- inla(form2,
-                 family = "poisson",
-                 E = E,
-                 data =mydata,
-                 control.compute = list(dic = FALSE, 
-                                        waic = FALSE, 
-                                        config = T,
-                                        return.marginals=F
-                 ),
-                 control.inla=list(strategy="gaussian",
-                                   control.vb=list(enable=TRUE),
-                                   h = 5E-3,use.directions = TRUE,num.hessian="central"),
-                 control.predictor=list(compute=TRUE, 
-                                        link=1), 
-                 control.fixed = list(prec.intercept =1e-3),
-                 verbose=T)
-  }
-  
-    mod.family <- mod1$.args$family
+      mod.family <- mod1$.args$family
 
   
     c1 <- c1 %>%

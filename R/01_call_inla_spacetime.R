@@ -14,4 +14,4 @@ all.mods <-list('mod39'=mod39)
 
 modN_extract = as.numeric(str_match(names(all.mods)[k], "mod(\\d+)")[1,2])
 
-mod1 <- inla_spacetime_mod(vintage_date = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 
+mod1 <- inla_spacetime_mod(vintage_date = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract ) 
