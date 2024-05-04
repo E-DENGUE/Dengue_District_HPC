@@ -6,7 +6,7 @@
 #SBATCH --mail-user=daniel.weinberger@yale.edu
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=10G
-#SBATCH -o ./Report/output.%a.out # STDOUT
+#SBATCH -o ./Report/output03.%a.out # STDOUT
 #SBATCH --array=1-9408   # If k models and J hold out time points this is 1- j*k  J=84 times, k=112 districts
 
 #Define the number of models being tested
