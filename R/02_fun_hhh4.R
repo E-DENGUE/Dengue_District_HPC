@@ -1,4 +1,4 @@
-hhh4_mod <- function(vintage.date, modN,max_horizon=2){
+hhh4_mod <- function(vintage_date, modN,max_horizon=2){
   
   sim.mat <- readRDS('./Data/tsclust_simmat.rds')
   
@@ -18,7 +18,7 @@ hhh4_mod <- function(vintage.date, modN,max_horizon=2){
   
   c1 <- d2 %>%
     arrange(district, date) %>%
-    filter( date>='2004-09-01' & date <= (as.Date(vintage.date)  %m+% months(max_horizon))) %>%
+    filter( date>='2004-09-01' & date <= (as.Date(vintage_date)  %m+% months(max_horizon))) %>%
     group_by(district) %>%
     mutate( log_inc=log((m_DHF_cases+1)/pop*100000),
             log_lag12_inc= scale(dplyr::lag(log_inc,12) )[,1] ) %>%
@@ -267,7 +267,7 @@ hhh4_mod <- function(vintage.date, modN,max_horizon=2){
   samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
   
   out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
-  saveRDS(out.list,paste0('./Results/Results_spacetime/', 'mod',mod.select,'_',vintage.date  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Results/Results_spacetime/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
   
   return(out.list)
 }

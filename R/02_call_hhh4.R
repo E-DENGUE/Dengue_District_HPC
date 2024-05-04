@@ -11,4 +11,4 @@ mods <- c('hhh4_np','hhh4_power','hhh4_basic','hhh4_power_precip_temp','hhh4_pow
 #i=1 #108 dates total
 #k=1 #10 models
 
-mod1 <- hhh4_mod(vintage.date = date.test2[j], modN=k,max_horizon=2) 
+mod1 <- hhh4_mod(vintage_date = date.test2[j], modN=k,max_horizon=2) 
