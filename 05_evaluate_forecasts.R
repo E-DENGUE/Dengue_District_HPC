@@ -302,6 +302,19 @@ p2 <- out_1a %>%
 p2
 
 
+################################################
+##BRIER SCORE
+################################################
+#Shows poor performance during time of year with little dengue; good performance
+#when  in dengue season
+b1 <- readRDS('./Results/brier_summary.rds')
+
+
+p1 <- ggplot(b1, aes(x=monthN, y=brier_2sd, group=modN))+
+  geom_line()+
+  theme_minimal()
+ggplotly(p1)
+
 
 # ds <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
 # 
@@ -309,6 +322,9 @@ p2
 
 
 #ggplotly(p2)  
+
+
+
 ## DISTRICT-LEVEL PLOTS--make gifs showing observed and expected
 
   gif.ds <- out_1a %>%
