@@ -1,9 +1,7 @@
 ##In console:
-# salloc
-# module load R/4.2.0-foss-2020b
-# R
-
-#setwd("~/project/dengue_test/Cluster_DW")
+ salloc
+ module load R/4.2.0-foss-2020b
+ R
 
 
 library(dplyr)
@@ -17,6 +15,7 @@ library(lubridate)
 library(gganimate)
 library(pbapply)
 library(scoringutils)
+library(stringr)
 options(dplyr.summarise.inform = FALSE)
 
 N_cores = detectCores()
@@ -38,15 +37,18 @@ ds.list1.summary <- lapply(file.names1,function(X){
   
   d1 <- readRDS(file=paste0('./Results/Results_spacetime/',file.path(X)))
   
-  modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  
+    # Find the position of the date pattern in the input string
+  date_match <- str_locate(X, date_pattern)
+  
+  modN <- str_sub(X, end = date_match[,'start'] - 1)
   # Extract the date from the string using gsub
   date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+    mutate(vintage_date=as.Date(date.test.in), #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
-           date.test.in=date.test.in,
            form=d1$form)
   return(preds_df)
 })
@@ -64,7 +66,7 @@ ds.list2_summary <- lapply(file.names2,function(X){
   date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
+    mutate(vintage_date=as.Date(date.test.in) , #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
            date.test.in=date.test.in,
            form=paste(d1$form, collapse=' '))
@@ -91,17 +93,22 @@ bind_rows(summary1,summary2) %>%
 brier1 <- pblapply(file.names1,function(X){
   d1 <- readRDS(file=paste0('./Results/Results_spacetime/',file.path(X)))
   
-  modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-  # Extract the date from the string using gsub
+  
+  # Find the position of the date pattern in the input string
+  date_match <- str_locate(X, date_pattern)
+  
+  modN <- str_sub(X, end = date_match[,'start'] - 1)
+  
   date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
   pred.iter <- d1$log.samps.inc %>%
     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
     left_join(obs_epidemics, by=c('date','district')) %>%
     mutate(pred_epidemic_2sd = value > threshold,
-           pred_epidemic_nb = value > threshold_nb) %>%
-    group_by(date, district, horizon) %>%
+           pred_epidemic_nb = value > threshold_nb,
+           vintage_date=date.test.in) %>%
+    group_by(date, vintage_date, district, horizon) %>%
     summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
                prob_pred_epidemic_nb= mean(pred_epidemic_nb),
                obs_epidemic_2sd=mean(epidemic_flag),
@@ -126,8 +133,9 @@ brier2 <- pblapply(file.names2,function(X){
     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
     left_join(obs_epidemics, by=c('date','district')) %>%
     mutate(pred_epidemic_2sd = value > threshold,
-           pred_epidemic_nb = value > threshold_nb) %>%
-    group_by(date, district, horizon) %>%
+           pred_epidemic_nb = value > threshold_nb,
+           vintage_date=date.test.in) %>%
+    group_by(date,vintage_date, district, horizon) %>%
     summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
                prob_pred_epidemic_nb= mean(pred_epidemic_nb),
                obs_epidemic_2sd=mean(epidemic_flag),
