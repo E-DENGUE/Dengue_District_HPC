@@ -15,63 +15,141 @@ library(plotly)
 library(viridis)
 library(lubridate)
 library(gganimate)
+library(pbapply)
+library(scoringutils)
+options(dplyr.summarise.inform = FALSE)
 
 N_cores = detectCores()
 
-##Results from spatiotemporal models
-file.names1 <- list.files('./Results/Results_spacetime')
+obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
+  rename(case_vintage=m_DHF_cases) %>%
+  dplyr::select(date, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
 
-ds.list1 <- lapply(file.names1,function(X){
+
+##Results from spatiotemporal models
+file.names1 <- list.files('./Results/Results_spacetime/')
+file.names2 <- paste0('./Results/Results_pca/',list.files('./Results/Results_pca'))
+
+###########################
+#First extract the CRPS summaries
+############################
+##summaries
+ds.list1.summary <- lapply(file.names1,function(X){
   
-  d1 <- readRDS(file=paste0('./Results/',file.path(X)))
+  d1 <- readRDS(file=paste0('./Results/Results_spacetime/',file.path(X)))
   
+  modN <-  sub("^(.*?)_.*$", "\\1", X)
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-  
-  # Find the position of the date pattern in the input string
-  date_match <- str_locate(X, date_pattern)
-  
-  modN <- str_sub(X, end = date_match[,'start'] - 1)
-  
   # Extract the date from the string using gsub
-  date.test <- regmatches(X, regexpr(date_pattern, X))
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test) , #vintage.date-=date when forecast was made 
+    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
+           date.test.in=date.test.in,
            form=d1$form)
-  
-  if(grepl('hhh4',X)){
-    preds_df$forecast <- as.factor(preds_df$forecast)
-  }
-  
   return(preds_df)
 })
 
-##Results from PCA aware analysis
-file.names2 <- paste0('./Results_b/',list.files('./Results_pca'))
 
-ds.list2 <- lapply(file.names2,function(X){
+##Results from PCA aware analysis
+
+ds.list2_summary <- lapply(file.names2,function(X){
   
   d1 <- readRDS(file=file.path(X))
   
   modN <-  'PC1'
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
   # Extract the date from the string using gsub
-  date.test <- regmatches(X, regexpr(date_pattern, X))
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
   
   preds_df <- d1$scores %>%
-    mutate(vintage_date=as.Date(date.test), #vintage.date-=date when forecast was made
+    mutate(vintage_date=as.Date(date.test.in) %m-% months(1), #vintage.date-=date when forecast was made (date.test.in-1 month)
            modN=modN,
+           date.test.in=date.test.in,
            form=paste(d1$form, collapse=' '))
-  
-  
+
   return(preds_df)
 })
 
 
-bind_rows(c(ds.list1,ds.list2)) %>%
+summary1 <- lapply(ds.list1.summary, function(X){
+  X$forecast=as.factor(X$forecast)
+  return(X)
+}) %>%
+  bind_rows()
+
+summary2 <- bind_rows(ds.list2_summary)
+
+bind_rows(summary1,summary2) %>%
   filter(horizon>=1) %>%
   saveRDS( "./cleaned_scores/all_crps_slim.rds")
+
+#########################################
+## BRIER SCORES
+#########################################
+brier1 <- pblapply(file.names1,function(X){
+  d1 <- readRDS(file=paste0('./Results/Results_spacetime/',file.path(X)))
+  
+  modN <-  sub("^(.*?)_.*$", "\\1", X)
+  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  # Extract the date from the string using gsub
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  
+  pred.iter <- d1$log.samps.inc %>%
+    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+    left_join(obs_epidemics, by=c('date','district')) %>%
+    mutate(pred_epidemic_2sd = value > threshold,
+           pred_epidemic_nb = value > threshold_nb) %>%
+    group_by(date, district, horizon) %>%
+    summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
+               prob_pred_epidemic_nb= mean(pred_epidemic_nb),
+               obs_epidemic_2sd=mean(epidemic_flag),
+               obs_epidemic_nb = mean(epidemic_flag_nb))
+  
+  brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
+  brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
+  
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+})
+
+brier2 <- pblapply(file.names2,function(X){
+  d1 <- readRDS(file=file.path(X))
+  
+  modN <-  'PC1'
+  
+  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  # Extract the date from the string using gsub
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  
+  pred.iter <- d1$log.samps.inc %>%
+    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+    left_join(obs_epidemics, by=c('date','district')) %>%
+    mutate(pred_epidemic_2sd = value > threshold,
+           pred_epidemic_nb = value > threshold_nb) %>%
+    group_by(date, district, horizon) %>%
+    summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
+               prob_pred_epidemic_nb= mean(pred_epidemic_nb),
+               obs_epidemic_2sd=mean(epidemic_flag),
+               obs_epidemic_nb = mean(epidemic_flag_nb))
+  
+  brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
+  brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
+  
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+})
+
+#0=perfect prediction,1=bad
+brier_summary <- c(brier1, brier2) %>% 
+  bind_rows() %>%
+  mutate(monthN=month(date))%>%
+  ungroup() %>% 
+  group_by(monthN,modN) %>%
+  summarize(brier_nb=mean(brier_nb),
+            brier_2sd =mean(brier_2sd))
+
+saveRDS(brier_summary, "./cleaned_scores/brier_summary.rds")
+
 
 
 
@@ -89,10 +167,6 @@ obs_case <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_facto
 out <- readRDS( "./Data/cleaned_scores/all_crps_slim.rds") %>%  #CRPS score from model
   dplyr::select(-pop,-m_DHF_cases) %>%
   full_join(obs_case, by=c('date','district'))
-
-obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
-  rename(case_vintage=m_DHF_cases) %>%
-  dplyr::select(date, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
 
 miss.dates <- out %>% 
   group_by(date, horizon) %>%   
