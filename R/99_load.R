@@ -33,14 +33,27 @@ d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cle
   rename(District_province = prov_dis) %>%
   arrange(district, date) %>%
   group_by(district) %>%
-  mutate(   cumsum_cases_24m =  roll_sum(m_DHF_cases,24, min_obs=1), #partial backward moving sum
-            cumsum_pop_24m =  roll_sum(pop,24, min_obs=1), #partial backward moving sum
+  mutate(   cumsum_cases_12m =  roll::roll_sum(m_DHF_cases,12, min_obs=1), #partial backward moving sum
+            cumsum_pop_12m =  roll::roll_sum(pop,12, min_obs=1), #partial backward moving sum
+            cum_inc_12m = (cumsum_cases_12m+1)/cumsum_pop_12m*100000,
+            cumsum_cases_24m =  roll::roll_sum(m_DHF_cases,24, min_obs=1), #partial backward moving sum
+            cumsum_pop_24m =  roll::roll_sum(pop,24, min_obs=1), #partial backward moving sum
             cum_inc_24m = (cumsum_cases_24m+1)/cumsum_pop_24m*100000,
-    ) %>%
-  mutate(log_cum_inc_24m=lag(scale(log(cum_inc_24m)),24) #window and lag based on Window_size_lags.R
-         ) %>%
-ungroup() 
+            cumsum_cases_36m =  roll::roll_sum(m_DHF_cases,36, min_obs=1), #partial backward moving sum
+            cumsum_pop_36m =  roll::roll_sum(pop,36, min_obs=1), #partial backward moving sum
+            cum_inc_36m = (cumsum_cases_36m+1)/cumsum_pop_36m*100000
+  ) %>%
+    ungroup() %>%
+    mutate(log_cum_inc_12m=scale(log(cum_inc_12m)),
+           log_cum_inc_24m=scale(log(cum_inc_24m)),
+           log_cum_inc_36m=scale(log(cum_inc_36m)),
+           lag2_log_cum_inc_12m=lag(log_cum_inc_12m,2),
+           lag2_log_cum_inc_24m=lag(log_cum_inc_24m,2),
+           lag2_log_cum_inc_36m=lag(log(cum_inc_36m,2))
   
+    )
+
+
 MDR_NEW <- readRDS( "./Data/MDR_NEW.rds")
 
 spat_IDS <- readRDS( "./Data/spatial_IDS.rds")
