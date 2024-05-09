@@ -6,6 +6,7 @@ library(ggdendro)
 library(dplyr)
 library(ggplot2)
 library(dtwclust)
+library(cluster)
 library(sf)
 d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds')
 
@@ -104,11 +105,11 @@ labs <- ggdendro::label(dendro_data(as.dendrogram(dtw_hc))) %>%
 B <-
   ggdendro::ggdendrogram(dtw_hc) +
   theme_bw(base_size = 18, base_family = 'Lato') +
-  theme(panel.border = element_rect(colour = "black", fill = NA, size = 2)) +
+  theme(panel.border = element_rect(colour = "black", fill = NA, linewidth = 2)) +
   labs(title = "(A)", x = "Time series hierarchical clustering", y = "Height") +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) + 
   geom_point(data = labs, aes(x = x, y = 0, colour = cluster), size = 4) +
-  theme(legend.position = c(0.9,0.8))
+  theme(legend.position.inside = c(0.9,0.8))
 B
 
 
