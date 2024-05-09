@@ -1,24 +1,22 @@
 inla_spacetime_mod <- function(vintage_date, modN, formula1='y ~ -1 +  X +   f(t,model = "ar1", hyper = list(theta1 = list(prior = "loggamma", param = c(3, 2))))'){
 
   c1 <- d2 %>%
-filter( date>='2004-09-01')%>%
+    filter( date>='2004-09-01')%>%
     left_join(spat_IDS, by='district') %>%
     arrange(district, date) %>%
-    mutate( t = interval(min(date), date) %/% months(1) + 1) %>%
+    mutate( t = lubridate::interval(min(date), date) %/% months(1) + 1) %>%
     group_by(district) %>%
     mutate(district2=district,
-           Dengue_fever_rates = m_DHF_cases / pop *100000,
-           log_df_rate = log((m_DHF_cases +1)/ pop *100000) , 
-           log_pop=log(pop/100000),
-           year = lubridate::year(date) ,
-           m_DHF_cases_hold= ifelse( date> vintage_date, NA_real_,
-                                      m_DHF_cases),
+           Dengue_fever_rates = m_DHF_cases / pop * 100000,
+           log_df_rate = log((m_DHF_cases + 1) / pop * 100000),
+           log_pop = log(pop / 100000),
+           year = lubridate::year(date),
+           m_DHF_cases_hold = ifelse(date > vintage_date, NA_real_, m_DHF_cases),
            lag_y = lag(log_df_rate, 1),
            lag2_y = lag(log_df_rate, 2),
-           max_allowed_lag = if_else(grepl('lag_y',formula1 )|grepl('lag1',formula1 ),1,2),
-           horizon = if_else(date== (vintage_date %m+% months(1)),1,
-                             if_else(date== (vintage_date %m+% months(2)),2, 0
-                             )
+           max_allowed_lag = ifelse(any(grepl('lag_y', formula1) | grepl('lag1', formula1)), 1, 2),
+           horizon = ifelse(date == (vintage_date %m+% months(2)), 1,
+                            ifelse(date == (vintage_date %m+% months(2)), 2, 0)
            ),
            sin12 = sin(2*pi*t/12),
            cos12 = cos(2*pi*t/12),
@@ -30,19 +28,69 @@ filter( date>='2004-09-01')%>%
     filter(date<= (vintage_date %m+% months(2) ) & !is.na(lag2_y) & horizon <= max_allowed_lag) %>%  #only keep test date and 1 month ahead of that
     ungroup() %>%
     mutate(
-           districtID2 = districtID,
-           districtID3 = districtID,
-           districtID4 = districtID,
-           t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
-           
-           time_id1= t , 
-           time_id2=t,
-           time_id3= t) %>%
+      districtID2 = districtID,
+      districtID3 = districtID,
+      districtID4 = districtID,
+      t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
+      
+      time_id1= t , 
+      time_id2=t,
+      time_id3= t,
+      urban_dic = as.factor(if_else(Urbanization_Rate>=40,1,0))) %>%
     arrange(date,districtID) %>% #SORT FOR SPACE_TIME
     mutate(districtIDpad=str_pad(districtID, 3, pad = "0", side='left'),
            timeIDpad=str_pad(time_id1, 5, pad = "0", side='left'),
-           ) 
+           Population_density= scale(Population_density),
+           total_rainfall_ab <- scale(total_rainfall_ab),
+           ave_temp_ab <- scale(ave_temp_ab),
+           max_temp_ab <- scale(max_temp_ab),
+           min_ave_temp_ab <- scale(min_ave_temp_ab),
+           ave_humid_ab <- scale(ave_humid_ab),
+           min_humid_abb <- scale(min_humid_abb),
+           max_humid_abb <- scale(max_humid_abb),
+           ave_wind_ab <- scale(ave_wind_ab),
+           min_wind_ab <- scale(min_wind_ab),
+           max_wind_ab <- scale(max_wind_ab),
+           avg_daily_temp <- scale(avg_daily_temp),
+           avg_max_daily_temp <- scale(avg_max_daily_temp),
+           avg_min_daily_temp <- scale(avg_min_daily_temp),
+           avg_daily_wind <- scale(avg_daily_wind),
+           avg_max_daily_wind <- scale(avg_max_daily_wind),
+           avg_daily_humid <- scale(avg_daily_humid),
+           avg_max_daily_humid <- scale(avg_max_daily_humid),
+           avg_min_daily_humid <- scale(avg_min_daily_humid),
+           monthly_cum_ppt <- scale(monthly_cum_ppt),
+           avg_min_daily_wind <- scale(avg_min_daily_wind),
+           avg_daily_humid <- scale(avg_daily_humid),
+           avg_max_daily_humid <- scale(avg_max_daily_humid),
+           Poverty_Rate<- scale(Poverty_Rate),
+           Inmigration_Rate<- scale(Inmigration_Rate),
+           Outmigration_Rate<- scale(Outmigration_Rate),
+           NetImmigration_Rate<- scale(NetImmigration_Rate),
+           BI_larvae<- scale(BI_larvae),
+           HI_larvae<- scale(HI_larvae),
+           CI_larvae<- scale(CI_larvae),
+           DI<- scale(DI),
+           Hygienic_Toilet_Access<- scale(Hygienic_Toilet_Access),
+           Monthly_Average_Income_Percapita<- scale(Monthly_Average_Income_Percapita),
+           Total_Passenger<- scale(Total_Passenger),
+           number_of_outbreak_detection<- scale(number_of_outbreak_detection),
+           Hygienic_Toilet_Access<- scale(Hygienic_Toilet_Access),
+           Urbanization_Rate=scale(Urbanization_Rate),
+           prediomentent=as.factor(prediomentent),
+           breeding_site_elimination_campaign=as.factor(breeding_site_elimination_campaign),
+           cluster=as.factor(cluster),
+           lag1_total_rainfall_ab = scale(lag1_total_rainfall_ab),
+           lag2_total_rainfall_ab = scale(lag2_total_rainfall_ab),
+           lag2_breeding_site_elimination_campaign = scale(lag2_breeding_site_elimination_campaign),
+           lag2_active_spraying = scale(lag2_active_spraying),
+           lag2_large_scale_spraying_for_epidemic_response = scale(lag2_large_scale_spraying_for_epidemic_response),
+           lag2_communication_or_training = scale(lag2_communication_or_training),
+           lag2_number_of_outbreak_detection = scale(lag2_number_of_outbreak_detection),
+           lag2_number_of_outbreak_response = scale(lag2_number_of_outbreak_response),
+    )
   
+
   # check_times <- c1 %>% group_by(district) %>% summarize(N=n())
    #check_districts <- c1 %>% group_by(date) %>% summarize(N=n())
    

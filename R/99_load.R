@@ -6,7 +6,6 @@ library(readxl)
 library(tidyr)
 library(tidyverse)
 library(zoo)
-library(lubridate)
 library(pbapply)
 library(INLA)
 #inla.setOption(mkl=TRUE)
@@ -20,6 +19,7 @@ library(stringr)
 library(janitor)
 library(surveillance)
 library(roll)
+library(lubridate)
 
 source('./R/99_helper_funcs.R')
 source('./R/99_define_inla_spacetime_mods.R')
@@ -29,7 +29,7 @@ source('./R/03_fun_lag_district_pca.R')
 
 #d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
 #cleaned in format_input_data.R
-d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
+d2 <- readRDS('./Data/CONFIDENTIAL/merged_data.rds') %>%
   rename(District_province = prov_dis) %>%
   arrange(district, date) %>%
   group_by(district) %>%
@@ -52,6 +52,34 @@ d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cle
            lag2_log_cum_inc_36m=lag(log(cum_inc_36m,2))
   
     )
+
+d<- d2[ , c("No..DEN1", "No..DEN2", "No..DEN3", "No..DEN4")]
+
+
+d$podem <- NA  # Initialize the column with NA values
+
+# Loop through rows of the dataframe
+for (i in 1:nrow(d)) {
+  row <- d[i, ]  # Extract the current row
+  
+  # Check if all values in the row are zeros
+  if (all(row[-length(row)] == 0)) {  # Exclude the last column (podem column) from the check
+    # If all zeros, return the value from the previous row's "podem" column
+    if (i == 1) {
+      d$podem[i] <- 2  # For the first row, assign 2
+    } else {
+      d$podem[i] <- d$podem[i - 1]  # For subsequent rows, assign the previous row's value
+    }
+  } else {
+    # If not all zeros, return the column number with the maximum value
+    max_col <- which.max(row[-length(row)])  # Exclude the last column (podem column)
+    d$podem[i] <- max_col
+  }
+}
+
+d2<- d2%>% 
+  dplyr::mutate(prediomentent=as.factor(d$podem))
+
 
 
 MDR_NEW <- readRDS( "./Data/MDR_NEW.rds")
