@@ -90,7 +90,7 @@ spat_IDS <- readRDS( "./Data/spatial_IDS.rds")
 # Set the file path for the adjacency graph file
 MDR.adj <- paste(getwd(), "/Data/MDR.graph", sep = "")
 
-date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2022-12-01') , by='month')
+date.test2 <- seq.Date(from=as.Date('2012-01-01') ,to=as.Date('2016-12-01') , by='month')
 
 all.districts <- unique(d2$district)
 
