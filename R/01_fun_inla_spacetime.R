@@ -36,7 +36,9 @@ inla_spacetime_mod <- function(vintage_date, modN, formula1='y ~ -1 +  X +   f(t
       time_id1= t , 
       time_id2=t,
       time_id3= t,
-      urban_dic = as.factor(if_else(Urbanization_Rate>=40,1,0))) %>%
+      time_id4= t,
+      
+            urban_dic = as.factor(if_else(Urbanization_Rate>=40,1,0))) %>%
     arrange(date,districtID) %>% #SORT FOR SPACE_TIME
     mutate(districtIDpad=str_pad(districtID, 3, pad = "0", side='left'),
            timeIDpad=str_pad(time_id1, 5, pad = "0", side='left'),
