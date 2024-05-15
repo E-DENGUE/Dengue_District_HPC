@@ -30,7 +30,8 @@ obs_case <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_facto
 
 out <- readRDS( "./Results/all_crps_slim.rds") %>%  #CRPS score from model
   dplyr::select(-pop,-m_DHF_cases) %>%
-  full_join(obs_case, by=c('date','district'))
+  full_join(obs_case, by=c('date','district')) %>%
+  filter(date<='2016-12=01')
 
 miss.dates <- out %>% 
   group_by(date, horizon) %>%   

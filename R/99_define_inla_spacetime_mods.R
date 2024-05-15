@@ -108,7 +108,7 @@ mod13 <- 'm_DHF_cases_hold ~ lag2_y +urban_dic +
         f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=districtID4,
+f(districtID3,model="iid", group=timeID4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -121,7 +121,7 @@ mod14<- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
       Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=districtID4,
+f(districtID3,model="iid", group=timeID4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -133,7 +133,7 @@ mod15<- 'm_DHF_cases_hold ~ lag2_y +urban_dic +cluster+
        + f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=districtID4,
+f(districtID3,model="iid", group=timeID4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -148,7 +148,7 @@ mod16 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
          +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+ f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=districtID4,
+f(districtID3,model="iid", group=timeID4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -163,7 +163,7 @@ mod17 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
   lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp  +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+ f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=districtID4,
+f(districtID3,model="iid", group=timeID4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -171,7 +171,7 @@ control.group=list(model="rw2"))+
 mod18 <- 'm_DHF_cases_hold ~ lag2_y+ f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=districtID4,
+f(districtID3,model="iid", group=timeID4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -655,3 +655,28 @@ mod58 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +lag2_log_cum_inc_1
 mod59 <- 'm_DHF_cases_hold ~ lag2_y +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
         f(t, model="ar1") + f(districtID, model="iid") +
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+
+######## other models'
+# sam as old mod33
+mod60 <- 'm_DHF_cases_hold~   lag2_y + 
+                            f(districtID,
+                                   model="besag",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                    hyper = hyper1,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+
+#this is same as the old model 39
+mod61 <- 'm_DHF_cases_hold~   lag2_y + log_cum_inc_12m +log_cum_inc_24m +log_cum_inc_36m +
+                            f(districtID,
+                                   model="besag",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                    hyper = hyper1,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
