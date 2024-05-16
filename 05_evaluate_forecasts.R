@@ -173,7 +173,51 @@ ggplot(out4, aes(x = district, y = modN, fill = rel_wgt2)) +
        x = "District",
        y = "ModelN")
 
-#TODO: Map these CRPS scores for different types of models--where do some due better?
+## cluster of models, base don performance across districts
+out4.c <- reshape2::dcast(out4, modN~district, value.var= 'rel_wgt2' ) 
+
+out4.c.m <- out4.c %>% dplyr::select(-modN) %>% as.matrix()
+
+row.names(out4.c.m) <- out4.c$modN
+dist_mat <- dist(as.matrix(out4.c.m), method = 'euclidean')
+
+hclust_avg <- hclust(dist_mat, method = 'average')
+plot(hclust_avg)
+
+cut_avg <- cutree(hclust_avg, k = 4)
+
+cluster_mods <- cbind.data.frame(modN=names(cut_avg), clustN=cut_avg) %>%
+  left_join(out2, by='modN') %>%
+  arrange(clustN, crps2) %>%
+  group_by(clustN) %>%
+  mutate(group_order=row_number()) %>%
+  ungroup()
+
+##MODELS TO SELECT
+#Select mod1 in cluster 1; 
+#mod18 in cluster 2
+#mod49 in cluster 3
+#PC1 in cluster 3
+#modhhh4_power_precip_temp_ from cluster 4
+
+ensemble_mods <- c('mod18_','mod1_','mod49_','PC1','modhhh4_power_precip_temp_')
+
+## reverse now: clusterof districts, based on how different models perform
+out4.c.map <- reshape2::dcast(out4, district~modN, value.var= 'rel_wgt2' ) 
+
+out4.c.map.m <- out4.c.map %>% dplyr::select(-district) %>% as.matrix()
+
+row.names(out4.c.map.m) <- out4.c.map$district
+dist_mat_map <- dist(as.matrix(out4.c.map.m), method = 'euclidean')
+
+hclust_avg_map <- hclust(dist_mat_map, method = 'average')
+plot(hclust_avg_map)
+cut_avg_map <- cutree(hclust_avg_map, k = 4)
+cluster.map <- cbind.data.frame(district=names(cut_avg_map), clustN=cut_avg_map)
+
+#MAP THESE CLUSTER ASSIGNMENTS
+
+
 out4 %>%
   reshape2::dcast(district~modN, value.var='rel_wgt2') %>%
   dplyr::select(-district) %>%
@@ -197,11 +241,13 @@ View(mods)
 
 mod.weights_overall <- out2 %>%
   ungroup() %>%
-  dplyr::select( w_i2 ,modN)
+  dplyr::select( w_i2 ,modN) %>%
+  filter(modN %in% ensemble_mods) %>%
+  mutate(w_i2 = w_i2/sum(w_i2))
 
 #ensemble, weight based on overall performance
 p0.ds <- out_1a %>%
-  filter(!(modN %in% c('mod42_','mod25_'))) %>%
+  filter(modN %in% ensemble_mods) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 & exclude_miss_mod==0)  %>%
   left_join(obs_case, by=c('date','district')) %>%
@@ -220,11 +266,12 @@ p0.ds <- out_1a %>%
 #ensemble; varying weights by calendar month
 mod.weights_t <- out3 %>%
   ungroup() %>%
+  filter(modN %in% ensemble_mods) %>%
   filter(horizon==2) %>%
   dplyr::select(w_i2, modN,  month)
 
 p1.ds <- out_1a %>%
-  filter(!(modN %in% c('mod42_','mod25_'))) %>%
+  filter(modN %in% ensemble_mods) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
   filter(miss_date==0 & exclude_miss_mod==0)  %>%
   left_join(obs_case, by=c('date','district')) %>%
@@ -312,42 +359,105 @@ p2.ensembles #the first 2 ensembles looks almost identical; weighting by distric
 
 obs_vs_expected_district <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod49_' ) %>%
-  group_by(district) %>%
+  filter( horizon==2 &  modN %in% ensemble_mods ) %>%
+  group_by(district, modN) %>%
   summarize(obs=sum(m_DHF_cases), pred=sum(pred_mean)) %>%
   mutate(diff= obs - pred, rr=obs/pred)
 
-p2 <- out_1a %>%
+p2.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod50_'  & district %in% c('CHO MOI')) %>%
-  dplyr::select(-form) %>%
+  dplyr::select(-form) 
+
+#choi moi in cluster 1
+p2a <- p2.ds %>%
+  filter( horizon==2 &  modN %in% ensemble_mods  & district %in% c('CHO MOI')) %>%
   ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-  geom_point() +
+  geom_line() +
   theme_classic()+
   ylim(0,NA)+
   geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
   facet_wrap(~district,nrow=2) +
-  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
-  ggtitle('Model 49')+
+  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl, fill=modN),alpha=0.2)+
+  ggtitle('various models')+
   geom_hline(yintercept=43.75, col='gray', lty=2)
-p2
+p2a
 
-
-##by vintage date for forecast
-p2 <- out_1a %>%
-  left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 &  modN=='mod50_'  & district %in% c('CHO MOI')) %>%
-  dplyr::select(-form) %>%
+#Ben luc in cluster 2
+p2b <- p2.ds %>%
+  filter( horizon==2 &  modN %in% ensemble_mods  & district %in% c('BEN LUC')) %>%
   ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
-  geom_point() +
+  geom_line() +
   theme_classic()+
   ylim(0,NA)+
-  geom_point(aes(x=vintage_date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
+  geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
   facet_wrap(~district,nrow=2) +
-  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl),alpha=0.2)+
-  ggtitle('Model 49')+
+  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl, fill=modN),alpha=0.2)+
+  ggtitle('various models')+
   geom_hline(yintercept=43.75, col='gray', lty=2)
-p2
+p2b
+
+#BAC LIEU in cluster 3
+p2c <- p2.ds %>%
+  filter( horizon==2 &  modN %in% ensemble_mods  & district %in% c('BAC LIEU')) %>%
+  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+  geom_line() +
+  theme_classic()+
+  ylim(0,NA)+
+  geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
+  facet_wrap(~district,nrow=2) +
+  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl, fill=modN),alpha=0.2)+
+  ggtitle('various models')+
+  geom_hline(yintercept=43.75, col='gray', lty=2)
+p2c
+
+#CAI LAY in cluster 3
+p2d <- p2.ds %>%
+  filter( horizon==2 &  modN %in% ensemble_mods  & district %in% c('CAI LAY')) %>%
+  ggplot(aes(x=date, y=m_DHF_cases), lwd=4) +
+  geom_line() +
+  theme_classic()+
+  ylim(0,NA)+
+  geom_point(aes(x=date, y=pred_mean,group=modN, color=modN, alpha=0.5))+
+  facet_wrap(~district,nrow=2) +
+  geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl, fill=modN),alpha=0.2)+
+  ggtitle('various models')+
+  geom_hline(yintercept=43.75, col='gray', lty=2)
+p2d
+
+
+#### Ensemble performance by district
+district_select <- c('CHO MOI','BEN LUC','BAC LIEU','CAI LAY')
+
+p2.ds_district <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 ) %>%
+  dplyr::select(-form) %>%
+  group_by(modN,date,vintage_date,district) %>%
+  summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
+  mutate(month=month(date)) %>%
+  left_join(mod.weights_dist, by=c('modN','district')) %>% #weights determined by month-specific  predictions
+  #filter(w_i1>=0.05) %>%
+  ungroup() %>%
+  group_by(date,vintage_date, district) %>%
+  mutate(sum_wts=sum(w_i1)) %>%
+  summarize(ensemble_dist_wgt = sum(w_i1/sum_wts *pred_count), m_DHF_cases=mean(m_DHF_cases) #summarize across the different models to get date and district-specific estimate
+  ) %>%
+  filter(district %in% district_select )
+
+p2.ds_district %>%
+  ggplot(aes(x=date, y=m_DHF_cases)) +
+  geom_line()+
+  geom_line(aes(x=date, y=ensemble_dist_wgt), color='red')+
+  facet_wrap(~district)+
+  theme_minimal()
+
+#b vintage_date--would want red line to be ahead of black line
+p2.ds_district %>%
+  ggplot(aes(x=date, y=m_DHF_cases)) +
+  geom_line()+
+  geom_line(aes(x=vintage_date, y=ensemble_dist_wgt), color='red')+
+  facet_wrap(~district)+
+  theme_minimal()
 
 
 ################################################
