@@ -318,22 +318,22 @@ ggplotly(p1b)
 mod.weights_dist<- out4 %>%
   ungroup() %>%
   filter(horizon==2) %>%
-  dplyr::select(w_i1, modN,   district) %>%
-  arrange(district, -w_i1)
+  dplyr::select(w_i2, modN,   district) %>%
+  arrange(district, -w_i2)
 
 p2.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter( horizon==2 ) %>%
+  filter( horizon==2 & modN %in% ensemble_mods ) %>% #RESTRICTS TO THE SELECTED ENSEMBLE
   dplyr::select(-form) %>%
   group_by(modN,date,vintage_date,district) %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
   mutate(month=month(date)) %>%
   left_join(mod.weights_dist, by=c('modN','district')) %>% #weights determined by month-specific  predictions
-  filter(w_i1>=0.05) %>%
+  #filter(w_i2>=0.05) %>%
     ungroup() %>%
   group_by(date,vintage_date, district) %>%
-  mutate(sum_wts=sum(w_i1)) %>%
-  summarize(ensemble_dist_wgt = sum(w_i1/sum_wts *pred_count) #summarize across the different models to get date and district-specific estimate
+  mutate(sum_wts=sum(w_i2)) %>%
+  summarize(ensemble_dist_wgt = sum(w_i2/sum_wts *pred_count) #summarize across the different models to get date and district-specific estimate
          ) %>%
   ungroup() %>%
   group_by(date,vintage_date) %>%
@@ -436,11 +436,11 @@ p2.ds_district <- out_1a %>%
   summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
   mutate(month=month(date)) %>%
   left_join(mod.weights_dist, by=c('modN','district')) %>% #weights determined by month-specific  predictions
-  #filter(w_i1>=0.05) %>%
+  filter(  modN %in% ensemble_mods ) %>%
   ungroup() %>%
   group_by(date,vintage_date, district) %>%
-  mutate(sum_wts=sum(w_i1)) %>%
-  summarize(ensemble_dist_wgt = sum(w_i1/sum_wts *pred_count), m_DHF_cases=mean(m_DHF_cases) #summarize across the different models to get date and district-specific estimate
+  mutate(sum_wts=sum(w_i2)) %>%
+  summarize(ensemble_dist_wgt = sum(w_i2/sum_wts *pred_count), m_DHF_cases=mean(m_DHF_cases) #summarize across the different models to get date and district-specific estimate
   ) %>%
   filter(district %in% district_select )
 
@@ -457,7 +457,8 @@ p2.ds_district %>%
   geom_line()+
   geom_line(aes(x=vintage_date, y=ensemble_dist_wgt), color='red')+
   facet_wrap(~district)+
-  theme_minimal()
+  theme_minimal() +
+  ggtitle('Vintage date of forecats vs obs date')
 
 
 ################################################
