@@ -29,7 +29,7 @@ source('./R/03_fun_lag_district_pca.R')
 
 #d2 <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
 #cleaned in format_input_data.R
-d2 <- readRDS('./Data/CONFIDENTIAL/merged_data.rds') %>%
+d2 <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
   rename(District_province = prov_dis) %>%
   arrange(district, date) %>%
   group_by(district) %>%

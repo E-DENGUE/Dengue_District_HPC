@@ -19,7 +19,7 @@ library(pbapply)
 library(scoringutils)
 options(dplyr.summarise.inform = FALSE)
 
-N_cores = detectCores()
+#N_cores = detectCores()
 
 obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
   rename(case_vintage=m_DHF_cases) %>%

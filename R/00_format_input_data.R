@@ -20,7 +20,7 @@ library(stringr)
 
 source('./R/99_helper_funcs.R')
 
-d1 <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') 
+d1 <- readRDS('./Data/CONFIDENTIAL/XX.rds') 
   
 names(d1)[names(d1) == "Dengue"] <- "m_DHF_cases"
 names(d1)[names(d1) == "total_population"] <- "pop"
@@ -188,7 +188,7 @@ d2 <- d2 %>%
     
   )%>%
   filter(!is.na(lag6_monthly_cum_ppt) & first_date==as.Date('2004-01-01') & last_date=='2022-12-01')   #filter out regions with partial time series
-saveRDS(d2, './Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds') 
+saveRDS(d2, './Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') 
 
 
 ###############################
