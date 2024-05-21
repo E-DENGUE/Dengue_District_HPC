@@ -20,7 +20,7 @@ library(stringr)
 
 source('./R/99_helper_funcs.R')
 
-d1 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors.rds') 
+d1 <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') 
   
 names(d1)[names(d1) == "Dengue"] <- "m_DHF_cases"
 names(d1)[names(d1) == "total_population"] <- "pop"
