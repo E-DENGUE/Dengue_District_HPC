@@ -92,7 +92,7 @@ scoring_func <- function(Y){
 ##deseasonalize_climate()
 ############################
 
-deseasonalize_climate <- function(climate_var, ds=d1){
+deseasonalize_climate <- function(climate_var, ds=d2){
   
   seas.mod <-ds %>% 
     arrange(district, date) %>%
