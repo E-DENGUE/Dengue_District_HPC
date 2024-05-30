@@ -17,6 +17,12 @@ library(spdep)
 library(ggmap) # plotting shapefiles 
 library(lattice)  # Load the lattice package if you are using lattice graphics
 library(stringr)
+library(raster)
+library(Hmisc)
+library(ggdendro)
+library(dtwclust)
+library(sf)
+library(cluster)
 
 source('./R/99_helper_funcs.R')
 
@@ -76,7 +82,7 @@ d2 <- d1 %>%
          year = as_factor(year)) %>%
   filter(district != "KIEN HAI", 
          district != "PHU QUOC") %>%
-  distinct(year, month, NAME_2, NAME_1, ENGTYPE, .keep_all = T) %>%
+  distinct(year, month, province, district, ENGTYPE, .keep_all = T) %>%
   arrange(month, year)%>%
   ungroup() %>%
   dplyr::select(year, month,province, district,m_DHF_cases,pop,avg_daily_temp,avg_max_daily_temp,avg_min_daily_temp,avg_daily_wind,avg_max_daily_wind,
@@ -195,11 +201,10 @@ d3 <- d2 %>%
          lag2_log_cum_inc_36m=lag(log(cum_inc_36m,2))
   ) %>%
   ungroup() %>%
-  filter(!is.na(lag2_monthly_cum_ppt) & first_date==as.Date('2004-01-01') & last_date=='2022-12-01') %>%   #filter out regions with partial time series
+  filter(!is.na(lag2_monthly_cum_ppt) & first_date==as.Date('2004-01-01') & last_date=='2022-12-01')    #filter out regions with partial time series
   
-
-d<- d3[ , c("No..DEN1", "No..DEN2", "No..DEN3", "No..DEN4")]
-
+  
+  d<- d3[ , c("No..DEN1", "No..DEN2", "No..DEN3", "No..DEN4")]
 
 d$podem <- NA  # Initialize the column with NA values
 
@@ -225,14 +230,102 @@ for (i in 1:nrow(d)) {
 d3<- d3%>% 
   dplyr::mutate(prediomentent=as.factor(d$podem))
 
-saveRDS(d3, './Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') 
+###Fix the Bac Lieu province 
+data <- read_excel("./Data/CONFIDENTIAL/20231130_ED_MDR Dengue district data_2000-2023_original modification_updated 20May24.xlsx", sheet=1)
+filtered_data <- data[data$year >= 2004, ]
+dim(filtered_data)
 
+unique(filtered_data$district)
+
+sum(is.na(filtered_data$Dengue))
+sum(is.na(filtered_data$SevereDHF))
+
+
+filtered_data$district<- toupper(filtered_data$district)
+
+filtered_data <- filtered_data %>%
+  arrange(district, province, year, month)
+
+
+
+# Filter the old and new data for BAC Lieu province and mach the boundaries 
+
+BAC_LIEU_old <- d3[d3$province == 'BAC LIEU',]
+BAC_LIEU_New <- filtered_data[filtered_data$province == 'BAC LIEU',]
+
+filtered_data_summarized <- BAC_LIEU_New %>%  group_by(province, district, year, month)%>%
+  mutate(
+    district = ifelse(
+      (district %in% c("VINH LOI", "HOA BINH")) & (province == "BAC LIEU"),
+      "VINH LOI",district) )%>%
+  
+  summarise(Dengue = sum(Dengue,na.rm = TRUE), SevereDHF = sum(SevereDHF,na.rm = TRUE)) %>%
+  ungroup()
+
+
+BAC_LIEU_New<- filtered_data_summarized
+#BAC_LIEU_New<- BAC_LIEU_New[,1:4]
+BAC_LIEU_New <- BAC_LIEU_New %>%
+  filter(!(year == 2004 & (month == 1 | month == 2)))
+#BAC_LIEU_old<- BAC_LIEU_old[,1:4]
+BAC_LIEU_old$year<- as.factor(BAC_LIEU_old$year)
+BAC_LIEU_New$year<- as.factor(BAC_LIEU_New$year)
+#new_not_in_old <- anti_join(BAC_LIEU_New, BAC_LIEU_old, by = c("year", "month","district","province"))
+
+merged_data <- inner_join(BAC_LIEU_old, BAC_LIEU_New, by = c("year", "month","district","province"))
+
+# Update the Dengue cases with the new data
+merged_data$m_DHF_cases <- merged_data$Dengue
+merged_data<- merged_data[,-c(92,93)]
+
+# 
+d3 <- d3
+d3[d3$province == 'BAC LIEU', ] <- merged_data
+
+library(dplyr)
+d3 <- d3 %>%
+  arrange(district, province, year, month)
+
+##Find the clusters
+d4 <- d3 %>% mutate(  log_df_rate = log((m_DHF_cases +1 ) / d3$pop * 100000))
+
+
+d4$log_df_rate <- ifelse(is.na(d4$log_df_rate),
+                         0, # Replace NA values with zero
+                         d4$log_df_rate)
+
+#DTW 
+#hierarchical clustering with dynamic time-warping (DTW)
+
+
+d.c <- d4 %>%
+  reshape2::dcast(., date ~ district, value.var='log_df_rate') %>%
+  dplyr::select_if(~ !any(is.na(.))) %>%
+  dplyr::select(-date) %>%
+  t()
+
+
+set.seed(123)
+dtw_hc <- dtwclust::tsclust(d.c,
+                            type = "hierarchical",
+                            k = 3,
+                            distance = "dtw_basic",
+                            control = hierarchical_control(method = "average"),
+                            args = tsclust_args(dist = list(window.size = 12), cent = dba)
+)
+
+clusters = cbind.data.frame('district'=row.names(d.c), 'cluster'=dtw_hc@cluster)
+
+unique_clusters_districts <- unique(clusters[, c("cluster", "district")])
+
+d4<- full_join(d4,unique_clusters_districts,by=('district'='district'))
+
+
+saveRDS(d4, './Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') 
 ###############################
 #SPATIAL MATRIX:
-d3 <- readRDS( './Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') 
-
 MDR_NEW <- st_read(dsn = "./Data/shapefiles/MDR_NEW_Boundaries_Final.shp") 
-
+  
 # Create a new variable 'District_province' by concatenating 'VARNAME' and 'NAME_En' with an underscore
 MDR_NEW <- MDR_NEW %>%
   dplyr::mutate(District_province = paste( VARNAME,NAME_En, sep = " "))
@@ -274,9 +367,9 @@ spat_IDS <- MDR_NEW %>%
   as.data.frame() %>%
   dplyr::select(district,districtID)
 
-setdiff(toupper(d3$district),toupper(spat_IDS$district))
-setdiff(toupper(spat_IDS$district),toupper(d3$district))
-sort(spat_IDS$district) ==sort(unique(d3$district))
+setdiff(toupper(d2$district),toupper(spat_IDS$district))
+setdiff(toupper(spat_IDS$district),toupper(d2$district))
+sort(spat_IDS$district) ==sort(unique(d2$district))
 
 MDR_NEW<- MDR_NEW %>%
   dplyr::filter(VARNAME != "KIEN HAI",
