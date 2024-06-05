@@ -46,7 +46,8 @@ mod5 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
 
 mod6 <- 'm_DHF_cases_hold ~ lag2_y +
         f(t, model="ar1") + f(districtID, model="iid") +
-        f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+
 
 
 
@@ -69,7 +70,7 @@ mod8 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
 mod9<- 'm_DHF_cases_hold ~ lag2_y +urban_dic +cluster+
        urban_dic* lag2_total_rainfall_ab +  lag2_monthly_cum_ppt +
         lag2_avg_min_daily_temp + lag2_avg_daily_wind  +
-        f(t, model="ar1") +  f(districtID, model="bym", graph=MDR.adj) +
+        f(t, model="ar1") +  f(districtID, model="bym", graph=MDR.adj,hyper=hyper.bym) +
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
 
@@ -83,9 +84,10 @@ mod10 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
 ##Base model
-mod11 <- 'm_DHF_cases_hold ~ lag2_y +
-        f(t, model="ar1") +  f(districtID, model="bym", graph=MDR.adj) +
+mod11 <- 'm_DHF_cases_hold ~ lag2_y  +
+        f(t, model="ar1") +  f(districtID, model="bym2", graph=MDR.adj) +
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
+
 
 
 
@@ -101,6 +103,7 @@ mod12 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
 
 
 
+##models from 13 to 24 does not work
 ##Type 2
 
 mod13 <- 'm_DHF_cases_hold ~ lag2_y +urban_dic +
@@ -108,7 +111,7 @@ mod13 <- 'm_DHF_cases_hold ~ lag2_y +urban_dic +
         f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=timeID4,
+f(districtID3,model="iid", group= time_id4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -121,7 +124,7 @@ mod14<- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
       Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=timeID4,
+f(districtID3,model="iid", group= time_id4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -133,7 +136,7 @@ mod15<- 'm_DHF_cases_hold ~ lag2_y +urban_dic +cluster+
        + f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=timeID4,
+f(districtID3,model="iid", group= time_id4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -148,7 +151,7 @@ mod16 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
          +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+ f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=timeID4,
+f(districtID3,model="iid", group= time_id4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -163,7 +166,7 @@ mod17 <- 'm_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
   lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp  +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+ f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=timeID4,
+f(districtID3,model="iid", group= time_id4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -171,7 +174,7 @@ control.group=list(model="rw2"))+
 mod18 <- 'm_DHF_cases_hold ~ lag2_y+ f(districtID,model="bym",graph=MDR.adj) +
 f( time_id2,model="rw2") +
 f( time_id3,model="iid") +
-f(districtID3,model="iid", group=timeID4,
+f(districtID3,model="iid", group= time_id4,
 control.group=list(model="rw2"))+
         f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)'
 
@@ -663,7 +666,7 @@ mod60 <- 'm_DHF_cases_hold~   lag2_y +
                                    model="besag",
                                    constr= TRUE,
                                    graph=MDR.adj,
-                                    hyper = hyper1,
+                                    hyper = hyper.besag ,
                                    scale.model = TRUE) +
                      lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
                         f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
@@ -675,7 +678,7 @@ mod61 <- 'm_DHF_cases_hold~   lag2_y + log_cum_inc_12m +log_cum_inc_24m +log_cum
                                    model="besag",
                                    constr= TRUE,
                                    graph=MDR.adj,
-                                    hyper = hyper1,
+                                    hyper = hyper.besag ,
                                    scale.model = TRUE) +
                      lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
                         f(t, replicate=districtID3, model="ar1", hyper = hyper.ar1) + #shared AR(1) across districts
