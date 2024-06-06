@@ -17,8 +17,12 @@ library(lubridate)
 library(gganimate)
 library(pbapply)
 library(scoringutils)
+#library(patchwork)
 options(dplyr.summarise.inform = FALSE)
 library(dplyr)
+
+library(ggpubr)
+library(sf)
 ###Combined the all results form the three ways.
 # summaryhhh4<- readRDS("all_crps_slim_hhh4.rds")
 # summary_inla_pca<- readRDS("all_crps_slim_INLA_PCA.rds")
@@ -478,13 +482,17 @@ p2.ds_district %>%
 ################################################
 #Shows poor performance during time of year with little dengue; good performance
 #when  in dengue season
-b1 <- readRDS('C:/Users/uqwareed/Downloads/HPC_District_monthly_update_lag/Data/cleaned_scores/brier_summary_updated_Final.rds')
+b1 <- readRDS('./Data/cleaned_scores/brier_summary_updated_Final.rds')
 
-
-p1 <- ggplot(b1, aes(x=monthN, y=brier_2sd, group=modN))+
+p1 <- b1 %>%
+  #filter(modN %in% ensemble_mods) %>%
+ggplot( aes(x=monthN, y=brier_2sd, group=modN, color=modN))+
   geom_line()+
   theme_minimal()
 ggplotly(p1)
+
+
+
 
 
 # ds <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
@@ -500,7 +508,7 @@ ggplotly(p1)
 
 gif.ds <- out_1a %>%
   left_join(obs_case, by=c('date','district')) %>%
-  filter(horizon==2 & modN %in% c('mod61_','PC_lags','modhhh4_power_precip_temp_'))%>%
+  filter(horizon==2 & modN %in% ensemble_mods)%>%
   mutate(date2=date)
 
 all.districts <- unique(out$district)
@@ -525,7 +533,7 @@ plot.dist.fun <- function(district.select){
   
   animate(p2, fps=5, nframes=length(unique(plot.df$date)), renderer = gifski_renderer(),end_pause = 20)
   
-  anim_save(paste0("C:/Users/uqwareed/Downloads/HPC_District_monthly_update_lag/Data/Data/obs_exp_gifs/obs_exp_",district.select, ".gif"))
+  anim_save(paste0("./Data/obs_exp_gifs/obs_exp_",district.select, ".gif"))
   
 }
 
@@ -533,3 +541,123 @@ all.plots <- lapply(all.districts[1:20],plot.dist.fun)
 
 
 
+########
+#Maps of flagged outbreaks
+
+pp.ds <- out_1a %>%
+  left_join(obs_case, by=c('date','district')) %>%
+  filter( horizon==2 & modN %in% ensemble_mods ) %>% #RESTRICTS TO THE SELECTED ENSEMBLE
+  dplyr::select(-form) %>%
+  group_by(modN,date,vintage_date,district) %>%
+  dplyr::summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean),threshold_quant=threshold_quant) %>%
+  mutate(month=month(date)) %>%
+  left_join(mod.weights_dist, by=c('modN','district')) %>% #weights determined by month-specific  predictions
+  #filter(w_i2>=0.05) %>%
+  ungroup() %>%
+  group_by(date,vintage_date, district) %>%
+  mutate(sum_wts=sum(w_i2)) %>%
+  dplyr::summarize(ensemble_dist_wgt = sum(w_i2/sum_wts *pred_count) #summarize across the different models to get date and district-specific estimate
+  )
+obs_epidemics<- obs_epidemics %>% filter(date >= as.Date("2012-03-01") & date <= as.Date("2016-12-01"))
+q <- inner_join(pp.ds, obs_epidemics, by = c("date" = "date", "district" = "district"))
+df <- q %>%
+  mutate(epidemic_flag_ensamble_possion = ifelse(ensemble_dist_wgt > threshold_poisson, 1, 0),
+         epidemic_flag_ensamble_nb = ifelse(ensemble_dist_wgt > threshold_nb, 1, 0),
+         epidemic_flag_ensamble_fixed = ifelse(ensemble_dist_wgt > threshold, 1, 0),
+         epidemic_flag_ensamble_quant = ifelse(ensemble_dist_wgt > threshold_quant, 1, 0))
+
+map_plot_fun <- function(date.select="2012-03-01"){
+    ##Show the plot for one vintage date
+    ts_ds <-  df[df$date<=date.select,]
+    df_one<- df[df$date==date.select,]
+    ##Pull the shape file
+    
+    MDR_NEW <- st_read(dsn = "./Data/shapefiles/MDR_NEW_Boundaries_Final.shp")
+    MDR_NEW <- MDR_NEW %>%
+      dplyr::mutate(District_province = paste( VARNAME,NAME_En, sep = " "))
+    MDR_NEW$VARNAME<- toupper(MDR_NEW$VARNAME)
+    MDR_NEW$NAME_En<- toupper(MDR_NEW$NAME_En)
+    MDR_NEW  <- MDR_NEW  %>%
+      mutate(VARNAME = ifelse(VARNAME == 'CHAU THANH' & NAME_En == "AN GIANG",
+                              "CHAU THANH AN GIANG",
+                              ifelse(VARNAME == 'CHAU THANH' & NAME_En == "BEN TRE",
+                                     "CHAU THANH BEN TRE",
+                                     ifelse(VARNAME == 'CHAU THANH' & NAME_En == "CA MAU",
+                                            "CHAU THANH CA MAU",
+                                            ifelse(VARNAME == 'CHAU THANH' & NAME_En == "DONG THAP",
+                                                   "CHAU THANH DONG THAP",
+                                                   ifelse(VARNAME == 'CHAU THANH' & NAME_En == "HAU GIANG",
+                                                          "CHAU THANH HAU GIANG",
+                                                          ifelse(VARNAME == 'CHAU THANH' & NAME_En == "LONG AN",
+                                                                 "CHAU THANH LONG AN",
+                                                                 ifelse(VARNAME == 'CHAU THANH' & NAME_En == "TIEN GIANG",
+                                                                        "CHAU THANH TIEN GIANG",
+                                                                        ifelse(VARNAME == 'CHAU THANH' & NAME_En == "TRA VINH",
+                                                                               "CHAU THANH TRA VINH",
+                                                                               ifelse(VARNAME == 'PHU TAN' & NAME_En == "CAM MAU",
+                                                                                      "PHU TAN CA MAU",
+                                                                                      ifelse(VARNAME == 'PHU TAN' & NAME_En == "AN GIANG",
+                                                                                             "PHU TAN AN GIANG",
+                                                                                             as.character(VARNAME)
+                                                                                      )
+                                                                               )
+                                                                        )))))))))
+    q1<- inner_join(MDR_NEW,df_one,by=c('VARNAME'='district'))
+    
+    
+    q1_a <- ggplot(data = q1) +
+      geom_sf(aes(fill = as.factor(epidemic_flag_ensamble_possion))) +
+      scale_fill_manual(values = c("0" = "white", "1" = "red")) +
+      theme_minimal()
+    q1_b<- ggplot(data = q1) +
+      geom_sf(aes(fill = as.factor(epidemic_flag_ensamble_nb))) +
+      scale_fill_manual(values = c("0" = "white", "1" = "red")) +
+      theme_minimal()
+    q1_c<- ggplot(data = q1) +
+      geom_sf(aes(fill = as.factor(epidemic_flag_ensamble_quant))) +      theme_minimal()
+    q1_d<- ggplot(data = q1) +
+      geom_sf(aes(fill = as.factor(epidemic_flag_ensamble_fixed)) )+
+      scale_fill_manual(values = c("0" = "white", "1" = "red")) +
+      theme_minimal()
+    
+    tot_cases <- obs_case %>% group_by(date) %>%
+      summarize(m_DHF_cases=sum(m_DHF_cases))
+    
+    p1.ds <- out_1a %>%
+      filter(modN %in% ensemble_mods) %>%
+      left_join(miss.dates, by=c('date','horizon')) %>%
+      filter(miss_date==0 & exclude_miss_mod==0)  %>%
+      filter( horizon==2 ) %>%
+      full_join(obs_case, by=c('date','district')) %>%
+      dplyr::select(-form) %>%
+      group_by(modN,date,vintage_date,horizon) %>%
+      dplyr::summarize(m_DHF_cases=sum(m_DHF_cases),pop=sum(pop), pred_count=sum(pred_mean)) %>%
+      mutate(month=month(date)) %>%
+      left_join(mod.weights_t, by=c('modN','month')) %>% #weights determined by month-specific  predictions
+      ungroup() %>%
+      group_by(date, vintage_date,horizon) %>%
+      mutate(sum_wgts=sum(w_i2)) %>%
+      dplyr::summarize(ensemble_month = sum(w_i2/sum_wgts *pred_count),
+                       m_DHF_cases=mean(m_DHF_cases),pop=mean(pop)) %>%
+      ungroup() %>%
+      arrange( date) %>%
+      filter(date<=date.select) %>%
+      mutate(horizon=max(horizon, na.rm=T),
+             vintage_date = as.Date(date.select) %m-% months(horizon),
+        cases_hold = if_else(date>vintage_date, NA_real_, m_DHF_cases))
+
+    p1b <- p1.ds %>%
+      ggplot(aes(x=date, y=cases_hold), lwd=4) +
+      geom_line() +
+      theme_classic()+
+      ylim(0,NA)+
+      geom_line(aes(x=date, y=ensemble_month), alpha=0.5 ,lwd=1, col='red')+
+      geom_point(aes(x=date, y=ensemble_month), alpha=0.5 , col='red')+
+      ggtitle("Predictions by Vintage Date")
+
+    #outputs
+    p1b    
+    ggarrange(p1b,q1_a, q1_b, q1_c, q1_d, nrow = 3, ncol = 2)
+    
+    
+}
