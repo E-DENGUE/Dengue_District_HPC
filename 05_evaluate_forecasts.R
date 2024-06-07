@@ -566,7 +566,7 @@ df <- q %>%
          epidemic_flag_ensamble_fixed = ifelse(ensemble_dist_wgt > threshold, 1, 0),
          epidemic_flag_ensamble_quant = ifelse(ensemble_dist_wgt > threshold_quant, 1, 0))
 
-map_plot_fun <- function(date.select="2012-03-01"){
+map_plot_fun <- function(date.select="2014-07-01"){
     ##Show the plot for one vintage date
     ts_ds <-  df[df$date<=date.select,]
     df_one<- df[df$date==date.select,]
@@ -644,16 +644,20 @@ map_plot_fun <- function(date.select="2012-03-01"){
       filter(date<=date.select) %>%
       mutate(horizon=max(horizon, na.rm=T),
              vintage_date = as.Date(date.select) %m-% months(horizon),
-        cases_hold = if_else(date>vintage_date, NA_real_, m_DHF_cases))
+        cases_hold = if_else(date>vintage_date, NA_real_, m_DHF_cases),
+        cases_hold_dot = if_else(date==vintage_date, m_DHF_cases, NA_real_),
+        ensemble_month_dot = if_else(date==date.select, ensemble_month, NA_real_)) %>%
+      filter(date>='2010-01-01')
 
     p1b <- p1.ds %>%
-      ggplot(aes(x=date, y=cases_hold), lwd=4) +
-      geom_line() +
+      ggplot()+
+      geom_line(aes(x=date, y=cases_hold)) +
       theme_classic()+
       ylim(0,NA)+
-      geom_line(aes(x=date, y=ensemble_month), alpha=0.5 ,lwd=1, col='red')+
-      geom_point(aes(x=date, y=ensemble_month), alpha=0.5 , col='red')+
-      ggtitle("Predictions by Vintage Date")
+      geom_line(aes(x=date, y=ensemble_month), alpha=0.5 , col='red')+
+      geom_point(aes(x=date, y=ensemble_month_dot), alpha=1 , col='red', cex=2)+
+            geom_point(aes(x=date, y=cases_hold_dot), alpha=1 , col='black', cex=2)+
+          ggtitle("Predictions by Date")
 
     #outputs
     p1b    
