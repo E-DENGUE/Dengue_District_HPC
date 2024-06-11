@@ -22,7 +22,7 @@ N_cores = detectCores()
 
 obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
   rename(case_vintage=m_DHF_cases) %>%
-  dplyr::select(date, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
+  dplyr::select(date,pop, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
 
 
 ##Results from spatiotemporal models
@@ -145,8 +145,8 @@ brier1 <- pblapply(file.names1,function(X){
   pred.iter <- d1$log.samps.inc %>%
     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
     left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate(pred_epidemic_2sd = value > threshold,
-           pred_epidemic_nb = value > threshold_nb,
+    mutate(pred_epidemic_2sd = value > log( threshold/pop*100000),
+           pred_epidemic_nb = value > log( threshold_nb/pop*100000),
            vintage_date=date.test.in) %>%
     group_by(date, vintage_date, district, horizon) %>%
     summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
