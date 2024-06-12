@@ -1,5 +1,5 @@
 ##In console:
-#salloc
+ #salloc
 #module load  R/4.2.3-foss-2022b
 # R
 
@@ -22,7 +22,7 @@ N_cores = detectCores()
 
 obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
   rename(case_vintage=m_DHF_cases) %>%
-  dplyr::select(date,pop, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
+  dplyr::select(date, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
 
 
 ##Results from spatiotemporal models
@@ -40,7 +40,7 @@ ds.list1.summary <- lapply(file.names1,function(X){
   
   date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
   
-  # Find the position of the date pattern in the input string
+    # Find the position of the date pattern in the input string
   date_match <- str_locate(X, date_pattern)
   
   modN <- str_sub(X, end = date_match[,'start'] - 1)
@@ -61,7 +61,7 @@ ds.list2_summary <- lapply(file.names2,function(X){
   
   d1 <- readRDS(file=file.path(X))
   
-  if (grepl("PC_lags_weather", X)) {
+ if (grepl("PC_lags_weather", X)) {
     modN <- "PC_lags_weather"
   } else if (grepl("PC_lags", X)) {
     modN <- "PC_lags"
@@ -80,7 +80,7 @@ ds.list2_summary <- lapply(file.names2,function(X){
            modN=modN,
            date.test.in=date.test.in,
            form=paste(d1$form, collapse=' '))
-  
+
   return(preds_df)
 })
 
@@ -106,7 +106,7 @@ ds.list3_summary <- lapply(file.names3,function(X){
            form=d1$form)
   
   return(preds_df)
-})
+  })
 
 summary1 <- lapply(ds.list1.summary, function(X){
   X$forecast=as.factor(X$forecast)
@@ -125,7 +125,7 @@ summary3 <- lapply(ds.list3_summary , function(X){
 
 bind_rows(summary1,summary2,summary3) %>%
   filter(horizon>=1) %>%
-  saveRDS( "./Results/all_crps_slim_updated_Final.rds")
+  saveRDS( "./Results/all_crps_slim_updated.rds")
 
 #########################################
 ## BRIER SCORES
@@ -163,7 +163,7 @@ brier1 <- pblapply(file.names1,function(X){
 brier2 <- pblapply(file.names2,function(X){
   d1 <- readRDS(file=file.path(X))
   
-  if (grepl("PC_lags_weather", X)) {
+if (grepl("PC_lags_weather", X)) {
     modN <- "PC_lags_weather"
   } else if (grepl("PC_lags", X)) {
     modN <- "PC_lags"
@@ -180,8 +180,8 @@ brier2 <- pblapply(file.names2,function(X){
   pred.iter <- d1$log.samps.inc %>%
     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
     left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate(pred_epidemic_2sd = value > threshold,
-           pred_epidemic_nb = value > threshold_nb,
+    mutate(pred_epidemic_2sd = value > log( threshold/pop*100000),
+           pred_epidemic_nb = value > log( threshold_nb/pop*100000),
            vintage_date=date.test.in) %>%
     group_by(date,vintage_date, district, horizon) %>%
     summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
@@ -213,8 +213,8 @@ brier3 <- lapply(file.names3,function(X){
   pred.iter <- d1$log.samps.inc %>%
     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
     left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate(pred_epidemic_2sd = value > threshold,
-           pred_epidemic_nb = value > threshold_nb,
+    mutate(pred_epidemic_2sd = value > log( threshold/pop*100000),
+           pred_epidemic_nb = value > log( threshold_nb/pop*100000),
            vintage_date=date.test.in) %>%
     group_by(date,vintage_date, district, horizon) %>%
     summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
@@ -233,12 +233,9 @@ brier3 <- lapply(file.names3,function(X){
 brier_summary <- c(brier1, brier2,brier3) %>% 
   bind_rows() %>%
   mutate(monthN=month(date))%>%
-  ungroup() %>% 
-  group_by(monthN,modN) %>%
-  summarize(brier_nb=mean(brier_nb),
-            brier_2sd =mean(brier_2sd))
+  ungroup() 
 
-saveRDS(brier_summary, "./Results/brier_summary_updated_Final.rds")
+saveRDS(brier_summary, "./Results/brier_summary_updated.rds")
 
 
 
