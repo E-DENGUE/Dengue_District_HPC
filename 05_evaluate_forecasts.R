@@ -20,6 +20,7 @@ library(scoringutils)
 #library(patchwork)
 options(dplyr.summarise.inform = FALSE)
 library(dplyr)
+library(GGally)
 
 library(ggpubr)
 library(sf)
@@ -485,6 +486,8 @@ p2.ds_district %>%
 b1 <- readRDS('./Data/cleaned_scores/brier_summary_updated_Final.rds')
 
 p1 <- b1 %>%
+  group_by(monthN,modN) %>%
+  summarize(brier_2sd=mean(brier_2sd)) %>%
   #filter(modN %in% ensemble_mods) %>%
 ggplot( aes(x=monthN, y=brier_2sd, group=modN, color=modN))+
   geom_line()+
@@ -492,10 +495,78 @@ ggplot( aes(x=monthN, y=brier_2sd, group=modN, color=modN))+
 ggplotly(p1)
 
 
+## map brier scores
+MDR_NEW <- st_read(dsn = "./Data/shapefiles/MDR_NEW_Boundaries_Final.shp")
+MDR_NEW <- MDR_NEW %>%
+  dplyr::mutate(District_province = paste( VARNAME,NAME_En, sep = " "))
+MDR_NEW$VARNAME<- toupper(MDR_NEW$VARNAME)
+MDR_NEW$NAME_En<- toupper(MDR_NEW$NAME_En)
+MDR_NEW  <- MDR_NEW  %>%
+  mutate(VARNAME = ifelse(VARNAME == 'CHAU THANH' & NAME_En == "AN GIANG",
+                          "CHAU THANH AN GIANG",
+                          ifelse(VARNAME == 'CHAU THANH' & NAME_En == "BEN TRE",
+                                 "CHAU THANH BEN TRE",
+                                 ifelse(VARNAME == 'CHAU THANH' & NAME_En == "CA MAU",
+                                        "CHAU THANH CA MAU",
+                                        ifelse(VARNAME == 'CHAU THANH' & NAME_En == "DONG THAP",
+                                               "CHAU THANH DONG THAP",
+                                               ifelse(VARNAME == 'CHAU THANH' & NAME_En == "HAU GIANG",
+                                                      "CHAU THANH HAU GIANG",
+                                                      ifelse(VARNAME == 'CHAU THANH' & NAME_En == "LONG AN",
+                                                             "CHAU THANH LONG AN",
+                                                             ifelse(VARNAME == 'CHAU THANH' & NAME_En == "TIEN GIANG",
+                                                                    "CHAU THANH TIEN GIANG",
+                                                                    ifelse(VARNAME == 'CHAU THANH' & NAME_En == "TRA VINH",
+                                                                           "CHAU THANH TRA VINH",
+                                                                           ifelse(VARNAME == 'PHU TAN' & NAME_En == "CAM MAU",
+                                                                                  "PHU TAN CA MAU",
+                                                                                  ifelse(VARNAME == 'PHU TAN' & NAME_En == "AN GIANG",
+                                                                                         "PHU TAN AN GIANG",
+                                                                                         as.character(VARNAME)
+                                                                                  )
+                                                                           )
+                                                                    )))))))))
+district_brier <- b1 %>%
+  group_by(district,modN) %>%
+  summarize(brier_2sd=mean(brier_2sd)) %>%
+  ungroup() %>%
+  filter(modN=='mod61_') 
+
+p3 <- MDR_NEW %>%
+  inner_join(district_brier,by=c('VARNAME'='district')) %>%
+   ggplot() +
+  geom_sf(aes(fill = brier_2sd)) +
+  scale_fill_viridis()+
+ # scale_fill_manual(values = c("0" = "white", "1" = "red")) +
+  theme_minimal()
+
+p3
+
+district_chars <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
+  group_by(district) %>%
+  summarize(cases=sum(m_DHF_cases), 
+            pop=sum(pop),cluster=mean(cluster),
+            avg_max_daily_temp=mean(avg_max_daily_temp),
+            monthly_cum_ppt=mean(monthly_cum_ppt),
+            Urbanization_Rate=mean(Urbanization_Rate), 
+            Poverty_Rate=mean(Poverty_Rate), 
+            NetImmigration_Rate=mean(NetImmigration_Rate)
+            
+            ) %>%
+  mutate(inc=cases/pop*100000)
+  
+  
+brier_cor <- district_brier %>%
+  left_join(district_chars, by='district')
+
+#no clear relationship between brier score and covariates
+brier_cor %>% 
+  dplyr::select(-district, -modN, -cases, -pop)%>%
+  mutate(cluster=as.factor(cluster)) %>%
+ggpairs(., aes(color=cluster, alpha = 0.4))
 
 
-
-# ds <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
+  # ds <- readRDS('./Data/CONFIDENTIAL/cleaned_data.rds')
 # 
 # View(ds %>% group_by(date) %>% summarize(N=n()))
 
