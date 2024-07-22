@@ -8,7 +8,7 @@ library(ggplot2)
 library(dtwclust)
 library(cluster)
 library(sf)
-d2 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors_cleaned.rds')
+d2 <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds')
 
 d1 <- d2%>% mutate(  log_df_rate = log((m_DHF_cases +1 ) / d2$pop * 100000))
 

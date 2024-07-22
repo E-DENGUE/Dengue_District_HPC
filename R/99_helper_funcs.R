@@ -25,7 +25,12 @@ scoring_func <- function(Y){
     filter(forecast==1 & horizon==2) %>%
     pull(index)
   
-  forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2))
+  
+  forecast.index_horizon3 <- forecast_ds %>%
+    filter(forecast==1 & horizon==3) %>%
+    pull(index)
+  
+  forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2,forecast.index_horizon3))
   
   test1 <-inla.posterior.sample(1000, Y$mod, seed=0)
   
@@ -92,7 +97,7 @@ scoring_func <- function(Y){
 ##deseasonalize_climate()
 ############################
 
-deseasonalize_climate <- function(climate_var, ds=d2){
+deseasonalize_climate <- function(climate_var, ds=d1){
   
   seas.mod <-ds %>% 
     arrange(district, date) %>%

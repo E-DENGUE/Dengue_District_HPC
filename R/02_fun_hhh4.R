@@ -1,6 +1,6 @@
-hhh4_mod <- function(vintage_date, modN,max_horizon=2){
+hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   
-  sim.mat <- readRDS('./Data/tsclust_simmat.rds')
+ sim.mat <- readRDS('./Data/tsclust_simmat.rds')
   
   
   MDR_NEW <- readRDS( "./Data/MDR_NEW.rds") %>%
@@ -52,16 +52,16 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=2){
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
   
-  temp_lag2 <- c1.fit %>% 
-    mutate(lag2_avg_daily_temp = scale(lag2_avg_daily_temp)) %>%
-    reshape2::dcast(date~district, value.var= 'lag2_avg_daily_temp') %>%
+  temp_lag3 <- c1.fit %>% 
+    mutate(lag3_avg_daily_temp = scale(lag3_avg_daily_temp)) %>%
+    reshape2::dcast(date~district, value.var= 'lag3_avg_daily_temp') %>%
     filter(date>=start.date) %>%
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
   
-  precip_lag2 <- c1.fit %>% 
-    mutate(lag2_monthly_cum_ppt = scale(lag2_monthly_cum_ppt)) %>%
-    reshape2::dcast(date~district, value.var= 'lag2_monthly_cum_ppt') %>%
+  precip_lag3 <- c1.fit %>% 
+    mutate(lag3_monthly_cum_ppt = scale(lag3_monthly_cum_ppt)) %>%
+    reshape2::dcast(date~district, value.var= 'lag3_monthly_cum_ppt') %>%
     filter(date>=start.date) %>%
     dplyr::select(unique(MDR_NEW$VARNAME))%>%
     as.matrix()
@@ -109,92 +109,92 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=2){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 + ri() ),
-      ne = list(f = ~ -1 + temp_lag2 + ri() , weights = W_np(maxlag = 2)),
+      ar = list(f = ~ -1 + temp_lag3 + ri() ),
+      ne = list(f = ~ -1 + temp_lag3 + ri() , weights = W_np(maxlag = 2)),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2)
+      data=list(temp_lag3=temp_lag3)
     )
   } else if(mod.select=='hhh4_power'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 + ri() ),
-      ne = list(f = ~ -1 + temp_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
+      ar = list(f = ~ -1 + temp_lag3 + ri() ),
+      ne = list(f = ~ -1 + temp_lag3 + ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2)
+      data=list(temp_lag3=temp_lag3)
     )
   } else if(mod.select=='hhh4_power_precip_temp'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() ),
-      ne = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
+      ar = list(f = ~ -1 + temp_lag3 + precip_lag3 + ri() ),
+      ne = list(f = ~ -1 + temp_lag3 + precip_lag3 + ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+      data=list(temp_lag3=temp_lag3,precip_lag3=precip_lag3)
     )
   }else if(mod.select=='hhh4_basic'){ 
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t + ri(), period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 + ri() , lag=1),
-      ne = list(f = ~ -1 + temp_lag2 + ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
+      ar = list(f = ~ -1 + temp_lag3 + ri() , lag=1),
+      ne = list(f = ~ -1 + temp_lag3 + ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2)
+      data=list(temp_lag3=temp_lag3)
     )
   }else if(mod.select=='hhh4_power_precip_temp_endmc1'){ 
     dengue_mod_ri_temp <- list(
-      end = list(f = addSeason2formula(~ -1 + t +temp_lag2 +precip_lag2+ ri(), period = dengue_df@freq),
+      end = list(f = addSeason2formula(~ -1 + t +temp_lag3 +precip_lag3+ ri(), period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 + precip_lag2+ ri() , lag=1),
-      ne = list(f = ~ -1 + temp_lag2 + precip_lag2+ ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
+      ar = list(f = ~ -1 + temp_lag3 + precip_lag3+ ri() , lag=1),
+      ne = list(f = ~ -1 + temp_lag3 + precip_lag3+ ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+      data=list(temp_lag3=temp_lag3,precip_lag3=precip_lag3)
     )
   }else if(mod.select=='hhh4_power_precip_temp_endmc2'){ 
     dengue_mod_ri_temp <- list(
-      end = list(f = addSeason2formula(~ -1 + t +temp_lag2 +precip_lag2+ ri(), period = dengue_df@freq),
+      end = list(f = addSeason2formula(~ -1 + t +temp_lag3 +precip_lag3+ ri(), period = dengue_df@freq),
                  offset = population(dengue_df)),
       ar = list(f = ~ -1 +  ri() , lag=1),
       ne = list(f = ~ -1 +  ri() , weights = neighbourhood(dengue_df) == 1, lag=1),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+      data=list(temp_lag3=temp_lag3,precip_lag3=precip_lag3)
     )
     
-  } else if(mod.select=='hhh4_power_cum_lag24'){
+  } else if(mod.select=='hhh4_power_cum_lag34'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t +  log_cum_inc_24m +  ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 +   ri() +log_cum_inc_24m), #log_lag12_inc not associated with AR
-      ne = list(f = ~ -1 + temp_lag2 +  log_cum_inc_24m +  ri() , weights =  W_powerlaw(maxlag = 5)),
+      ar = list(f = ~ -1 + temp_lag3 +   ri() +log_cum_inc_24m), #log_lag12_inc not associated with AR
+      ne = list(f = ~ -1 + temp_lag3 +  log_cum_inc_24m +  ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 24:last_fit_t,
-      data=list(temp_lag2=temp_lag2,log_cum_inc_24m=log_cum_inc_24m)
+      data=list(temp_lag3=temp_lag3,log_cum_inc_24m=log_cum_inc_24m)
     )
   } else if(mod.select=='hhh4_power_lag12'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t +  log_lag12_inc +  ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
-      ar = list(f = ~ -1 + temp_lag2 +   ri() ), #log_lag12_inc not associated with AR
-      ne = list(f = ~ -1 + temp_lag2 +  log_lag12_inc +  ri() , weights =  W_powerlaw(maxlag = 5)),
+      ar = list(f = ~ -1 + temp_lag3 +   ri() ), #log_lag12_inc not associated with AR
+      ne = list(f = ~ -1 + temp_lag3 +  log_lag12_inc +  ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 13:last_fit_t,
-      data=list(temp_lag2=temp_lag2,log_lag12_inc=log_lag12_inc)
+      data=list(temp_lag3=temp_lag3,log_lag12_inc=log_lag12_inc)
     )
   } else if(mod.select=='hhh4_power_precip_temp_dist'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t + ri() , period = dengue_df_dist@freq),
                  offset = population(dengue_df_dist)),
-      ar = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() ),
-      ne = list(f = ~ -1 + temp_lag2 + precip_lag2 + ri() , weights =  W_powerlaw(maxlag = 5)),
+      ar = list(f = ~ -1 + temp_lag3 + precip_lag3 + ri() ),
+      ne = list(f = ~ -1 + temp_lag3 + precip_lag3 + ri() , weights =  W_powerlaw(maxlag = 5)),
       family = "NegBin1",
       subset = 2:last_fit_t,
-      data=list(temp_lag2=temp_lag2,precip_lag2=precip_lag2)
+      data=list(temp_lag3=temp_lag3,precip_lag3=precip_lag3)
     )
   }
   
@@ -255,10 +255,11 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=2){
     ungroup() %>%
     mutate(forecast= if_else( date==(vintage_date %m+% months(max_horizon)),1,0),
            horizon = if_else(date== (vintage_date %m+% months(1) ),1,
-                             if_else(date== (vintage_date %m+% months(2)),2, 0
+                             if_else(date== (vintage_date %m+% months(2)),2,
+                                     if_else(date== (vintage_date %m+% months(3)),3,0
                              )
            ),
-    )%>%
+    ))%>%
     filter(date <= (vintage_date %m+% months(max_horizon))) 
   
   c1.out <- c1b %>%
@@ -267,7 +268,7 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=2){
   samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
   
   out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
-  saveRDS(out.list,paste0('./Results/Results_spacetime/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Resutls/Resutls_hhh4/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
   
   return(out.list)
 }
