@@ -25,7 +25,12 @@ scoring_func <- function(Y){
     filter(forecast==1 & horizon==2) %>%
     pull(index)
   
-  forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2))
+  
+  forecast.index_horizon3 <- forecast_ds %>%
+    filter(forecast==1 & horizon==3) %>%
+    pull(index)
+  
+  forecast.index1 <- sort(c(forecast.index_horizon1,forecast.index_horizon2,forecast.index_horizon3))
   
   test1 <-inla.posterior.sample(1000, Y$mod, seed=0)
   
@@ -79,7 +84,13 @@ scoring_func <- function(Y){
   
   crps3 <- cbind.data.frame(crps1, crps2,out_ds) 
   
-  return(crps3)
+  colnames(log.samps.inc) <- paste0('rep',1:ncol(log.samps.inc))
+  
+  samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+  
+  out.list = list('crps3'=crps3, 'log.samps.inc'=samps.out)
+  
+  return(out.list)
 }
 
 ############################
