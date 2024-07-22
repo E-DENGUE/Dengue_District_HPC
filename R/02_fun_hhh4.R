@@ -268,7 +268,7 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
   
   out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
-  saveRDS(out.list,paste0('./Resutls/Resutls_hhh4/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Results/Results_hhh4/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
   
   return(out.list)
 }

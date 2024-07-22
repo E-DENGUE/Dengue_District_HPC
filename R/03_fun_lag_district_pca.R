@@ -23,7 +23,7 @@ lag_district_pca <- function(vintage_date, district.select, modN){
            time_id1= t ) 
   
   all.lags <- c1a %>%
-    dplyr::select(district,date,log_df_lag2,log_df_lag3,log_df_lag4,log_df_lag5
+    dplyr::select(district,date,log_df_lag3,log_df_lag4,log_df_lag5
     ) %>%
     reshape2::melt(., id.vars=c('district','date')) %>%
     reshape2::dcast(., date  ~ district+variable) %>% 
@@ -138,7 +138,7 @@ lag_district_pca <- function(vintage_date, district.select, modN){
   
   out.list =  list ('ds'=c1.out, 'scores'=scores$crps3,'log.samps.inc'=scores$log.samps.inc,  'fixed.eff'=mod1$summary.fixed, 'form'==as.character(form2))
   
-  saveRDS(out.list,paste0('./Resutls/Results_pca/', mod.select,'_',district.select,'_',vintage_date  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Results/Results_pca/', mod.select,'_',district.select,'_',vintage_date  ,'.rds' )   )
   return(out.list)
 }
 
