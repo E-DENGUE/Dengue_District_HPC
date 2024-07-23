@@ -166,7 +166,7 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
       data=list(temp_lag3=temp_lag3,precip_lag3=precip_lag3)
     )
     
-  } else if(mod.select=='hhh4_power_cum_lag34'){
+  } else if(mod.select=='hhh4_power_cum_lag24'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t +  log_cum_inc_24m +  ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
