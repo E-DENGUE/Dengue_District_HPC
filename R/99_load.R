@@ -25,6 +25,7 @@ source('./R/99_define_inla_spacetime_mods.R')
 source('./R/01_fun_inla_spacetime.R')
 source('./R/02_fun_hhh4.R')
 source('./R/03_fun_lag_district_pca.R')
+source('./R/03b_fun_lag_district_pca_short.R')
 
 #cleaned in 00_format_input_data.R
 d2 <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
