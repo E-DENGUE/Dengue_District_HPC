@@ -30,14 +30,17 @@ library(dplyr)
 
 N_cores = detectCores()
 library(dplyr)
-obs_epidemics <- readRDS( 'C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
+obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
   dplyr::rename(case_vintage=m_DHF_cases) %>%
   dplyr::select(date, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
 
-obs_case <- readRDS('C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
+obs_case <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
   dplyr::select(date, district,m_DHF_cases, pop)
 
-out <- readRDS( "C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/cleaned_scores/all_crps_slim_updated_check.rds") 
+out <- readRDS( "./Data/cleaned_scores/all_crps_slim_updated_lag3.rds") 
+
+unique(cbind.data.frame(out$form, out$modN))
+
 # m<- out[out$modN=='mod48_',]
 # date_sequence <- seq.Date(from = as.Date("2012-01-01"), to = as.Date("2016-12-01"), by = "month")
 # 
@@ -45,16 +48,17 @@ out <- readRDS( "C:/Users/uqwareed/OneDrive - The University of Queensland/Two m
 # as.Date(q)
 
 miss.mod <- out %>%
-  filter(horizon==2 & date <= '2016-12-01') %>%
-  group_by(modN) %>%
+  filter(horizon %in% c(1,2,3) & date <= '2016-12-01') %>%
+  group_by(modN, horizon) %>%
   dplyr::summarize(N=n()) %>%
-  mutate(exclude_miss_mod = N<max(N))
+  mutate(exclude_miss_mod = N<max(N)) %>%
+  ungroup()
 
 miss.dates <- out %>% 
-  left_join(miss.mod, by='modN') %>%
-  filter(exclude_miss_mod==F) %>%
+  full_join(miss.mod, by=c('modN', 'horizon')) %>%
+  #filter(exclude_miss_mod==F) %>%
   group_by(date, horizon) %>%   
-  filter(  horizon %in% c(1,2)) %>%
+  filter(  horizon %in% c(1,2,3)) %>%
   dplyr::summarize(N_mods=n(), N_cases=mean(m_DHF_cases)) %>%
   ungroup() %>%
   group_by(horizon) %>%
@@ -74,8 +78,8 @@ ggplot(miss.dates, aes(x=date, y=N_cases)) +
 
 #FILTER OUT months when an epidemic has been recognized by the time forecast is made in a specific district (using fixed epidemic threshold)
 out_1a <- out %>%
-  left_join(miss.mod, by='modN') %>%
-  filter(exclude_miss_mod!=1) %>%
+  left_join(miss.mod, by=c('horizon','modN') )%>%
+ #filter(exclude_miss_mod!=1) %>%
   dplyr::select(-pop,-m_DHF_cases) %>%
   left_join(obs_epidemics, by=c('district'='district','vintage_date'='date'))   #%>%
   #filter(epidemic_flag==0) #ONLY EVALUATE MONTHS WHERE EPIDEMIC HAS NOT YET BEEN OBSERVED IN THE DISTRICT
@@ -85,16 +89,16 @@ View(out_1a %>% group_by(district,date, horizon) %>% dplyr::summarize(N=n()))
 
 #Overall
 out2 <- out_1a %>%
-  filter(epidemic_flag==0) %>%
+  filter(epidemic_flag==0 ) %>%
   left_join(miss.dates, by=c('date','horizon')) %>%
-  filter(miss_date==0 & exclude_miss_mod==0)  %>%
+  #filter(miss_date==0 & exclude_miss_mod==0)  %>%
   group_by(horizon, modN, form) %>%
   dplyr::summarize(crps1 = mean(crps1),crps2 = mean(crps2) ,N=n() ) %>%
   ungroup() %>%
   arrange(horizon, crps2) %>%
   group_by(horizon) %>%
   dplyr::mutate( w_i1 = (1/crps1^2)/sum(1/crps1^2),w_i2 = (1/crps2^2)/sum(1/crps2^2) ) %>%
-  filter(horizon==2)%>%
+ # filter(horizon==2)%>%
   mutate(rw_season = grepl('cyclic=TRUE', form),
          harm_season = grepl('sin12', form),
          lag2_y = grepl('lag2_y', form),
@@ -105,6 +109,13 @@ out2 <- out_1a %>%
          type4_spatial_bym = grepl('model="bym"', form, fixed=T) *grepl('control.group=list(model="ar1"', form, fixed=T) *grepl('group=time_id1', form, fixed=T)
   )
 View(out2)
+
+out2 %>%
+  arrange(modN, horizon) %>%
+  filter(modN != 'mod1_') %>%
+ggplot( aes(x=horizon, y=crps2, group=modN, color=modN))+
+  geom_line()
+  
 
 #what model factors are associate with a higher weight?
 mod1 <- lm(w_i1 ~ rw_season + harm_season+lag2_y + lag2_monthly_cum_ppt + rw_time_spatial + type4_spatial_bym, data=out2)
@@ -438,7 +449,7 @@ q <- q %>%
 df_one<- q[q$date=="2012-07-01",]
 ##Pull the shape file
 library(sf)
-MDR_NEW <- st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/shapefiles/MDR_NEW_Boundaries_Final.shp") 
+MDR_NEW <- st_read(dsn = "./Data/shapefiles/MDR_NEW_Boundaries_Final.shp") 
 
 # Create a new variable 'District_province' by concatenating 'VARNAME' and 'NAME_En' with an underscore
 MDR_NEW <- MDR_NEW %>%
@@ -756,16 +767,16 @@ p2.ds_district %>%
 ################################################
 #Shows poor performance during time of year with little dengue; good performance
 #when  in dengue season
-b1 <- readRDS('C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/cleaned_scores/brier_summary_updated_Final (2).rds')
+b1 <- readRDS('./Data/cleaned_scores/brier_summary_updated_lag3.rds')
 
 b2 <- inner_join(b1, obs_case, by = c("district", "date"))
 
 
-ensemble_mods <- c ('mod6_','mod60_','mod61_','PC_lags','modhhh4_power_precip_temp_')
+ensemble_mods <- c ('mod2_','mod3_','PC_lags','modhhh4_power_precip_temp_')
 
 
 b3 <- b2 %>% 
-  dplyr::group_by(district) %>%
+  dplyr::group_by(district, horizon) %>%
   dplyr::summarize(brier_nb=mean(brier_nb),
             brier_2sd =mean(brier_2sd),
                             m_DHF_cases=sum(m_DHF_cases))
@@ -783,14 +794,20 @@ plot <- plot_ly(b3, x = ~brier_2sd, y = ~m_DHF_cases, text = ~district, mode = "
 plot
 
 p1 <- b1 %>%
-  dplyr::group_by(monthN,modN) %>%
+  dplyr::group_by(horizon,monthN,modN) %>%
   dplyr::summarize(brier_2sd=mean(brier_2sd)) %>%
   #filter(modN %in% ensemble_mods) %>%
-  ggplot( aes(x=monthN, y=brier_2sd, group=modN, color=modN))+
+  ggplot( aes(x=monthN, y=brier_2sd, group=interaction(modN,horizon), color=interaction(horizon)))+
   geom_line()+
   theme_minimal()
 ggplotly(p1)
 
+
+b1 %>%
+  dplyr::group_by(horizon,modN) %>%
+  dplyr::summarize(brier_2sd=mean(brier_2sd)) %>%
+  ggplot(aes(x=horizon, y=brier_2sd, group=modN, color=modN))+
+  geom_line()
 
 b1<- b1 %>%
   dplyr::group_by(monthN,modN) %>%
@@ -871,7 +888,7 @@ p3 <- MDR_NEW %>%
 
 p3
 
-district_chars <- readRDS('C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
+district_chars <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
   dplyr::group_by(district) %>%
   dplyr::summarize(cases=sum(m_DHF_cases), 
             pop=sum(pop),cluster=mean(cluster),
@@ -944,7 +961,7 @@ plot.dist.fun <- function(district.select){
   
   animate(p2, fps=5, nframes=length(unique(plot.df$date)), renderer = gifski_renderer(),end_pause = 20)
   
-  anim_save(paste0("C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/Data/obs_exp_",district.select, ".gif"))
+  anim_save(paste0("./Data/Data/obs_exp_",district.select, ".gif"))
   
 }
 
@@ -953,7 +970,7 @@ all.plots <- lapply(all.districts[1:20],plot.dist.fun)
 
 ####Bias and sharpness
 
-bias_sharpness<- readRDS('C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Data/cleaned_scores/sharpness_bias_summary2.rds')
+bias_sharpness<- readRDS('./Data/cleaned_scores/sharpness_bias_summary2.rds')
 
 
 b1 <- inner_join(bias_sharpness, obs_case, by = c("district", "date"))
