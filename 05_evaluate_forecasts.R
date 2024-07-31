@@ -41,7 +41,7 @@ obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as
 obs_case <- readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') %>%
   dplyr::select(date, district,m_DHF_cases, pop)
 
-out <- readRDS( "./Data/cleaned_scores/all_crps_slim_updated_Final.rds") %>%  #CRPS score from model
+out <- readRDS( "./Data/cleaned_scores/all_crps_slim_updated_addpca2.rds") %>%  #CRPS score from model
   dplyr::select(-pop,-m_DHF_cases) %>%
   full_join(obs_case, by=c('date','district')) %>%
   filter(date<='2016-12-01')
@@ -55,7 +55,7 @@ q<- setdiff(date_sequence,as.Date(m$vintage_date))
 as.Date(q)
 
 miss.mod <- out %>%
-  filter(horizon==2 & date <= '2016-12-01') %>%
+  filter(horizon==2 & date <= '2016-10-01' & date !='2014-03-01' & date != '2014-04-01') %>%
   group_by(modN) %>%
   dplyr::summarize(N=n()) %>%
   mutate(exclude_miss_mod = N<max(N))
