@@ -22,7 +22,7 @@ N_cores = detectCores()
 
 obs_epidemics <- readRDS( './Data/observed_alarms.rds') %>% #observed alarms, as flagged in outbreak_quant.R
   rename(case_vintage=m_DHF_cases) %>%
-  dplyr::select(date, district,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
+  dplyr::select(date, district,pop,case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
 
 
 ##Results from spatiotemporal models
@@ -157,7 +157,7 @@ brier1 <- pblapply(file.names1,function(X){
   brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
   brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
   
-  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd,'obs_epidemic_2sd'=pred.iter$obs_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd ,'obs_epidemic_nb'=pred.iter$obs_epidemic_nb )
 })
 
 brier2 <- pblapply(file.names2,function(X){
@@ -192,7 +192,7 @@ if (grepl("PC_lags_weather", X)) {
   brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
   brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
   
-  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd,'obs_epidemic_2sd'=pred.iter$obs_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd ,'obs_epidemic_nb'=pred.iter$obs_epidemic_nb )
 })
 
 
@@ -225,7 +225,7 @@ brier3 <- lapply(file.names3,function(X){
   brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
   brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
   
-  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd,'obs_epidemic_2sd'=pred.iter$obs_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd ,'obs_epidemic_nb'=pred.iter$obs_epidemic_nb )
 })
 
 
@@ -238,4 +238,8 @@ brier_summary <- c(brier1, brier2,brier3) %>%
 saveRDS(brier_summary, "./Results/brier_summary_updated.rds")
 
 
-
+##TEST PERFORMANCE IN A DIFFERENT WAY
+#--evaluate the proportion of districts with a probability of outbreak > X actually had an observd outbreak
+# mod1 <- mgcv::gam(obs_epidemic_2sd~s(prob_pred_epidemic_2sd), family='binomial', data=pred.iter)
+#plot(pred.iter$prob_pred_epidemic_2sd, mod1$fitted.values)
+#abline(a=0, b=1)
