@@ -243,3 +243,39 @@ saveRDS(brier_summary, "./Results/brier_summary_updated.rds")
 # mod1 <- mgcv::gam(obs_epidemic_2sd~s(prob_pred_epidemic_2sd), family='binomial', data=pred.iter)
 #plot(pred.iter$prob_pred_epidemic_2sd, mod1$fitted.values, col=factor(pred.iter$horizon))
 #abline(a=0, b=1)
+
+# a1 <- pred.iter %>% 
+#   filter(horizon==2 & district=='AN PHU')
+# View(a1)  
+# 
+# 
+# hist(a1$value)
+# abline(v=mean(log(a1$threshold/a1$pop*100000)))
+# 
+# true_prop<- ls()
+# values <- seq(0,1, by=0.01)
+# for(j in 1:100) {
+#   
+#   i= values[j]
+#   print(j)
+#   
+#   true_prop[[j]] <- d1$log.samps.inc %>%
+#     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+#     left_join(obs_epidemics, by=c('date','district')) %>%
+#     mutate(pred_epidemic_2sd = value > log( threshold/pop*100000),
+#            pred_epidemic_nb = value > log( threshold_nb/pop*100000),
+#            vintage_date=date.test.in) %>%
+#     group_by(date, vintage_date, district, horizon) %>%
+#     summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
+#                prob_pred_epidemic_nb= mean(pred_epidemic_nb),
+#                obs_epidemic_2sd=mean(epidemic_flag),
+#                obs_epidemic_nb = mean(epidemic_flag_nb)) %>%
+#     ungroup() %>%
+#     filter(prob_pred_epidemic_2sd> i ) %>% # look only at districts with probability above threshold
+#     summarize(true_prop=mean(obs_epidemic_2sd)) %>%
+#     pull(true_prop)
+# }
+# 
+# plot(values[1:100], as.numeric(true_prop[1:100]))
+# abline(a=0, b=1)
+# hist(pred.iter$prob_pred_epidemic_2sd)
