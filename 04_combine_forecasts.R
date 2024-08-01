@@ -241,5 +241,5 @@ saveRDS(brier_summary, "./Results/brier_summary_updated.rds")
 ##TEST PERFORMANCE IN A DIFFERENT WAY
 #--evaluate the proportion of districts with a probability of outbreak > X actually had an observd outbreak
 # mod1 <- mgcv::gam(obs_epidemic_2sd~s(prob_pred_epidemic_2sd), family='binomial', data=pred.iter)
-#plot(pred.iter$prob_pred_epidemic_2sd, mod1$fitted.values)
+#plot(pred.iter$prob_pred_epidemic_2sd, mod1$fitted.values, col=factor(pred.iter$horizon))
 #abline(a=0, b=1)
