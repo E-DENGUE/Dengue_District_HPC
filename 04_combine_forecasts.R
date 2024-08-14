@@ -161,7 +161,7 @@ brier1 <- pblapply(file.names1,function(X){
   brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
   brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
   
-  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd,'obs_epidemic_2sd'=pred.iter$obs_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd ,'obs_epidemic_nb'=pred.iter$obs_epidemic_nb)
 })
 
 brier2 <- pblapply(file.names2,function(X){
@@ -196,7 +196,7 @@ brier2 <- pblapply(file.names2,function(X){
   brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
   brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
   
-  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd,'obs_epidemic_2sd'=pred.iter$obs_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd ,'obs_epidemic_nb'=pred.iter$obs_epidemic_nb)
 })
 
 
@@ -229,7 +229,7 @@ brier3 <- lapply(file.names3,function(X){
   brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
   brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
   
-  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd)
+  brier.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd,'obs_epidemic_2sd'=pred.iter$obs_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd ,'obs_epidemic_nb'=pred.iter$obs_epidemic_nb)
 })
 
 
