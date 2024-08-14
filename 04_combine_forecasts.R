@@ -237,7 +237,9 @@ brier3 <- lapply(file.names3,function(X){
 brier_summary <- c(brier1, brier2,brier3) %>% 
   bind_rows() %>%
   mutate(monthN=month(date))%>%
-  ungroup() 
+
+  
+    ungroup() 
 
 saveRDS(brier_summary, "./Results/brier_summary_updated_lag3.rds")
 
