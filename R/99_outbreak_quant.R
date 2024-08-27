@@ -236,9 +236,17 @@ for(j in 1:length(unique(ds1.in$district))){
   }
 }
 
+inc_month_95 <- inc_month %>%
+  filter(quantile==0.95) #month varying fixed threshold
+
 out.ds <- bind_rows(ds1.in.dist.init)%>%
-  mutate(obs_inc=m_DHF_cases/pop*100000)
+  mutate(obs_inc=m_DHF_cases/pop*100000) %>%
+  left_join(inc_month_95, by=c('monthN'='month')) %>%
+  mutate(threshold_month_flag= if_else(obs_inc>inc_quantile,1,0))
+
 saveRDS(out.ds,'./Data/thres_ds1.rds')
+#out.ds <- readRDS('./Data/thres_ds1.rds')
+
 
 plot.districts10 <- unique(out.ds$district)[1:10]
 
@@ -254,6 +262,13 @@ ggplot(ds2_pois10, aes(x=date, y=obs_inc)) +
   geom_hline(yintercept=50, col='gray')+ # is assume 1 week has 100 cases/100K, and other 3 weeks in month have 25
   geom_point(aes(x=date, y=obs_inc, color=epidemic_flag_fixed)) 
   
+ggplot(ds2_pois10, aes(x=date, y=obs_inc)) +
+  geom_line(col='black') +
+  theme_classic() +
+  facet_wrap(~district, scales='fixed') +
+  geom_line(aes(x=date, y=inc_quantile), col='gray', lty=2, alpha=0.5)+
+  geom_point(aes(x=date, y=obs_inc, color=threshold_month_flag)) 
+
 
 ggplot(ds2_pois10, aes(x=date, y=m_DHF_cases)) +
   geom_line(col='black') +
