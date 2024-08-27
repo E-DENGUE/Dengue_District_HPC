@@ -61,6 +61,39 @@ p2 <-e1 %>% filter(dist_id>=2 & dist_id<=7) %>%
     facet_wrap(~district, nrow=3, ncol=2)
 p2
 
+
+#Simple look across all districts at histogram of incidence by month
+
+d2 %>%
+  mutate(inc= m_DHF_cases/pop*100000,
+         log_inc=log((m_DHF_cases+1)/pop*100000)) %>%
+  ggplot( aes(x=log_inc)) + 
+  geom_histogram(binwidth=1) +
+  theme_classic()+
+  facet_wrap(~month)
+
+inc_month <- d2 %>%
+  mutate(inc = m_DHF_cases / pop * 100000) %>%
+  as_tibble() %>%
+  filter(!is.na(pop)) %>%
+  group_by(month) %>%
+  reframe(quantile = c(0.99,0.95, 0.9, 0.80, 0.7),
+          inc_quantile = quantile(inc, probs = c(0.99,0.95, 0.9, 0.80, 0.7)))#%>%
+  #filter(quantile==0.99)
+
+inc_month %>%
+  ggplot(aes(x=month, y=inc_quantile, group=quantile, color=quantile))+
+  geom_line()+
+  theme_classic()
+
+inc_quants <- d2 %>%
+  mutate(inc = m_DHF_cases / pop * 100000) %>%
+  as_tibble() %>%
+  filter(!is.na(pop)) %>%
+ # group_by(month) %>%
+  reframe(quantile = c(0.99,0.95, 0.9, 0.80, 0.7),
+          inc_quantile = quantile(inc, probs = c(0.99,0.95, 0.9, 0.80, 0.7)))
+
 #############################################
 ##USING THE VIETNAMESE MOH DEFINITION
 #############################################
