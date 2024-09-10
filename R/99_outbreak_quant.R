@@ -236,13 +236,16 @@ for(j in 1:length(unique(ds1.in$district))){
   }
 }
 
-inc_month_95 <- inc_month %>%
-  filter(quantile==0.95) #month varying fixed threshold
+inc_month_all <- inc_month %>%
+  reshape2::dcast(month~quantile, value.var='inc_quantile', prefix='inc_quantile')%>%
+  rename_with(~paste0("inc_quantile_", .), -month) 
 
-out.ds <- bind_rows(ds1.in.dist.init)%>%
+out.ds <- bind_rows(ds1.in.dist.init)%>% 
+   #out.ds <- out.ds %>%
   mutate(obs_inc=m_DHF_cases/pop*100000) %>%
-  left_join(inc_month_95, by=c('monthN'='month')) %>%
-  mutate(threshold_month_flag= if_else(obs_inc>inc_quantile,1,0))
+  left_join(inc_month_all, by=c('monthN'='month')) %>%
+  mutate(threshold_month_flag95= if_else(obs_inc>inc_quantile_0.95,1,0),
+         threshold_month_flag90= if_else(obs_inc>inc_quantile_0.9,1,0))
 
 saveRDS(out.ds,'./Data/thres_ds1.rds')
 #out.ds <- readRDS('./Data/thres_ds1.rds')
@@ -267,7 +270,14 @@ ggplot(ds2_pois10, aes(x=date, y=obs_inc)) +
   theme_classic() +
   facet_wrap(~district, scales='fixed') +
   geom_line(aes(x=date, y=inc_quantile), col='gray', lty=2, alpha=0.5)+
-  geom_point(aes(x=date, y=obs_inc, color=threshold_month_flag)) 
+  geom_point(aes(x=date, y=obs_inc, color=threshold_month_flag95)) 
+
+ggplot(ds2_pois10, aes(x=date, y=obs_inc)) +
+  geom_line(col='black') +
+  theme_classic() +
+  facet_wrap(~district, scales='fixed') +
+  geom_line(aes(x=date, y=inc_quantile), col='gray', lty=2, alpha=0.5)+
+  geom_point(aes(x=date, y=obs_inc, color=threshold_month_flag90)) 
 
 
 ggplot(ds2_pois10, aes(x=date, y=m_DHF_cases)) +
