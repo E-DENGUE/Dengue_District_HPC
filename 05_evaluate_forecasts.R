@@ -760,6 +760,20 @@ p2.ds_district %>%
   theme_minimal() +
   ggtitle('Vintage date of forecats vs obs date')
 
+
+###############################################
+###############################################
+#CALCULATE SEASONAL BASELINE AND UNCERTAINTY
+#note this is run for each calendar year and district (~1000 models)...only needs to be run once, and results are saved
+for(i in 2012:2021){
+  for(j in unique(d2$district)){
+    ts_decomposition_inla(forecast_year=i, district.select=j)
+    print(c(i,j))
+  }
+}
+
+
+
 ###The outbreak region from the prediction using the ensemble model
 
 ################################################
