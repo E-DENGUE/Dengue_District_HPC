@@ -144,3 +144,246 @@ predict.rlm <- function (object, newdata = NULL, scale = NULL, ...)
   object$qr <- qr(sqrt(object$weights) * object$x)
   predict.lm(object, newdata = newdata, scale = object$s, ...)
 }
+
+ts_decomposition_inla <- function(forecast_year=2012, district.select='CHO MOI'){
+
+    c1 <- d2 %>%
+      filter( date>='2004-09-01')%>%
+      left_join(spat_IDS, by='district') %>%
+      arrange(district, date) %>%
+      mutate( t = lubridate::interval(min(date), date) %/% months(1) + 1) %>%
+      group_by(district) %>%
+      mutate(district2=district,
+             Dengue_fever_rates = m_DHF_cases / pop * 100000,
+             log_df_rate = log((m_DHF_cases + 1) / pop * 100000),
+             log_pop = log(pop / 100000),
+             year = lubridate::year(date),
+             lag_y = lag(log_df_rate, 1),
+             lag2_y = lag(log_df_rate, 2),
+             lag3_y = lag(log_df_rate, 3),
+            
+             sin12 = sin(2*pi*t/12),
+             cos12 = cos(2*pi*t/12),
+             month=as.factor(month(date)),
+             monthN=month(date),
+             offset1 = pop/100000,
+             #log_offset=log(pop/100000)
+      ) %>%
+      ungroup() %>%
+      mutate(
+        districtID2 = districtID,
+        districtID3 = districtID,
+        districtID4 = districtID,
+        t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
+        
+        time_id1= t , 
+        time_id2=t,
+        time_id3= t,
+        time_id4= t,
+        yearN= as.numeric(as.factor(year)),
+        
+        urban_dic = as.factor(if_else(Urbanization_Rate>=40,1,0))) %>%
+      arrange(date,districtID) %>% #SORT FOR SPACE_TIME
+      mutate(districtIDpad=str_pad(districtID, 3, pad = "0", side='left'),
+             timeIDpad=str_pad(time_id1, 5, pad = "0", side='left')
+       
+      )
+    
+    c2 <- c1 %>%
+      filter(district==district.select & year <=forecast_year) %>%
+      mutate(m_DHF_cases_fit = if_else(year>=forecast_year, NA_real_, m_DHF_cases))
+    
+    offset1 <- c2$offset1
+    
+    #single district version
+    form2 <- as.formula( 'm_DHF_cases_fit ~ 1+
+            f(time_id1, model="ar1",constr=TRUE) +
+            f(yearN, model="rw2", constr=TRUE)+
+            f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+    )
+    
+    n_times <- length(unique(c2$time_id1))
+    n_years <- length(unique(c2$year))
+    
+    pred.time_id1 <- c2$time_id1[(n_times-11):n_times]
+    pred.yearN <- c2$yearN[(n_times-11):n_times]
+    pred.monthN <- c2$monthN[(n_times-11):n_times]
+    
+    time.mat <- model.matrix(~ -1 + as.factor(time_id1) , data=c2)
+    year.mat <- model.matrix(~ -1 + as.factor(yearN) , data=c2)
+    month.mat <- model.matrix(~ -1 + as.factor(monthN) , data=c2)
+    
+    #confirm linear combs gives same results as summary.linear.predictor
+    # lc.lin.pred = inla.make.lincombs("(Intercept)"=rep(1,12),
+    #                              'time_id1' = time.mat[(n_times-11):n_times,], 
+    #                              'yearN' = year.mat[(n_times-11):n_times,],
+    #                              'monthN'=month.mat[(n_times-11):n_times,])
+    
+    lc.lin.pred.no.ar1 = inla.make.lincombs("(Intercept)"=rep(1,nrow(c2)),
+                                     'time_id1' = rep(0,nrow(c2)), 
+                                     'yearN' = year.mat,
+                                     'monthN'=month.mat)
+    
+    mod1 <- inla(form2, data = c2,  family = "poisson",E=offset1,
+                 lincomb = lc.lin.pred.no.ar1,
+                 control.compute = list(dic = FALSE, 
+                                        waic = FALSE, 
+                                        config = T,
+                                        return.marginals=F
+                 ),
+                 # save predicted values on response scale
+                 control.predictor = list(compute=TRUE, link=1),
+                 control.fixed = list(mean.intercept=0, 
+                                      prec.intercept=1e-4, # precision 1
+                                      mean=0, 
+                                      prec=1), # weakly regularising on fixed effects (sd of 1)
+                 inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
+                 num.threads=8
+    )    
+    mod.family <- mod1$.args$family
+    
+    #need the linear predictor minus the AR(1) using lincomb; ar(1) random effect should be uncorrelated from rest of model;
+    lin.pred.no.ar1 <- mod1$summary.lincomb.derived[,c('mean','sd')] %>%
+      rename(mean.no.ar1=mean, sd.no.ar1=sd)
+    
+    ##dataset with the baseline expected values!
+    baseline <- cbind.data.frame('date'=c2$date ,lin.pred.no.ar1) %>%
+      rename(mean_log_baseline= mean.no.ar1, sd_log_baseline=sd.no.ar1) %>%
+      mutate(year=lubridate::year(date),
+             district=district.select) %>%
+      filter(year==forecast_year) %>%
+      saveRDS( paste0('./Data/baselines/baseline_', forecast_year,'_',district.select,'.rds'))
+        
+    # lin.pred <- mod1$summary.linear.predictor[,c('mean','sd')]%>%
+        #   rename(mean.lin.pred=mean, sd.lin.pred=sd) 
+        # 
+        # comb.pred <- cbind.data.frame('date'=c2$date ,lin.pred.no.ar1, lin.pred) %>%
+        #   mutate(t=row_number())
+        # 
+        # ggplot(comb.pred, aes(x=date, y=mean.no.ar1))+
+        #   geom_line(color='red')+
+        #   geom_line(aes(x=date, y=mean.lin.pred))
+}
+
+
+
+## SEASONAL DECOMPOSITION IN INLA TO GET THE BASELINE
+ts_decomposition_inla <- function(forecast_year=2012, district.select='CHO MOI'){
+  
+  c1 <- d2 %>%
+    filter( date>='2004-09-01')%>%
+    left_join(spat_IDS, by='district') %>%
+    arrange(district, date) %>%
+    mutate( t = lubridate::interval(min(date), date) %/% months(1) + 1) %>%
+    group_by(district) %>%
+    mutate(district2=district,
+           Dengue_fever_rates = m_DHF_cases / pop * 100000,
+           log_df_rate = log((m_DHF_cases + 1) / pop * 100000),
+           log_pop = log(pop / 100000),
+           year = lubridate::year(date),
+           lag_y = lag(log_df_rate, 1),
+           lag2_y = lag(log_df_rate, 2),
+           lag3_y = lag(log_df_rate, 3),
+           
+           sin12 = sin(2*pi*t/12),
+           cos12 = cos(2*pi*t/12),
+           month=as.factor(month(date)),
+           monthN=month(date),
+           offset1 = pop/100000,
+           #log_offset=log(pop/100000)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      districtID2 = districtID,
+      districtID3 = districtID,
+      districtID4 = districtID,
+      t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
+      
+      time_id1= t , 
+      time_id2=t,
+      time_id3= t,
+      time_id4= t,
+      yearN= as.numeric(as.factor(year)),
+      
+      urban_dic = as.factor(if_else(Urbanization_Rate>=40,1,0))) %>%
+    arrange(date,districtID) %>% #SORT FOR SPACE_TIME
+    mutate(districtIDpad=str_pad(districtID, 3, pad = "0", side='left'),
+           timeIDpad=str_pad(time_id1, 5, pad = "0", side='left')
+           
+    )
+  
+  c2 <- c1 %>%
+    filter(district==district.select & year <=forecast_year) %>%
+    mutate(m_DHF_cases_fit = if_else(year>=forecast_year, NA_real_, m_DHF_cases))
+  
+  offset1 <- c2$offset1
+  
+  #single district version
+  form2 <- as.formula( 'm_DHF_cases_fit ~ 1+
+            f(time_id1, model="ar1",constr=TRUE) +
+            f(yearN, model="rw2", constr=TRUE)+
+            f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+  )
+  
+  n_times <- length(unique(c2$time_id1))
+  n_years <- length(unique(c2$year))
+  
+  pred.time_id1 <- c2$time_id1[(n_times-11):n_times]
+  pred.yearN <- c2$yearN[(n_times-11):n_times]
+  pred.monthN <- c2$monthN[(n_times-11):n_times]
+  
+  time.mat <- model.matrix(~ -1 + as.factor(time_id1) , data=c2)
+  year.mat <- model.matrix(~ -1 + as.factor(yearN) , data=c2)
+  month.mat <- model.matrix(~ -1 + as.factor(monthN) , data=c2)
+  
+  #confirm linear combs gives same results as summary.linear.predictor
+  # lc.lin.pred = inla.make.lincombs("(Intercept)"=rep(1,12),
+  #                              'time_id1' = time.mat[(n_times-11):n_times,], 
+  #                              'yearN' = year.mat[(n_times-11):n_times,],
+  #                              'monthN'=month.mat[(n_times-11):n_times,])
+  
+  lc.lin.pred.no.ar1 = inla.make.lincombs("(Intercept)"=rep(1,nrow(c2)),
+                                          'time_id1' = rep(0,nrow(c2)), 
+                                          'yearN' = year.mat,
+                                          'monthN'=month.mat)
+  
+  mod1 <- inla(form2, data = c2,  family = "poisson",E=offset1,
+               lincomb = lc.lin.pred.no.ar1,
+               control.compute = list(dic = FALSE, 
+                                      waic = FALSE, 
+                                      config = T,
+                                      return.marginals=F
+               ),
+               # save predicted values on response scale
+               control.predictor = list(compute=TRUE, link=1),
+               control.fixed = list(mean.intercept=0, 
+                                    prec.intercept=1e-4, # precision 1
+                                    mean=0, 
+                                    prec=1), # weakly regularising on fixed effects (sd of 1)
+               inla.mode = "experimental", # new version of INLA algorithm (requires R 4.1 and INLA testing version)
+               num.threads=8
+  )    
+  mod.family <- mod1$.args$family
+  
+  #need the linear predictor minus the AR(1) using lincomb; ar(1) random effect should be uncorrelated from rest of model;
+  lin.pred.no.ar1 <- mod1$summary.lincomb.derived[,c('mean','sd')] %>%
+    rename(mean.no.ar1=mean, sd.no.ar1=sd)
+  
+  ##dataset with the baseline expected values!
+  baseline <- cbind.data.frame('date'=c2$date ,lin.pred.no.ar1) %>%
+    rename(mean_log_baseline= mean.no.ar1, sd_log_baseline=sd.no.ar1) %>%
+    mutate(year=lubridate::year(date),
+           district=district.select) %>%
+    filter(year==forecast_year) %>%
+    saveRDS( paste0('./Data/baselines/baseline_', forecast_year,'_',district.select,'.rds'))
+  
+  # lin.pred <- mod1$summary.linear.predictor[,c('mean','sd')]%>%
+  #   rename(mean.lin.pred=mean, sd.lin.pred=sd) 
+  # 
+  # comb.pred <- cbind.data.frame('date'=c2$date ,lin.pred.no.ar1, lin.pred) %>%
+  #   mutate(t=row_number())
+  # 
+  # ggplot(comb.pred, aes(x=date, y=mean.no.ar1))+
+  #   geom_line(color='red')+
+  #   geom_line(aes(x=date, y=mean.lin.pred))
+}
