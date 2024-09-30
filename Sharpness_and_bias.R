@@ -54,7 +54,7 @@ calc_bias_sharpness1<- pblapply(file.names1,function(X){
   pred.iter <- d1$log.samps.inc %>%
     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
     left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate(pred_epidemic = value > log(m_DHF_cases / pop * 100000),
+    mutate(pred_epidemic = value < log(m_DHF_cases / pop * 100000),
            vintage_date=date.test.in) %>%
     group_by(date,vintage_date, district, horizon) %>%
     summarize( prob_pred_epidemic = mean(pred_epidemic)
@@ -90,6 +90,59 @@ calc_bias_sharpness1<- pblapply(file.names1,function(X){
 })
 
 
+calc_bias_sharpness2 <- pblapply(file.names2,function(X){
+  d1 <- readRDS(file=file.path(X))
+  
+  if (grepl("PC_lags_weather", X)) {
+    modN <- "PC_lags_weather"
+  } else if (grepl("PC_lags", X)) {
+    modN <- "PC_lags"
+  } else if (grepl("PC_weather", X)) {
+    modN <- "PC_weather"
+  } else {
+    modN <- NA  # Handle other cases if necessary
+  }
+  
+  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
+  # Extract the date from the string using gsub
+  date.test.in <- regmatches(X, regexpr(date_pattern, X))
+  
+  pred.iter <- d1$log.samps.inc %>%
+    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+    left_join(obs_epidemics, by=c('date','district')) %>%
+    mutate(pred_epidemic = value < log(m_DHF_cases / pop * 100000),
+           vintage_date=date.test.in) %>%
+    group_by(date,vintage_date, district, horizon) %>%
+    summarize( prob_pred_epidemic = mean(pred_epidemic)
+    )
+  
+  pred.iter$bias <- 1 - 2 * pred.iter$prob_pred_epidemic
+  
+  
+  sharpness_by_district <- d1$log.samps.inc %>%
+    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
+    left_join(obs_epidemics, by=c('date','district')) %>%
+    mutate( vintage_date=date.test.in)%>%
+    group_by(date,vintage_date, district, horizon) %>%
+    summarize(
+      sharpness = {
+        
+        abs_deviations <- abs(value - median(value, na.rm = TRUE))
+        
+        mad <- median(abs_deviations, na.rm = TRUE)
+        
+        
+        (1 / 0.675) * mad
+      }
+    )
+  
+  pred.iter$Sharpness<-  sharpness_by_district$sharpness
+  
+  bias.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, 'sharpness'=pred.iter$Sharpness, 'bias'=pred.iter$bias)
+  
+  return(bias.out) 
+  
+})
 
 calc_bias_sharpness3 <- lapply(file.names3,function(X){
   
@@ -108,7 +161,7 @@ calc_bias_sharpness3 <- lapply(file.names3,function(X){
   pred.iter <- d1$log.samps.inc %>%
     reshape2::melt(., id.vars=c('date','district','horizon')) %>%
     left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate(pred_epidemic = value >log(m_DHF_cases / pop * 100000),
+    mutate(pred_epidemic = value < log(m_DHF_cases / pop * 100000),
            vintage_date=date.test.in) %>%
     group_by(date,vintage_date, district, horizon) %>%
     summarize( prob_pred_epidemic = mean(pred_epidemic)
@@ -139,64 +192,6 @@ calc_bias_sharpness3 <- lapply(file.names3,function(X){
   bias.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, 'sharpness'=pred.iter$Sharpness, 'bias'=pred.iter$bias)
   
 return(bias.out) 
-  
-})
-
-
-
-
-
-calc_bias_sharpness2 <- pblapply(file.names2,function(X){
-  d1 <- readRDS(file=file.path(X))
-  
-  if (grepl("PC_lags_weather", X)) {
-    modN <- "PC_lags_weather"
-  } else if (grepl("PC_lags", X)) {
-    modN <- "PC_lags"
-  } else if (grepl("PC_weather", X)) {
-    modN <- "PC_weather"
-  } else {
-    modN <- NA  # Handle other cases if necessary
-  }
-  
-  date_pattern <- "\\d{4}-\\d{2}-\\d{2}"
-  # Extract the date from the string using gsub
-  date.test.in <- regmatches(X, regexpr(date_pattern, X))
-  
-  pred.iter <- d1$log.samps.inc %>%
-    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
-    left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate(pred_epidemic = value > log(m_DHF_cases / pop * 100000),
-           vintage_date=date.test.in) %>%
-    group_by(date,vintage_date, district, horizon) %>%
-    summarize( prob_pred_epidemic = mean(pred_epidemic)
-    )
-  
-  pred.iter$bias <- 1 - 2 * pred.iter$prob_pred_epidemic
-  
-  
-  sharpness_by_district <- d1$log.samps.inc %>%
-    reshape2::melt(., id.vars=c('date','district','horizon')) %>%
-    left_join(obs_epidemics, by=c('date','district')) %>%
-    mutate( vintage_date=date.test.in)%>%
-    group_by(date,vintage_date, district, horizon) %>%
-    summarize(
-      sharpness = {
-        
-        abs_deviations <- abs(value - median(value, na.rm = TRUE))
-        
-        mad <- median(abs_deviations, na.rm = TRUE)
-        
-        
-        (1 / 0.675) * mad
-      }
-    )
-  
-  pred.iter$Sharpness<-  sharpness_by_district$sharpness
-  
-  bias.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, 'sharpness'=pred.iter$Sharpness, 'bias'=pred.iter$bias)
-  
- return(bias.out) 
   
 })
 
