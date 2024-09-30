@@ -772,6 +772,70 @@ for(i in 2012:2021){
   }
 }
 
+## Compare observed cases to baseline
+
+#observed data
+d2<-  readRDS('./Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned_lag3.rds') %>%
+  dplyr::select(district, date, m_DHF_cases, pop)
+
+
+all.bases.paths <- list.files(path = './Data/baselines/' ,full.names=TRUE,recursive=TRUE)
+
+all.bases<- lapply(all.bases.paths, function(x) readRDS(x)) %>%
+  bind_rows()  %>%
+  left_join(d2, by=c('district', 'date')) %>%
+  mutate(baseline_cases_mean= exp(mean_log_baseline)*pop[i]/100000,
+         order=row_number())
+
+for(i in 1: nrow(all.bases)){
+  test_values <- c(0:(all.bases$m_DHF_cases[i]-1))
+  
+  all.bases$prob_obs_greater_historic[i] <- sum(dpoilog( test_values, mu=all.bases$mean_log_baseline[i] +log(all.bases$pop[i]/100000), sig=all.bases$sd_log_baseline[i], log=F))
+
+}
+hist(all.bases$prob_obs_greater_historic)
+
+#exceedance of historical levels by month of year?
+all.bases %>%
+  mutate(month=month(date)) %>%
+  group_by(month) %>%
+  summarize( sig = mean(prob_obs_greater_historic>=0.95))
+
+all.districts = unique(all.bases$district)
+all.bases %>%
+  filter(district %in% all.districts[1:16]) %>%
+  mutate(inc= m_DHF_cases/pop*100000) %>%
+  ggplot() +
+  geom_histogram(aes(m_DHF_cases))+
+  facet_wrap(~district)
+
+
+all.bases %>%
+  mutate(inc= m_DHF_cases/pop*100000,
+         risk_score=prob_obs_greater_historic*m_DHF_cases) %>%
+  ggplot() +
+  geom_histogram(aes(risk_score))
+
+all.bases %>%
+  mutate(inc= m_DHF_cases/pop*100000) %>%
+  ggplot(aes(x=prob_obs_greater_historic, y=m_DHF_cases, size=pop))+
+  geom_point(alpha=0.2) +
+  theme_classic()+
+  scale_size(range = c(.1, 5), name="population size")+
+  xlab('Probability of exceeding historic')+
+  ylab('N Cases')
+
+all.bases %>%
+  mutate(inc= m_DHF_cases/pop*100000) %>%
+  ggplot(aes(x=prob_obs_greater_historic, y=inc, size=m_DHF_cases))+
+  geom_point(alpha=0.2) +
+  theme_classic()+
+  scale_size(range = c(.1, 5), name="N cases")+
+  xlab('Probability of exceeding historic')+
+  ylab('Cases/100000 population')
+
+
+
 
 
 ###The outbreak region from the prediction using the ensemble model
