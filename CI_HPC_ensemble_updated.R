@@ -61,7 +61,6 @@ process_file1 <- pblapply(file.names1, function(X) {
 
 
 
-
 # Process HHH4 model files
 process_file_hhh4 <- lapply(file.names3,function(X){
   
@@ -117,19 +116,17 @@ process_file_pca <- pblapply(file.names2, function(X) {
 
 
 
-
 # Combine all results and calculate quantiles
 summary <-  c(process_file1, process_file_pca,process_file_hhh4) %>% 
   bind_rows() 
 
 
-saveRDS(summary, './Results/summary.rds')
 
 summary <- summary %>% 
   filter(modN != 'mod4_')
 
 
-##these were calculated according to CRPS2
+# These were calcualted fron crps
 weights <- data.frame(
   horizon = c(1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3),
   modN = c("mod3_", "modhhh4_power_precip_temp_", "mod2_", "PC_lags", "mod1_",
