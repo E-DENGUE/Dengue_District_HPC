@@ -256,7 +256,7 @@ prob3 <- lapply(file.names3,function(X){
 
 
 
-#0=perfect prediction,1=bad
+
 prob_summary <- c(prob1, prob2,prob3) %>% 
   bind_rows() %>%
   mutate(monthN=month(date))%>%
