@@ -105,7 +105,7 @@ prob1 <- pblapply(file.names1, function(X) {
   return(prob.out)
 })
 
-saveRDS(prob1, "./Results/predicted_outbreak1_50_percentile.rds")
+
 
 prob2 <- pblapply(file.names2, function(X) {
   d1 <- readRDS(file = file.path(X))
@@ -180,7 +180,7 @@ prob2 <- pblapply(file.names2, function(X) {
   return(prob.out)
 })
 
-saveRDS(prob2, "./Results/predicted_outbreak2_50_percentile.rds")
+
 
 
 prob3 <- lapply(file.names3,function(X){
@@ -253,7 +253,7 @@ prob3 <- lapply(file.names3,function(X){
   return(prob.out)
 })
 
-saveRDS(prob3, "./Results/predicted_outbreak3_50_percentile.rds")
+
 
 #0=perfect prediction,1=bad
 prob_summary <- c(prob1, prob2,prob3) %>% 
