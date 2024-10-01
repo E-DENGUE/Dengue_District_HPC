@@ -36,6 +36,7 @@ file.names2 <- paste0('./Results/Results_pca/',list.files('./Results/Results_pca
 file.names3 <- list.files('./Resutls/Resutls_hhh4')
 
 
+
 prob1 <- pblapply(file.names1, function(X) {
   d1 <- readRDS(file = paste0('./Results/Results_spacetime/', file.path(X)))
   
