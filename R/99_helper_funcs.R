@@ -198,7 +198,7 @@ ts_decomposition_inla <- function(forecast_year=2012, district.select='CHO MOI')
     #single district version
     form2 <- as.formula( 'm_DHF_cases_fit ~ 1+
             f(time_id1, model="ar1",constr=TRUE) +
-            f(yearN, model="rw2", constr=TRUE)+
+            f(yearN, model="rw1", hyper=hyper2.rw,  constr=TRUE)+
             f(monthN, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
     )
     
