@@ -1,4 +1,6 @@
 source('./R/99_load.R')
+library(sads)
+library(tidyverse)
 
 #fit baseline through 2021, project to 2022
 forecast_year=2012
@@ -6,11 +8,11 @@ district.select='CHO MOI'
 
 for(i in 2012:2021){
   for(j in unique(d2$district)){
+    print(i)
+    print(j)
     ts_decomposition_inla(forecast_year=i, district.select=j)
   }
 }
-
-
 
   #this function extracts the samples for the mean of lambda ('Predictor'), and then generates samples
   #from the predictive distribution using rpois or rnbinom
@@ -32,48 +34,56 @@ for(i in 2012:2021){
     return(pred)
   }
   
-
-
-
   
-  #Generate samples from the predictive distribution for the count
+  # baseline.files <-list.files('./Data/baselines',full.names =T)
+  # 
+  # all.baselines <- list()
+  # for(i in 1:length(baseline.files)){
+  #   print(i)
+  #   all.baselines[[i]] <- readRDS(baseline.files[i])
+  # }
+  #all.baselines <- bind_rows(all.baselines)
+  #saveRDS(all.baselines,'./Data/all_baselines.rds')
   
-  test1 <-inla.posterior.sample(1000, mod1, seed=0)
+  all.baselines <- readRDS('./Data/all_baselines.rds')
   
-  samps <- sapply(test1,pred.interval.func,dist=mod.family, simplify='array')
-  
-  samps <- matrix(samps, dim(samps)[1], dim(samps)[2]*dim(samps)[3])
-  
-  #convert the count to incidence
-  samps.inc <- apply(samps,2, function(x) x/c2$pop*100000)
-  
-  
-  prob_epidemic <- NA
-  for(i in 1:nrow(c2)){
-    prob_epidemic[i] <- mean(c2$m_DHF_cases[i] > samps[i,])
-  }
-
-  cbind.data.frame('prob'=prob_epidemic[89:100],'cases'=c2$m_DHF_cases[89:100], 'prod'=c2$m_DHF_cases[89:100]*prob_epidemic[89:100]) %>%
-    ggplot(aes(x=prob, y=cases , color=prod))+
-    geom_point()+
-    theme_classic()
-
-  out_ds <- c2 %>%
-    dplyr::select(date, district,  pop, m_DHF_cases)%>%
-    mutate( pred_mean = apply(samps,1,mean),
-            pred_lcl = apply(samps,1,quantile, probs=0.025),
-            pred_ucl = apply(samps,1,quantile, probs=0.975))
-
-  out_ds %>%
-   # filter(district=='AN MINH') %>%
-  ggplot(aes(x=date, y=m_DHF_cases) )+
-    geom_ribbon(aes(x=date, ymin=pred_lcl, ymax=pred_ucl))+
-  geom_line(color='red')+
-    theme_classic()
+  #DUC HOA, LONG PHU, My TU, AN MINH,AN PHU
+  ds1 <-all.baselines %>%
+    filter(district=='AN MINH') %>%
+    left_join(d2, by=c('date','district')) %>%
+    mutate(ucl_baseline=NA, lcl_baseline=NA,prob_obs=NA)
     
+  for(i in 1:nrow(ds1)){
+    print(i)
+    ds1$ucl_baseline[i] = quantile(rpois(100000,lambda=exp(rnorm(10000,(ds1$mean_log_baseline[i] + log(ds1$pop[i]/100000)),ds1$sd_log_baseline[i]))), probs=0.975)
+    ds1$lcl_baseline[i] = quantile(rpois(100000,lambda=exp(rnorm(10000,(ds1$mean_log_baseline[i] + log(ds1$pop[i]/100000)),ds1$sd_log_baseline[i]))), probs=0.025)
+    ds1$prob_obs[i]= ppoilog( ds1$m_DHF_cases[i] , mu=(ds1$mean_log_baseline[i] + log(ds1$pop[i]/100000)), sig=ds1$sd_log_baseline[i], log=F)
+  }
+    
+  ds1 %>%
+    ggplot() +
+    geom_ribbon(aes( x=date,ymin=lcl_baseline, ymax=ucl_baseline), alpha=0.5)+
+    geom_line(aes(x=date, y=exp(mean_log_baseline)*pop/100000), lty=2, col='red', lwd=0.75)+
+    geom_point(aes(x=date, y=m_DHF_cases)) +
+   theme_classic()
   
+  ds1 %>%
+    ggplot() +
+    geom_line(aes(x=date, y=prob_obs), lty=1, col='red', lwd=0.75)+
+    theme_classic()
   
-  #######################################################
+  ds1 %>%
+    ggplot() +
+    geom_point(aes(x=m_DHF_cases, y=prob_obs), lty=1, col='red', lwd=0.75)+
+    theme_classic()
+   
+ #these are equivalent
+  #qpoilog(p=0.975,5, 1)
+  #quantile(rpois(100000,lambda=exp(rnorm(10000,5,1))), probs=0.975)
+    
+    #quantile(rpois(100000,lambda=exp(rnorm(10000,4.6,0.24))), probs=0.975)
+    
+      #######################################################
   #######################################################
   ## Two equivalent approaches for getting the  difference between two discrete pdfs.
   library(sads)
