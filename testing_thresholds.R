@@ -87,7 +87,39 @@ for(i in 2012:2021){
     ylab("Ratio of Observed vs historical mean")+
   theme_classic()
   
-  #Fold change above baseline mean vs probability that the observation is greaterthan historical range
+  
+  ds1.plot <- ds1 %>%
+    mutate(RR_LCL= m_DHF_cases/lcl_baseline,
+           RR_UCL= m_DHF_cases/ucl_baseline,
+           
+           RD = m_DHF_cases - (exp(mean_log_baseline)*pop/100000),
+           RD_LCL = m_DHF_cases - lcl_baseline,
+           RD_UCL = m_DHF_cases - ucl_baseline,
+           )
+  
+  ds1.plot %>% ggplot() +
+    # Adding colored background bands
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = -Inf, ymax = 1.25), fill = "#4daf4a", alpha = 0.2) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 1.25, ymax = 2.5), fill = "#ffff99", alpha = 0.2) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 2.5, ymax = Inf), fill = "#e41a1c", alpha = 0.2) +
+    #add the data
+    geom_ribbon(aes( x=date,ymin=RR_LCL, ymax=RR_UCL), alpha=0.5)+
+    geom_line(aes(x=date, y=RR), lty=2, col='red', lwd=0.75)+
+    geom_hline(yintercept=1) +
+    theme_classic()
+  
+  ds1.plot %>% ggplot() +
+    # Adding colored background bands
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = -Inf, ymax = 5), fill = "#4daf4a", alpha = 0.2) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 5, ymax = 25), fill = "#ffff99", alpha = 0.2) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 25, ymax = Inf), fill = "#e41a1c", alpha = 0.2) +
+    #add the data
+    geom_ribbon(aes( x=date,ymin=RD_LCL, ymax=RD_UCL), alpha=0.5)+
+    geom_line(aes(x=date, y=RD), lty=2, col='red', lwd=0.75)+
+    geom_hline(yintercept=1) +
+    theme_classic()
+  
+  #Fold change above baseline mean vs probability that the observation is greater than historical range
   ds1 %>%
     ggplot() +
     geom_point(aes(x=RR, y=prob_obs, color=m_DHF_cases))+
