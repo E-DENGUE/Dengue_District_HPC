@@ -51,7 +51,8 @@ for(i in 2012:2021){
   ds1 <-all.baselines %>%
     filter(district=='AN MINH') %>%
     left_join(d2, by=c('date','district')) %>%
-    mutate(ucl_baseline=NA, lcl_baseline=NA,prob_obs=NA)
+    mutate(ucl_baseline=NA, lcl_baseline=NA,prob_obs=NA,
+           RR=m_DHF_cases/(exp(mean_log_baseline)*pop/100000))
     
   for(i in 1:nrow(ds1)){
     print(i)
@@ -74,8 +75,38 @@ for(i in 2012:2021){
   
   ds1 %>%
     ggplot() +
-    geom_point(aes(x=m_DHF_cases, y=prob_obs), lty=1, col='red', lwd=0.75)+
+    geom_point(aes(x=m_DHF_cases, y=prob_obs),  col='red')+
+    geom_hline(yintercept=0.5, lty=2)+
+    ylab("Probability that observed is greatert han historical")+
     theme_classic()
+  
+  ds1 %>%
+    ggplot() +
+    geom_point(aes(x=m_DHF_cases, y=RR),  col='red')+
+    geom_hline(yintercept=0.5, lty=2)+
+    ylab("Ratio of Observed vs historical mean")+
+  theme_classic()
+  
+  #Fold change above baseline mean vs probability that the observation is greaterthan historical range
+  ds1 %>%
+    ggplot() +
+    geom_point(aes(x=RR, y=prob_obs, color=m_DHF_cases))+
+    geom_vline(xintercept=1, lty=2)+
+    geom_hline(yintercept=0.5, lty=2)+
+    scale_color_viridis_c() +  # Apply viridis palette
+    theme_classic()+
+    ylab("Probability that observed is greatert han historical")+
+    xlab("Ratio of Observed vs historical mean")
+  
+  dist1 <- rpois(100000,lambda=exp(rnorm(10000,5,0.5)))
+  dist2 <- rpois(100000,lambda=exp(rnorm(10000,8,0.5)))
+  dist.comp<- cbind.data.frame(dist1, dist2)
+    
+    ggplot(dist.comp) +
+    geom_histogram(aes(x=dist1),alpha=0.5, fill='red')+
+    geom_histogram(aes(x=dist2), alpha=0.5,fill='blue')+
+      theme_classic()
+      
    
  #these are equivalent
   #qpoilog(p=0.975,5, 1)
