@@ -49,7 +49,7 @@ for(i in 2012:2021){
   
   #DUC HOA, LONG PHU, My TU, AN MINH,AN PHU
   ds1 <-all.baselines %>%
-    filter(district=='AN MINH') %>%
+    filter(district=='LONG PHU') %>%
     left_join(d2, by=c('date','district')) %>%
     mutate(ucl_baseline=NA, lcl_baseline=NA,prob_obs=NA,
            RR=m_DHF_cases/(exp(mean_log_baseline)*pop/100000))
@@ -67,6 +67,43 @@ for(i in 2012:2021){
     geom_line(aes(x=date, y=exp(mean_log_baseline)*pop/100000), lty=2, col='red', lwd=0.75)+
     geom_point(aes(x=date, y=m_DHF_cases)) +
    theme_classic()
+  
+  preds <- readRDS( "./Data/cleaned_scores/all_crps_slim_updated_lag3.rds") %>% #note this is just for demo--not sure this is right version of output
+   dplyr::select(date,vintage_date, district, pred_mean, horizon, pred_lcl, pred_ucl, modN) %>%
+    filter(horizon==3 & modN=='mod1_')
+  
+  ds1.p <- ds1 %>%
+    left_join(preds, by=c('district','date')) %>% 
+    filter(!is.na(pred_mean)) 
+  
+    ggplot(ds1.p) +
+      geom_ribbon(aes( x=date,ymin=0, ymax=exp(mean_log_baseline)*pop/100000),fill='#4daf4a', alpha=0.15)+
+      geom_ribbon(aes( x=date,ymin=exp(mean_log_baseline)*pop/100000, ymax=ucl_baseline),fill='#ffff99', alpha=0.15)+
+      geom_ribbon(aes( x=date,ymin=ucl_baseline, ymax=max(pred_ucl)
+      ),fill='#e41a1c', alpha=0.15)+
+      geom_line(aes( x=date,y=pred_lcl),col='black',lty=2)+
+      geom_line(aes( x=date,y=pred_ucl),col='black',lty=2)+
+      geom_line(aes( x=date,y=pred_mean),col='black',lty=1)+
+      #geom_ribbon(aes( x=date,ymin=lcl_baseline, ymax=ucl_baseline), fill='#e41a1c',alpha=0.5)+
+      geom_point(aes(x=date, y=m_DHF_cases)) +
+      ylab("Cases") +
+      theme_classic()
+
+    ggplot(ds1.p) +
+      geom_ribbon(aes( x=date,ymin=0, ymax=exp(mean_log_baseline)*pop/100000),fill='#4daf4a', alpha=0.15)+
+      geom_ribbon(aes( x=date,ymin=exp(mean_log_baseline)*pop/100000, ymax=ucl_baseline),fill='#ffff99', alpha=0.15)+
+      geom_ribbon(aes( x=date,ymin=ucl_baseline, ymax=max(pred_ucl)
+      ),fill='#e41a1c', alpha=0.15)+
+      geom_line(aes( x=vintage_date,y=pred_lcl),col='black',lty=2)+
+      geom_line(aes( x=vintage_date,y=pred_ucl),col='black',lty=2)+
+      geom_line(aes( x=vintage_date,y=pred_mean),col='black',lty=1)+
+      #geom_ribbon(aes( x=date,ymin=lcl_baseline, ymax=ucl_baseline), fill='#e41a1c',alpha=0.5)+
+      geom_point(aes(x=date, y=m_DHF_cases)) +
+      ylab("Cases") +
+      theme_classic()+
+      ggtitle('Vintage Date')  
+  
+  
   
   ds1 %>%
     ggplot() +
@@ -99,8 +136,8 @@ for(i in 2012:2021){
   
   ds1.plot %>% ggplot() +
     # Adding colored background bands
-    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = -Inf, ymax = 1.25), fill = "#4daf4a", alpha = 0.2) +
-    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 1.25, ymax = 2.5), fill = "#ffff99", alpha = 0.2) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = -Inf, ymax = 1), fill = "#4daf4a", alpha = 0.2) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 1.5, ymax = 2.5), fill = "#ffff99", alpha = 0.2) +
     geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 2.5, ymax = Inf), fill = "#e41a1c", alpha = 0.2) +
     #add the data
     geom_ribbon(aes( x=date,ymin=RR_LCL, ymax=RR_UCL), alpha=0.5)+
@@ -119,6 +156,13 @@ for(i in 2012:2021){
     geom_hline(yintercept=1) +
     theme_classic()
   
+  ds1.plot %>%
+    ggplot(aes(x=RR, y=RD))+
+    geom_point()+
+    theme_classic()+
+    geom_hline(yintercept=1) +
+    geom_vline(xintercept=1) 
+    
   #Fold change above baseline mean vs probability that the observation is greater than historical range
   ds1 %>%
     ggplot() +
