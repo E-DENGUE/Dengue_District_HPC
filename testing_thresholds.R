@@ -6,10 +6,10 @@ library(tidyverse)
 forecast_year=2012
 district.select='CHO MOI'
 
-for(i in 2012:2021){
-  for(j in unique(d2$district)){
+for(j in unique(d2$district)){
+  print(j)
+  for(i in 2012:2021){
     print(i)
-    print(j)
     ts_decomposition_inla(forecast_year=i, district.select=j)
   }
 }
@@ -49,7 +49,7 @@ for(i in 2012:2021){
   
   #DUC HOA, LONG PHU, My TU, AN MINH,AN PHU
   ds1 <-all.baselines %>%
-    filter(district=='LONG PHU') %>%
+   filter(district=='LONG PHU') %>%
     left_join(d2, by=c('date','district')) %>%
     mutate(ucl_baseline=NA, lcl_baseline=NA,prob_obs=NA,
            RR=m_DHF_cases/(exp(mean_log_baseline)*pop/100000))
@@ -164,16 +164,30 @@ for(i in 2012:2021){
     geom_vline(xintercept=1) 
     
   #Fold change above baseline mean vs probability that the observation is greater than historical range
-  ds1 %>%
+ p1 <- ds1 %>%
     ggplot() +
     geom_point(aes(x=RR, y=prob_obs, color=m_DHF_cases))+
     geom_vline(xintercept=1, lty=2)+
     geom_hline(yintercept=0.5, lty=2)+
     scale_color_viridis_c() +  # Apply viridis palette
     theme_classic()+
-    ylab("Probability that observed is greatert han historical")+
+    ylab("Probability that observed is greatert than historical")+
     xlab("Ratio of Observed vs historical mean")
-  
+ p1 
+ plotly::ggplotly(p1)
+ 
+ 
+ p1 <- ds1 %>%
+   ggplot() +
+   geom_point(aes(x=log(m_DHF_cases+1), y=prob_obs))+
+   geom_vline(xintercept=1, lty=2)+
+   geom_hline(yintercept=0.5, lty=2)+
+   scale_color_viridis_c() +  # Apply viridis palette
+   theme_classic()+
+   ylab("Probability that observed is greatert than historical")+
+   xlab("log-Number of observed cases")
+ p1 
+ 
   dist1 <- rpois(100000,lambda=exp(rnorm(10000,5,0.5)))
   dist2 <- rpois(100000,lambda=exp(rnorm(10000,8,0.5)))
   dist.comp<- cbind.data.frame(dist1, dist2)
@@ -194,11 +208,12 @@ for(i in 2012:2021){
   #######################################################
   ## Two equivalent approaches for getting the  difference between two discrete pdfs.
   library(sads)
+    
   
   ###historical data has the frequency count from an empirical frequency distribution
   #estimated from an INLA time series decomposition model
   #this represents the mean and SD of the log-mean of the forecast for this time point.
-  historic_log_mean =1
+  historic_log_mean =2
   historic_log_sd =0.5
 
   #estimated from the ensemble model
@@ -225,36 +240,88 @@ for(i in 2012:2021){
   ##Alternative approach, with equivalent results involves resampling from each distribution
   
   set.seed(123)
-  N_samp = 1000000
-  historic <-  rpois(n=N_samp, lambda=exp(rnorm(N_samp,1,0.5))) %>%
-    as.data.frame() %>%
-    rename( N_cases='.') %>%
-    group_by(N_cases) %>%
-    summarize(freq_base = n())
+  N_samp = 100000
 
-
-
-  forecast_data <-  rpois(n=N_samp, lambda=exp(rnorm(N_samp,3,0.5))) %>%
-    as.data.frame() %>%
-    rename( N_cases='.') %>%
-    group_by(N_cases) %>%
-    summarize(freq_forecast = n())%>%
-    left_join(historic, by='N_cases') %>% #do LEFT join, not full join--we don't care about integers where historic>forecast
-    mutate(freq_base= if_else(is.na(freq_base),0, freq_base),
-           prob_base= freq_base/sum(freq_base),
-           prob_forecast=freq_forecast/sum(freq_forecast)
-           )
-    
-  ggplot(forecast_data, aes(x=N_cases, y=prob_base))+
-    geom_line(col='red') +
-    geom_line(aes(x=N_cases, y=prob_forecast), col='blue')
-
+   forecast1 <-  rpois(n=N_samp, lambda=exp(rnorm(N_samp,forecast_log_mean,forecast_log_sd)))
+  historic1 <-  rpois(n=N_samp, lambda=exp(rnorm(N_samp,historic_log_mean,historic_log_sd)))
   
-  prob_diff <- forecast_data %>%
-    mutate( diff_prob = prob_forecast - prob_base,
-            diff_prob=if_else(diff_prob<0,0,diff_prob)) %>%
-    summarize(diff_prob=sum(diff_prob))
+  mean((forecast1 - historic1)>0) 
   
-  prob_diff
+  ks.test(historic1, forecast1, alternative='greater')
+  wilcox.test(historic1, forecast1, alternative='greater')
+  
+  ##################################################
+  ##################################################
+  ## Test range
+  
+  #this represents the mean and SD of the log-mean of the forecast for this time point.
+  dens_func <- function(historic_log_mean=2,
+                        historic_log_sd =0.5, 
+                        forecast_log_mean =3,
+                        forecast_log_sd =0.5){
+ 
+      #estimated from the ensemble model
+      #the range represents the min and max predicted count from the posterior samples of the ensemble
+      
+      forecast_range = c(0,200)
+      test_values <- c(min(forecast_range):max(forecast_range))
+      
+      ## use dpoilog to get the probability of observing N cases for the each distribution
+      historic_density <- dpoilog( test_values, mu=historic_log_mean, sig=historic_log_sd, log=F)
+      forecast_density <- dpoilog( test_values, mu=forecast_log_mean, sig=forecast_log_sd, log=F)
+      
+      
+      historic_samp_mu <- rnorm( 10000, mean=historic_log_mean, sd=historic_log_sd)
+      historic_samp <- rpois( 10000, lambda=exp(historic_samp_mu))
+      
+      #historic_samp <- rpoilog( 10000, mu=historic_log_mean, sig=historic_log_sd)
+      
+      forecast_samp_mu <- rnorm(10000,  mean=forecast_log_mean, sd=forecast_log_sd)
+      forecast_samp <- rpois(10000,  lambda=exp(forecast_samp_mu))
+      
+      
+      ##discrete pdf for the historical and forecasted values
+      plot.ds <- cbind.data.frame(test_values,historic_density,forecast_density) %>%
+        mutate(shade_min = if_else(forecast_density>historic_density,historic_density,forecast_density )) %>%
+        ggplot()+
+        geom_line(aes(x=test_values, y=historic_density), col='red')+
+        geom_line(aes(x=test_values, y=forecast_density), col='blue')+
+        theme_classic() +
+        geom_ribbon(aes(x=test_values, ymin=shade_min, ymax=forecast_density), alpha=0.1, fill='blue')
 
+
+      #difference between forecast density and observed density (positive area between these two curves)
+      diff <- forecast_samp - historic_samp
+      p_greater <- mean(diff>0)
+      out=list('prob'=p_greater,'plot1'=plot.ds , 'risk'= exp(forecast_log_mean)*(p_greater-0.5))
+  }
+  
+  call.func <- dens_func(historic_log_mean=2,
+            historic_log_sd =0.5, 
+            forecast_log_mean =4,
+            forecast_log_sd =0.5)
+  call.func
+  
+  historic_log_means <- c(1,1,1,1,2,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5)
+  forecast_log_means <- c(1,2,3,4,1,2,3,4,5,2,3,4,5,2,3,4,5,2,3,4,5)
+  
+  test_range <- mapply(dens_func, historic_log_mean=historic_log_means, forecast_log_mean=forecast_log_means, SIMPLIFY =F)
+  
+  probs_greater <- sapply(test_range,'[[','prob')
+  risks <- sapply(test_range,'[[','risk')
+  
+  pred_ds <- cbind.data.frame(probs_greater, risks,historic_log_means,forecast_log_means)
+  
+
+  ggplot(pred_ds) +
+    geom_point(aes(x=forecast_log_means/historic_log_means, y=risks, color=probs_greater))+
+    xlab('Rate ratio')+
+    ylab('Risk score') +
+    theme_classic()
+  
+  ggplot(pred_ds) +
+    geom_point(aes(x=forecast_log_means, y=risks, color=probs_greater))+
+    xlab('Rate ratio')+
+    ylab('Risk score') +
+    theme_classic()
   
