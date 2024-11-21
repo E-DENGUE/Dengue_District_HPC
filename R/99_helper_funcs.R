@@ -79,14 +79,20 @@ scoring_func <- function(Y){
   
   crps3 <- cbind.data.frame(crps1, crps2,out_ds) 
   
-  return(crps3)
+  colnames(log.samps.inc) <- paste0('rep',1:ncol(log.samps.inc))
+  
+  samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+  
+  out.list = list('crps3'=crps3, 'log.samps.inc'=samps.out)
+  
+  return(out.list)
 }
 
 ############################
 ##deseasonalize_climate()
 ############################
 
-deseasonalize_climate <- function(climate_var, ds=d1){
+deseasonalize_climate <- function(climate_var, ds=d2){
   
   seas.mod <-ds %>% 
     arrange(district, date) %>%
