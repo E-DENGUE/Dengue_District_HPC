@@ -369,9 +369,9 @@ ts_decomposition_inla <- function(forecast_year=2012, district.select='CHO MOI')
   lin.pred.no.ar1 <- mod1$summary.lincomb.derived[,c('mean','sd')] %>%
     rename(mean.no.ar1=mean, sd.no.ar1=sd)
   
-  ##dataset with the baseline expected values!
-  baseline <- cbind.data.frame('date'=c2$date ,lin.pred.no.ar1) %>%
-    rename(mean_log_baseline= mean.no.ar1, sd_log_baseline=sd.no.ar1) %>%
+  ##dataset with the linear predictor
+  baseline <- cbind.data.frame('date'=c2$date ,mod1$summary.linear.predictor) %>%
+    rename(mean_log_baseline= mean, sd_log_baseline=sd) %>%
     mutate(year=lubridate::year(date),
            district=district.select) %>%
     filter(year==forecast_year) %>%
