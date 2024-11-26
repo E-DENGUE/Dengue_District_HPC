@@ -255,7 +255,7 @@ for(j in unique(d2$district)){
   ## Test range
   
   #this represents the mean and SD of the log-mean of the forecast for this time point.
-  dens_func <- function(historic_log_mean=2,
+  dens_func <- function(historic_log_mean=3,
                         historic_log_sd =0.5, 
                         forecast_log_mean =3,
                         forecast_log_sd =0.5){
@@ -293,7 +293,13 @@ for(j in unique(d2$district)){
       #difference between forecast density and observed density (positive area between these two curves)
       diff <- forecast_samp - historic_samp
       p_greater <- mean(diff>0)
-      out=list('prob'=p_greater,'plot1'=plot.ds , 'risk'= exp(forecast_log_mean)*(p_greater-0.5))
+      p_greater
+      
+      p_indiv <-  sapply(forecast_samp, function(x){mean(x>historic_samp) }  )
+      mean(p_indiv)
+      
+      
+      out=list('prob'=p_greater,'plot1'=plot.ds , 'risk'= exp(forecast_log_mean)*(p_greater))
   }
   
   call.func <- dens_func(historic_log_mean=2,
@@ -302,8 +308,8 @@ for(j in unique(d2$district)){
             forecast_log_sd =0.5)
   call.func
   
-  historic_log_means <- c(1,1,1,1,2,2,2,2,2,3,3,3,3,4,4,4,4,5,5,5,5)
-  forecast_log_means <- c(1,2,3,4,1,2,3,4,5,2,3,4,5,2,3,4,5,2,3,4,5)
+  historic_log_means <- rep(seq(0.5,6,by=0.25), times=24)
+  forecast_log_means <-rep(seq(0.5,6,by=0.25), each=24)
   
   test_range <- mapply(dens_func, historic_log_mean=historic_log_means, forecast_log_mean=forecast_log_means, SIMPLIFY =F)
   
@@ -312,16 +318,16 @@ for(j in unique(d2$district)){
   
   pred_ds <- cbind.data.frame(probs_greater, risks,historic_log_means,forecast_log_means)
   
-
   ggplot(pred_ds) +
-    geom_point(aes(x=forecast_log_means/historic_log_means, y=risks, color=probs_greater))+
-    xlab('Rate ratio')+
+    geom_point(aes(x=log(forecast_log_means/historic_log_means), y=risks, color=probs_greater))+
+    xlab('log(Rate ratio)')+
     ylab('Risk score') +
-    theme_classic()
+    theme_classic()+
+    geom_vline(xintercept=0)
   
   ggplot(pred_ds) +
     geom_point(aes(x=forecast_log_means, y=risks, color=probs_greater))+
-    xlab('Rate ratio')+
+    xlab('Forecasted_rate')+
     ylab('Risk score') +
     theme_classic()
   
