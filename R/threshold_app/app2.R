@@ -63,6 +63,9 @@ server <- function(input, output) {
     prob_RR1_gt_1 <- mean(b1$RR1 > 1)
     prob_RR2_gt_1 <- mean(b1$RR2 > 1)
     
+    historic1_mean = mean(b1$historic1, na.rm=T)
+    historic2_mean = mean(b1$historic2, na.rm=T)
+    
     pop1_scores <- b1 %>%
       group_by(forecast1) %>%
       summarize(
@@ -95,6 +98,9 @@ server <- function(input, output) {
     risk.threshold1 <- vector()
     risk.threshold2 <- vector()
     
+    risk.threshold1z <- vector()
+    risk.threshold2z <- vector()
+    
     for(threshold in thresholds){
       
       probs_sum1 <- sum(pop_score_compare$probability1[pop_score_compare$predN>threshold], na.rm=T)
@@ -102,6 +108,9 @@ server <- function(input, output) {
       
       risk.threshold1[threshold] <- probs_sum1*threshold 
       risk.threshold2[threshold] <- probs_sum2*threshold 
+      
+      risk.threshold1z[threshold] <- probs_sum1*(threshold - historic1_mean)/sqrt(historic1_mean)
+      risk.threshold2z[threshold] <- probs_sum2*(threshold - historic2_mean)/sqrt(historic2_mean)
       
     }
     
@@ -111,6 +120,8 @@ server <- function(input, output) {
       prob_RR2_gt_1 = prob_RR2_gt_1,
       risk.threshold1 = risk.threshold1,
       risk.threshold2=risk.threshold2,
+      risk.threshold1z = risk.threshold1z,
+      risk.threshold2z=risk.threshold2z,
       thresholds=thresholds,
       b1=b1
     )
@@ -130,6 +141,10 @@ server <- function(input, output) {
     cat("Combined score Pop1:", scores$prob_RR1_gt_1*max(scores$risk.threshold1, na.rm=T), "\n")
     cat("Combined score Pop2:", scores$prob_RR2_gt_1*max(scores$risk.threshold2, na.rm=T), "\n")
     
+    
+    cat("Max Score (Z) Pop 1:", max(scores$risk.threshold1z, na.rm=T) ,"\n")
+    cat("Max Score (Z) Pop 2:", max(scores$risk.threshold2z, na.rm=T) ,"\n")
+    
   })
   
   # Output plots
@@ -137,7 +152,9 @@ server <- function(input, output) {
     scores <- calc_scores()
     pop_score_compare <- cbind.data.frame('thresholds'=scores$thresholds,
                                           'risk.threshold1'= scores$risk.threshold1,
-                                          'risk.threshold2'= scores$risk.threshold2
+                                          'risk.threshold2'= scores$risk.threshold2,
+                                          'risk.threshold1z'= scores$risk.threshold1z,
+                                          'risk.threshold2z'= scores$risk.threshold2z
     )
     
     p1 <- ggplot(pop_score_compare) +
@@ -152,7 +169,13 @@ server <- function(input, output) {
       theme_classic()+
       ggtitle('Posterior predictions for the two values')
     
-    gridExtra::grid.arrange( p2,p1, ncol=2) 
+    p3 <- ggplot(pop_score_compare) +
+      geom_line(aes(x = thresholds, y = risk.threshold1z), color = "#e41a1c") +
+      geom_line(aes(x = thresholds, y = risk.threshold2z), color = '#377eb8') +
+      theme_classic() +
+      ggtitle("Risk profile (Z-score)")
+    
+    gridExtra::grid.arrange( p2,p3,p1, ncol=2) 
   })
 }
 
