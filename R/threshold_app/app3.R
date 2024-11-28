@@ -10,7 +10,7 @@ ui <- fluidPage(
     sidebarPanel(
       sliderInput("lambda_historic", "Lambda Historic:", min = 10, max = 500, value = 60, step = 10),
       sliderInput("RR1_in", "RR forecast Mod1:", min = 1, max = 2, value = 1.5, step = 0.1),
-      sliderInput("RR2_in", "RR forecast Mod2:", min = 1, max = 2, value = 1.5, step = 0.1),
+      #sliderInput("RR2_in", "RR forecast Mod2:", min = 1, max = 2, value = 1.5, step = 0.1),
       
       sliderInput("sd_historic", "SD historic:", min = 0.0001, max = 1, value = 0.0001, step = 0.1),
       sliderInput("sd_forecast", "SD forecast:", min = 0.0001, max = 1, value = 0.0001, step = 0.1),
@@ -26,16 +26,15 @@ ui <- fluidPage(
   div(
     style = "margin-bottom: 20px; padding: 10px; background-color: #f9f9f9; border: 1px solid #ddd; border-radius: 5px;",
     p("This app demonstrates how the characteristics of forecasts of cases counts
-      affects risk scores. We simulate data from a mixture of a log-normal/Poisson distribution for one data point, which is a mixture of two underlying distributions governed by parameters lambda1 and lambda2 and sd1 and sd2.
+      affects risk scores. We simulate data from a mixture of a log-normal/Poisson distribution for one data point. 
       We can control
       the mean number of cases (lambda) and the amount of dispersion in the data (SD). We can also control
       how far above a historical baselines the mean of these forecasts are (RR). The historgram on the
-      left shows the posterior distribution of the forecasts for the two populations. The dotted line shows the mean+2SD of
+      top shows the posterior distribution of the forecasts for the two populations. The dotted line shows the mean+2SD of
       the historic baseline (97.5th percentile of the historic).
-      The plot on the right shows the risk profile, which is P(X>A)*A where A are different
-      threshold values. The maximum of these profiles gives the risk score.
-      Separately, we can calculate the probability that the forecast is greater than the
-      historical distribution")
+      The plots below shows the risk profile, which is P(X>A)*A where A are different
+      threshold values. The risk profile is calculate based on overall incidence, or relative to the mean (Z-score). The maximum of these profiles gives the risk score.
+      Separately, we can calculate the probability that the forecast falls into each of the pre-defined epidemic alert categories (e.g., mean+2SD)")
   )
 )
 
@@ -57,15 +56,17 @@ server <- function(input, output) {
         RR1 = (forecast1 + 1) / (historic1 + 1),
       )
     
-    b1b <- tibble(.rows = 10000) %>%
-      mutate(
-        forecast1 = rpois(10000, exp(rnorm(10000, log(lambda1*RR2.in), sd = sd_forecast))),
-        historic1 = rpois(10000, exp(rnorm(10000, log(lambda1 ), sd = sd_historic))),
-        
-        RR1 = (forecast1 + 1) / (historic1 + 1)
-      )
+    # b1b <- tibble(.rows = 10000) %>%
+    #   mutate(
+    #     forecast1 = rpois(10000, exp(rnorm(10000, log(lambda1*RR1.in), sd = sd_forecast))),
+    #     historic1 = rpois(10000, exp(rnorm(10000, log(lambda1 ), sd = sd_historic))),
+    #     
+    #     RR1 = (forecast1 + 1) / (historic1 + 1)
+    #   )
     
-    b1 <- bind_rows(b1a, b1b)
+    #b1 <- bind_rows(b1a, b1b)
+    
+    b1 <- b1a
     
     ucl = quantile(b1$historic1,probs=0.975)
     historic_mean = mean(b1$historic1, na.rm=T)
