@@ -35,8 +35,7 @@ ui <- fluidPage(
       The plot on the right shows the risk profile, which is P(X>A)*A where A are different
       threshold values. The maximum of these profiles gives the risk score.
       Separately, we can calculate the probability that the forecast is greater than the
-      historical distribution, and we can create a combined risk score by multiplying that
-      probability by the risk score estimated from the profile")
+      historical distribution")
   )
 )
 
@@ -134,8 +133,7 @@ server <- function(input, output) {
     cat("Prob greater than baseline:", scores$prob_RR1_gt_1, "\n")
     
     "\n"
-    cat("Combined score:", scores$prob_RR1_gt_1*max(scores$risk.threshold1, na.rm=T), "\n")
-    
+
     cat("Max Score (Z):", max(scores$risk.threshold1z, na.rm=T) ,"\n")
 
     cat("P(Mean->Mean+2SD):", scores$probs_med_risk$probs_med_risk ,"\n")
