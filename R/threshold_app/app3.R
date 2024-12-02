@@ -157,6 +157,10 @@ server <- function(input, output) {
     cat("P(Mean->Mean+2SD):", scores$probs_med_risk$probs_med_risk ,"\n")
     
     cat("P(>Mean+2sd):", scores$probs_high_risk$probs_high_risk ,"\n")
+
+    cat("P(High) vs P(moderate):", scores$probs_high_risk$probs_high_risk/scores$probs_med_risk$probs_med_risk ,"\n")
+    
+    
     
   })
   
