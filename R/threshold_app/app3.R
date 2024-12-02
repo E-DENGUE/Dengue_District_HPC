@@ -14,6 +14,8 @@ ui <- fluidPage(
       
       sliderInput("sd_historic", "SD historic:", min = 0.0001, max = 1, value = 0.0001, step = 0.1),
       sliderInput("sd_forecast", "SD forecast:", min = 0.0001, max = 1, value = 0.0001, step = 0.1),
+
+      sliderInput("bimodal", "Bimodal prediction?:", min = 0, max = 1, value = 0, step = 0.1),
       
       
     ),
@@ -45,7 +47,7 @@ server <- function(input, output) {
   calc_scores <- reactive({
     lambda1 <- input$lambda_historic
     RR1.in <- input$RR1_in
-    RR2.in <- input$RR2_in
+    RR2.in <- 1
     sd_historic <- input$sd_historic
     sd_forecast <- input$sd_forecast
     
@@ -56,17 +58,21 @@ server <- function(input, output) {
         RR1 = (forecast1 + 1) / (historic1 + 1),
       )
     
-    # b1b <- tibble(.rows = 10000) %>%
-    #   mutate(
-    #     forecast1 = rpois(10000, exp(rnorm(10000, log(lambda1*RR1.in), sd = sd_forecast))),
-    #     historic1 = rpois(10000, exp(rnorm(10000, log(lambda1 ), sd = sd_historic))),
-    #     
-    #     RR1 = (forecast1 + 1) / (historic1 + 1)
-    #   )
+    b1b <- tibble(.rows = 10000) %>%
+      mutate(
+        forecast1 = rpois(10000, exp(rnorm(10000, log(lambda1*RR2.in), sd = sd_forecast))),
+        historic1 = rpois(10000, exp(rnorm(10000, log(lambda1 ), sd = sd_historic))),
+
+        RR1 = (forecast1 + 1) / (historic1 + 1)
+      )
     
-    #b1 <- bind_rows(b1a, b1b)
-    
-    b1 <- b1a
+    if(input$bimodal>0){
+      b1b <- b1b[sample(1:10000,size=round(input$bimodal*10000)),]
+      b1 <- bind_rows(b1a, b1b)
+      
+    }else{
+      b1 <- b1a
+    }    
     
     ucl = quantile(b1$historic1,probs=0.975)
     historic_mean = mean(b1$historic1, na.rm=T)
@@ -103,13 +109,22 @@ server <- function(input, output) {
     
     risk.threshold1z <- vector()
     
+    risk.threshold1.exp <- vector()
+    
+    risk.threshold1z.log <- vector()
+    
     for(threshold in thresholds){
       
       probs_sum1 <- sum(pop_score_compare$probability1[pop_score_compare$predN>threshold], na.rm=T)
       
       risk.threshold1[threshold] <- probs_sum1*threshold 
+
+      risk.threshold1.exp[threshold] <- probs_sum1*(threshold)^2
       
+            
       risk.threshold1z[threshold] <- probs_sum1*(threshold - historic1_mean)/sqrt(historic1_mean)
+
+      risk.threshold1z.log[threshold] <- probs_sum1*log((threshold+1)/(historic1_mean+1))
       
     }
     
@@ -118,6 +133,8 @@ server <- function(input, output) {
       prob_RR1_gt_1 = prob_RR1_gt_1,
       risk.threshold1 = risk.threshold1,
       risk.threshold1z = risk.threshold1z,
+      risk.threshold1z.log=risk.threshold1z.log,
+      risk.threshold1.exp=risk.threshold1.exp,
       thresholds=thresholds,
       probs_high_risk=probs_high_risk,
       probs_med_risk=probs_med_risk,
@@ -148,22 +165,35 @@ server <- function(input, output) {
     scores <- calc_scores()
     pop_score_compare <- cbind.data.frame('thresholds'=scores$thresholds,
                                           'risk.threshold1'= scores$risk.threshold1,
-                                          'risk.threshold1z'= scores$risk.threshold1z
+                                          'risk.threshold1z'= scores$risk.threshold1z,
+                                          'risk.threshold1.exp'= scores$risk.threshold1.exp,
+                                          'risk.threshold1z.log'= scores$risk.threshold1z.log
+                                          
     )
     
     ucl = quantile(scores$b1$historic1,probs=0.975)
     historic_mean = mean(scores$b1$historic1, na.rm=T)
     max.risk <- max(scores$risk.threshold1, na.rm=T)
-    max.risk.z <- max(scores$risk.threshold1z, na.rm=T)
+    max.risk.exp <- max(scores$risk.threshold1.exp, na.rm=T)
     
+        max.risk.z <- max(scores$risk.threshold1z, na.rm=T)
+        max.risk.z.log <- max(scores$risk.threshold1z.log, na.rm=T)
+        
     index= 1:length(scores$risk.threshold1)
     
     max.risk.index =  index[max.risk==scores$risk.threshold1]
-    max.risk.index.z =  index[max.risk.z==scores$risk.threshold1z]
+    max.risk.index.exp =  index[max.risk.exp==scores$risk.threshold1.exp]
     
+        max.risk.index.z =  index[max.risk.z==scores$risk.threshold1z]
+        max.risk.index.z.log =  index[max.risk.z.log==scores$risk.threshold1z.log]
+        
     riskdf <- cbind.data.frame(max.risk.index,max.risk)
+    riskdf.exp <- cbind.data.frame(max.risk.index.exp,max.risk.exp)
+    
     riskdfz <- cbind.data.frame(max.risk.index.z,max.risk.z)
-    lims1=cbind.data.frame(historic_mean,ucl)
+    riskdfz.log <- cbind.data.frame(max.risk.index.z.log,max.risk.z.log)
+    
+        lims1=cbind.data.frame(historic_mean,ucl)
     
     p1 <- ggplot(pop_score_compare) +
       geom_rect(data=lims1,aes(xmin=0,
@@ -183,8 +213,29 @@ server <- function(input, output) {
       geom_line(aes(x = thresholds, y = risk.threshold1), color = "#2b83ba") +
       xlim(0,max(pop_score_compare$thresholds, na.rm=T))+
       theme_classic() +
-      geom_point(data=riskdfz,aes(x=max.risk.index, y=max.risk), col='#2b83ba')+
-      ggtitle("Risk profile")
+      geom_point(data=riskdf,aes(x=max.risk.index, y=max.risk), col='#2b83ba')+
+      ggtitle("Risk profile (Absolute)")
+    
+    p1a <- ggplot(pop_score_compare) +
+      geom_rect(data=lims1,aes(xmin=0,
+                               xmax = historic_mean,
+                               ymin = -Inf,
+                               ymax = Inf), fill = '#31a35420')+
+      geom_rect(data=lims1,aes(xmin=historic_mean,
+                               xmax = ucl,
+                               ymin = -Inf,
+                               ymax = Inf), fill = '#fec44f20')+
+      geom_rect(data=lims1,aes(xmin=ucl,
+                               xmax = Inf,
+                               ymin = -Inf,
+                               ymax = Inf), fill = '#d7191c20')+
+      geom_vline(xintercept=ucl, lty=3, col='black', alpha=0.5)+
+      geom_vline(xintercept=historic_mean, lty=3, col='black', alpha=0.5)+
+      geom_line(aes(x = thresholds, y = risk.threshold1.exp), color = "#2b83ba") +
+      xlim(0,max(pop_score_compare$thresholds, na.rm=T))+
+      theme_classic() +
+      geom_point(data=riskdf.exp,aes(x=max.risk.index.exp, y=max.risk.exp), col='#2b83ba')+
+      ggtitle("Risk profile ((Absolute^2))")
     
     p2 <- ggplot(scores$b1) +
       geom_rect(data=lims1,aes(xmin=0,
@@ -228,8 +279,29 @@ server <- function(input, output) {
       ggtitle("Risk profile (Z-score)")+
       geom_point(data=riskdfz,aes(x=max.risk.index.z, y=max.risk.z), col='#2b83ba')
     
+    p3a <- ggplot(pop_score_compare) +
+      geom_rect(data=lims1,aes(xmin=0,
+                               xmax = historic_mean,
+                               ymin = -Inf,
+                               ymax = Inf), fill = '#31a35420')+
+      geom_rect(data=lims1,aes(xmin=historic_mean,
+                               xmax = ucl,
+                               ymin = -Inf,
+                               ymax = Inf), fill = '#fec44f20')+
+      geom_rect(data=lims1,aes(xmin=ucl,
+                               xmax = Inf,
+                               ymin = -Inf,
+                               ymax = Inf), fill = '#d7191c20')+
+      geom_line(aes(x = thresholds, y = risk.threshold1z.log), color = "#2b83ba") +
+      theme_classic() +
+      geom_vline(xintercept=ucl, lty=3, col='black', alpha=0.5)+
+      geom_vline(xintercept=historic_mean, lty=3, col='black', alpha=0.5)+
+      xlim(0,max(pop_score_compare$thresholds, na.rm=T))+
+      ggtitle("Risk profile (log(RR))")+
+      geom_point(data=riskdfz.log,aes(x=max.risk.index.z.log, y=max.risk.z.log), col='#2b83ba')
     
-    gridExtra::grid.arrange( p2,p3,p1, ncol=1)
+    
+    gridExtra::grid.arrange( p2,p1,p1a,p3,p3a, ncol=1)
   })
 }
 
