@@ -157,21 +157,22 @@ server <- function(input, output) {
     cat("Max Score:", max(scores$risk.threshold1, na.rm=T) ,"\n")
     
     "\n"
-    cat("Prob greater than baseline:", scores$prob_RR1_gt_1, "\n")
+   # cat("Prob greater than baseline:", scores$prob_RR1_gt_1, "\n")
     
     "\n"
 
-    cat("Max Score (Z):", max(scores$risk.threshold1z, na.rm=T) ,"\n")
+   # cat("Max Score (Z):", max(scores$risk.threshold1z, na.rm=T) ,"\n")
 
-    cat("Max Score (Z2):", max(scores$risk.threshold2z, na.rm=T) ,"\n")
+   # cat("Max Score (Z2):", max(scores$risk.threshold2z, na.rm=T) ,"\n")
     
     
-    cat("P(Mean->Mean+2SD):", scores$probs_med_risk$probs_med_risk ,"\n")
+    cat("LOW RISK P(<Mean):", round((1- scores$probs_med_risk$probs_med_risk -scores$probs_high_risk$probs_high_risk),2) ,"\n")
     
-    cat("P(>Mean+2sd):", scores$probs_high_risk$probs_high_risk ,"\n")
+    cat("MEDIUM RISK P(Mean->Mean+2SD):", round(scores$probs_med_risk$probs_med_risk,2) ,"\n")
+    
+    cat("HIGH RISK P(>Mean+2sd):", round(scores$probs_high_risk$probs_high_risk,2) ,"\n")
 
-    cat("P(High) vs P(moderate):", scores$probs_high_risk$probs_high_risk/scores$probs_med_risk$probs_med_risk ,"\n")
-    
+
     
     
   })
