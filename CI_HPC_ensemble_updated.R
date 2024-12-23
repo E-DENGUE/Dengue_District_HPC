@@ -20,7 +20,7 @@ options(dplyr.summarise.inform = FALSE)
 
 N_cores <- detectCores()
 
-# Load observed epidemics and case data
+
 obs_epidemics <- readRDS('./Data/observed_alarms.rds') %>% 
   rename(case_vintage = m_DHF_cases) %>%
   select(date, district, case_vintage, starts_with('epidemic_flag'), starts_with('threshold'))
@@ -123,7 +123,7 @@ summary <-  c(process_file1, process_file_pca,process_file_hhh4) %>%
 
 
 summary <- summary %>% 
-  filter(modN != 'mod4_')
+  filter(modN != 'mod4_')   ##mod4 here is the baseline 
 
 
 # These were calcualted fron crps
@@ -134,19 +134,18 @@ weights <- data.frame(
            "mod3_", "mod2_", "modhhh4_power_precip_temp_", "PC_lags", "mod1_"),
   w_i2 = c(0.243, 0.221, 0.212, 0.196, 0.128, 
            0.253, 0.207, 0.203, 0.182, 0.156, 
-           0.263, 0.203, 0.189, 0.174, 0.171)
+           0.263, 0.203, 0.189, 0.174, 0.171)  ## These values obtained from 05_evaluate_forecasts.rds for te weight of each of thr enemble models 
 )
 
-# Sample 1000 samples for each modN based on the weights
+# Sample 10000 samples for each modN based on the weights
 sampled_data <- summary %>%
   left_join(weights, by = c("horizon", "modN")) %>%
   group_by(district, date, horizon, modN) %>%
-  sample_n(size = round(unique(w_i2) * 10000), replace = TRUE) %>%
+  sample_n(size = round(unique(w_i2) * 100000), replace = TRUE) %>%
   ungroup()
 
 
-
-sampled_data<- sampled_data[sampled_data$date<= "2022-12-01",]
+saveRDS(sampled_data,'sampled_data_all_date.rds')
 
 sampled_data <- sampled_data%>%
   left_join(obs_case, by = c("date", "district"))
@@ -199,3 +198,213 @@ ggplot(final_summary_grouped, aes(x = date)) +
   scale_fill_manual(values = c("Credible  Interval" = "#a6cee3"))  # Custom color for CI ribbon
 
 
+### Find bias and sharpness for the ensemble 
+
+pred.iter <-  sampled_data %>%
+  left_join(obs_epidemics, by=c('date','district')) %>%
+  mutate(pred_epidemic = value < log(m_DHF_cases / pop * 100000),
+         vintage_date=vintage_date) %>%
+  group_by(date,vintage_date, district, horizon) %>%
+  summarize( prob_pred_epidemic = mean(pred_epidemic)
+  )
+
+pred.iter$bias <- 1 - 2 * pred.iter$prob_pred_epidemic
+
+ensemble_bais<- pred.iter %>% group_by(horizon) %>% summarise(bias=mean (bias))
+ensemble_bais
+
+sharpness_by_district <- sampled_data %>%
+  left_join(obs_epidemics, by=c('date','district'))%>%
+  mutate( vintage_date=vintage_date)%>%
+  group_by(date,vintage_date, district, horizon) %>%
+  summarize(
+    sharpness = {
+      
+      abs_deviations <- abs(value - median(value, na.rm = TRUE))
+      
+      mad <- mad(value, na.rm = TRUE)
+      
+      
+      (1 / 0.675) * mad
+    }
+  )
+
+pred.iter$Sharpness<-  sharpness_by_district$sharpness
+ensemble_sharpness<- pred.iter %>% group_by(horizon) %>% summarise(sharpness=mean (Sharpness))
+ensemble_sharpness
+
+bias.out <- cbind.data.frame('date'=pred.iter$date, 'modN'=modN,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, 'sharpness'=pred.iter$Sharpness, 'bias'=pred.iter$bias)
+
+
+###Brier score for ensemble 
+
+obs_epidemics<- inner_join(obs_case,obs_epidemics,by=c("district"="district","date"="date"))
+
+obs_epidemics$epidemic_fix_150<- ifelse((obs_epidemics$m_DHF_cases/obs_epidemics$pop*100000) >(150),1,0)
+obs_epidemics$epidemic_fix_300<- ifelse((obs_epidemics$m_DHF_cases/obs_epidemics$pop*100000) >(300),1,0)
+obs_epidemics$epidemic_fix_20<- ifelse((obs_epidemics$m_DHF_cases/obs_epidemics$pop*100000) >(20),1,0)
+obs_epidemics$epidemic_fix_50<- ifelse((obs_epidemics$m_DHF_cases/obs_epidemics$pop*100000) >(50),1,0)
+obs_epidemics$epidemic_fix_100<- ifelse((obs_epidemics$m_DHF_cases/obs_epidemics$pop*100000) >(100),1,0)
+obs_epidemics$epidemic_fix_200<- ifelse((obs_epidemics$m_DHF_cases/obs_epidemics$pop*100000) >(200),1,0)
+
+
+
+pred.iter <- sampled_data %>%
+  left_join(obs_epidemics, by=c('date','district')) %>%
+  mutate(pred_epidemic_2sd = value > log( threshold/pop*100000),
+         pred_epidemic_nb = value > log( threshold_nb/pop*100000),
+         pred_epidemic_poisson = value > log(threshold_poisson / pop * 100000),
+         pred_epidemic_quant = value > log(threshold_quant / pop * 100000),
+         pred_epidemic_fix_100 = value > log(100),
+         pred_epidemic_fix_150 = value > log(150),
+         pred_epidemic_fix_300 = value > log(300),
+         pred_epidemic_fix_50 = value > log(50),
+         pred_epidemic_fix_20 = value > log(20),
+         pred_epidemic_fix_200 = value > log(200),
+         vintage_date=vintage_date) %>%
+  dplyr::group_by(date, vintage_date, district, horizon) %>%
+  dplyr::summarize( prob_pred_epidemic_2sd = mean(pred_epidemic_2sd),
+                    prob_pred_epidemic_nb= mean(pred_epidemic_nb),
+                    prob_pred_epidemic_poisson = mean(pred_epidemic_poisson),
+                    prob_pred_epidemic_quant = mean(pred_epidemic_quant),
+                    prob_pred_epidemic_fix_100 = mean(pred_epidemic_fix_100),
+                    prob_pred_epidemic_fix_150 = mean(pred_epidemic_fix_150),
+                    prob_pred_epidemic_fix_300 = mean(pred_epidemic_fix_300),
+                    prob_pred_epidemic_fix_50 = mean(pred_epidemic_fix_50),
+                    prob_pred_epidemic_fix_20 = mean(pred_epidemic_fix_20),
+                    prob_pred_epidemic_fix_200 = mean(pred_epidemic_fix_200),
+                    obs_epidemic_2sd=mean(epidemic_flag),
+                    obs_epidemic_nb = mean(epidemic_flag_nb),
+                    obs_epidemic_quant=mean(epidemic_flag_quant) ,
+                    obs_epidemic_poisson=mean(epidemic_flag_poisson),
+                    epidemic_fix_100=mean(epidemic_fix_100),
+                    epidemic_fix_150=mean(epidemic_fix_150),
+                    epidemic_fix_200=mean(epidemic_fix_200),
+                    epidemic_fix_20=mean(epidemic_fix_20),
+                    epidemic_fix_50=mean(epidemic_fix_50),
+                    epidemic_fix_300=mean(epidemic_fix_300)
+                    
+  )
+
+brier_2sd <- brier_score( pred.iter$obs_epidemic_2sd,pred.iter$prob_pred_epidemic_2sd )
+brier_nb <- brier_score( pred.iter$obs_epidemic_nb,pred.iter$prob_pred_epidemic_nb )
+brier_poisson <- brier_score( pred.iter$obs_epidemic_poisson,pred.iter$prob_pred_epidemic_poisson )
+brier_quant <- brier_score( pred.iter$obs_epidemic_quant,pred.iter$prob_pred_epidemic_quant )
+brier_fix_100 <- brier_score( pred.iter$epidemic_fix_100,pred.iter$prob_pred_epidemic_fix_100 )
+brier_fix_150 <- brier_score( pred.iter$epidemic_fix_150,pred.iter$prob_pred_epidemic_fix_150 )
+brier_fix_200 <- brier_score( pred.iter$epidemic_fix_200,pred.iter$prob_pred_epidemic_fix_200 )
+brier_fix_300 <- brier_score( pred.iter$epidemic_fix_300,pred.iter$prob_pred_epidemic_fix_300 )
+brier_fix_20 <- brier_score( pred.iter$epidemic_fix_20,pred.iter$prob_pred_epidemic_fix_20 )
+brier_fix_50 <- brier_score( pred.iter$epidemic_fix_50,pred.iter$prob_pred_epidemic_fix_50 )
+
+
+brier.out <- cbind.data.frame('date'=pred.iter$date,'district'=pred.iter$district, 'horizon'=pred.iter$horizon, brier_nb, brier_2sd,brier_poisson, brier_quant,'obs_epidemic_2sd'=pred.iter$obs_epidemic_2sd,'prob_pred_epidemic_2sd'=pred.iter$prob_pred_epidemic_2sd,'prob_pred_epidemic_nb'=pred.iter$prob_pred_epidemic_nb ,'obs_epidemic_nb'=pred.iter$obs_epidemic_nb
+                              ,  'obs_epidemic_quant'=pred.iter$obs_epidemic_quant ,
+                              'obs_epidemic_poisson'=pred.iter$obs_epidemic_poisson, 'prob_pred_epidemic_poisson'= pred.iter$prob_pred_epidemic_poisson
+                              ,'prob_pred_epidemic_quant'=pred.iter$prob_pred_epidemic_quant,
+                              'brier_fix_100'=brier_fix_100, 'brier_fix_200'=brier_fix_200,
+                              'brier_fix_300'=brier_fix_300,'brier_fix_20'=brier_fix_20,
+                              'brier_fix_50'=brier_fix_50,'brier_fix_150'=brier_fix_150,
+                              'obs_epidemic_fix_100'=pred.iter$epidemic_fix_100,'prob_pred_epidemic_fix_100'=pred.iter$prob_pred_epidemic_fix_100 ,
+                              'obs_epidemic_fix_150'=pred.iter$epidemic_fix_150,'prob_pred_epidemic_fix_150'=pred.iter$prob_pred_epidemic_fix_150, 
+                              'obs_epidemic_fix_200'=pred.iter$epidemic_fix_200,'prob_pred_epidemic_fix_200'=pred.iter$prob_pred_epidemic_fix_200, 
+                              'obs_epidemic_fix_20'=pred.iter$epidemic_fix_20,'prob_pred_epidemic_fix_20'=pred.iter$prob_pred_epidemic_fix_20 ,
+                              'obs_epidemic_fix_50'=pred.iter$epidemic_fix_50,'prob_pred_epidemic_fix_50'=pred.iter$prob_pred_epidemic_fix_50,
+                              'obs_epidemic_fix_300'=pred.iter$epidemic_fix_300,'prob_pred_epidemic_fix_300'=pred.iter$prob_pred_epidemic_fix_300 )
+
+saveRDS(brier.out,'brier_out.rds')
+
+##plot brier
+
+b2 <- inner_join(brier.out, obs_case, by = c("district", "date"))
+
+b2$monthN<- month(b2$date)
+
+b3 <- b2 %>% 
+  dplyr::group_by(district, horizon) %>%
+  dplyr::summarize(brier_nb=mean(brier_nb),
+                   brier_2sd =mean(brier_2sd),
+                   m_DHF_cases=sum(m_DHF_cases))
+
+
+
+b2$year<- year(b2$date)
+p2 <- b2 %>%
+  dplyr::group_by(horizon,year) %>%
+  dplyr::summarize(brier_2sd=mean(brier_2sd)) %>%
+  #filter(modN %in% ensemble_mods) %>%
+  ggplot( aes(x=year, y=brier_2sd, group=interaction(horizon), color=interaction(horizon)))+
+  geom_line()+
+  theme_minimal()
+ggplotly(p2)
+
+
+
+b1_summary <- b2 %>%
+  group_by(horizon) %>%
+  dplyr::summarize(brier_nb=mean(brier_nb),
+                   brier_2sd =mean(brier_2sd))
+
+
+b1 <- b2 %>%
+  mutate(month_name = factor(monthN, levels = 1:12, 
+                             labels = c("Jan", "Feb", "Mar", "Apr", "May", 
+                                        "Jun", "Jul", "Aug", "Sep", "Oct", 
+                                        "Nov", "Dec")))
+
+b1_summary <- b1 %>%
+  group_by(month_name, horizon) %>%
+  dplyr::summarise(
+    brier_2sd=mean(brier_2sd),
+    brier_nb=mean(brier_nb),
+    .groups = 'drop'
+  )
+
+
+
+ggplot(b1_summary, aes(x = month_name, y = brier_2sd, color = factor(horizon), group = factor(horizon))) +
+  geom_line(aes(linetype = factor(horizon)), size = 1) +
+  geom_point(size = 3) +ylim(0, NA) +
+  labs(x = "Month of the year", y = "Brier score", color = "Horizon", linetype = "Horizon") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+
+
+
+###CRPS for the ensemble 
+
+library(dplyr)
+library(tidyr)
+library(scoringRules)
+
+# Join with obs_case and calculate obs_inc
+qq <- left_join(sampled_data, obs_case, by = c('date' = 'date', 'district' = 'district'))
+
+# Calculate observed incidence and exponentiate the value column
+qq <- qq %>%
+  mutate(obs_inc = m_DHF_cases / pop * 100000,
+         value = exp(value)) %>% group_by(district, date, horizon) %>%  mutate(variable = paste0("rep", row_number()))
+
+qq<- qq[,-c(6,7,8,9)] ## just keep values variable 
+
+qq_wider <- qq %>%
+  pivot_wider(names_from = variable, values_from = value)
+
+
+# Convert the pivoted data into a matrix for predictions
+pred_inc_matrix <- as.matrix(qq_wider[, -c(1:6)],ncol = 10000)  
+
+
+obs_inc <- qq_wider$obs_inc
+
+
+crps_sample(obs_inc[1], matrix(pred_inc_matrix[1, 1:1000], nrow = 1))
+
+results<- c()
+for (i in 1: length(obs_inc)){
+  results[i]=crps_sample(obs_inc[i], matrix(pred_inc_matrix[i, 1:1000], nrow = 1))
+}
+
+CRPS_ens <- cbind(qq_wider, results = results)
+
+CRPS_ens %>% group_by(horizon) %>% summarise(crps=mean(results))
