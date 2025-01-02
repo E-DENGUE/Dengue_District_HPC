@@ -20,6 +20,7 @@ inla_spacetime_mod <- function(vintage_date, modN, formula1='y ~ -1 +  X +   f(t
                             ifelse(date == (vintage_date %m+% months(2)), 2,
                             ifelse(date == (vintage_date %m+% months(3)), 3, 0)
            )),
+
            sin12 = sin(2*pi*t/12),
            cos12 = cos(2*pi*t/12),
            month=as.factor(month(date)),
