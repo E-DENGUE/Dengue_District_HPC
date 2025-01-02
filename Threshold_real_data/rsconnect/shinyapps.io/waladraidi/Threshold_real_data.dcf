@@ -1,0 +1,12 @@
+name: Threshold_real_data
+title: Threshold_real_data
+username: waladraidi
+account: waladraidi
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13528252
+bundleId: 9466134
+url: https://waladraidi.shinyapps.io/Threshold_real_data/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
