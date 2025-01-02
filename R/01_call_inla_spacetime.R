@@ -4,8 +4,8 @@ args <- commandArgs(trailingOnly = TRUE)
 j <- as.numeric(args[1])  
 k <- as.numeric(args[2])
 
-j=1 #108 dates total
-k=1 #10 models
+#j=1 #108 dates total
+#k=1 #10 models
 
 #which models to run?
 library(stringr)

@@ -16,7 +16,7 @@ inla_spacetime_mod <- function(vintage_date, modN, formula1='y ~ -1 +  X +   f(t
            lag2_y = lag(log_df_rate, 2),
            lag3_y = lag(log_df_rate, 3),
            max_allowed_lag = ifelse(any(grepl('lag_y', formula1) | grepl('lag1', formula1)), 1, 3),
-           horizon = ifelse(date == (vintage_date %m+% months(2)), 1,
+           horizon = ifelse(date == (vintage_date %m+% months(1)), 1,
                             ifelse(date == (vintage_date %m+% months(2)), 2,
                             ifelse(date == (vintage_date %m+% months(3)), 3, 0)
            )),
