@@ -23,10 +23,15 @@ library(ggdendro)
 library(dtwclust)
 library(sf)
 library(cluster)
+library(dplyr)
+source('./R/predict.rlm.R')
+source('./R/deseasonalize_climate.R')
+source('./R/all_district_fwd2.R')
+source('./R/scoring_func.R')
 
-source('./R/99_helper_funcs.R')
+######## Load data
+d1 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors.rds')
 
-d1 <- readRDS('./Data/CONFIDENTIAL/full_data_with_new_boundaries_all_factors.rds') 
 
 names(d1)[names(d1) == "Dengue"] <- "m_DHF_cases"
 names(d1)[names(d1) == "total_population"] <- "pop"
@@ -82,7 +87,7 @@ d2 <- d1 %>%
          year = as_factor(year)) %>%
   filter(district != "KIEN HAI", 
          district != "PHU QUOC") %>%
-  distinct(year, month, province, district, ENGTYPE, .keep_all = T) %>%
+  distinct(year, month, province, district, .keep_all = T) %>%
   arrange(month, year)%>%
   ungroup() %>%
   dplyr::select(year, month,province, district,m_DHF_cases,pop,avg_daily_temp,avg_max_daily_temp,avg_min_daily_temp,avg_daily_wind,avg_max_daily_wind,
@@ -103,7 +108,6 @@ d2 <- d1 %>%
   ) %>%
   ungroup() %>%
   filter(!is.na(district) &first_date==as.Date('2004-01-01') & last_date=='2022-12-01')   #filter out regions with partial time series
-
 
 rain1 <- deseasonalize_climate("monthly_cum_ppt") %>% rename(total_rainfall_ab = climate_aberration)
 #rain2 <- deseasonalize_climate("mean_ppt", ds=d2)  %>% rename(daily_rainfall_ab = climate_aberration)
@@ -137,36 +141,39 @@ d3 <- d2 %>%
     avg_daily_wind = as.vector(scale(avg_daily_wind)),
     lag1_avg_daily_wind = dplyr::lag(avg_daily_wind,1,default=NA),
     lag2_avg_daily_wind = dplyr::lag(avg_daily_wind,2,default=NA),
+    lag3_avg_daily_wind = dplyr::lag(avg_daily_wind,3,default=NA),
     
     
     #redefine the lag variables
     avg_daily_humid = as.vector(scale(avg_daily_humid)),
     lag1_avg_daily_humid = dplyr::lag(avg_daily_humid,1,default=NA),
     lag2_avg_daily_humid = dplyr::lag(avg_daily_humid,2,default=NA),
-    
+    lag3_avg_daily_humid = dplyr::lag(avg_daily_humid,3,default=NA),
     
     avg_daily_temp= as.vector(scale(avg_daily_temp)),
     lag1_avg_daily_temp= dplyr::lag(avg_daily_temp,1),
     lag2_avg_daily_temp= dplyr::lag(avg_daily_temp,2),
+    lag3_avg_daily_temp= dplyr::lag(avg_daily_temp,3),
     
     
     monthly_cum_ppt=as.vector(scale(monthly_cum_ppt)),
     lag1_monthly_cum_ppt= dplyr::lag(monthly_cum_ppt,1),
     lag2_monthly_cum_ppt= dplyr::lag(monthly_cum_ppt,2),
-    
+    lag3_monthly_cum_ppt= dplyr::lag(monthly_cum_ppt,3),
     
     avg_min_daily_temp=as.vector(scale(avg_min_daily_temp)),
     lag1_avg_min_daily_temp= dplyr::lag(avg_min_daily_temp,1),
     lag2_avg_min_daily_temp= dplyr::lag(avg_min_daily_temp,2),
-    
+    lag3_avg_min_daily_temp= dplyr::lag(avg_min_daily_temp,3),
     
     avg_max_daily_temp= as.vector(scale(avg_max_daily_temp)),
     lag1_avg_max_daily_temp= dplyr::lag(avg_max_daily_temp,1),
     lag2_avg_max_daily_temp= dplyr::lag(avg_max_daily_temp,2),
-    
+    lag3_avg_max_daily_temp= dplyr::lag(avg_max_daily_temp,3),
     
     lag1_total_rainfall_ab= dplyr::lag(total_rainfall_ab,1),
     lag2_total_rainfall_ab= dplyr::lag(total_rainfall_ab,2),
+    lag3_total_rainfall_ab= dplyr::lag(total_rainfall_ab,3),
     
     lag2_breeding_site_elimination_campaign= dplyr::lag(breeding_site_elimination_campaign,2),	
     lag2_active_spraying= dplyr::lag(active_spraying,2),
@@ -175,6 +182,12 @@ d3 <- d2 %>%
     lag2_number_of_outbreak_detection= dplyr::lag(number_of_outbreak_detection,2),
     lag2_number_of_outbreak_response= dplyr::lag(number_of_outbreak_response,2),
     
+    lag3_breeding_site_elimination_campaign= dplyr::lag(breeding_site_elimination_campaign,3),	
+    lag3_active_spraying= dplyr::lag(active_spraying,3),
+    lag3_large_scale_spraying_for_epidemic_response= dplyr::lag(large_scale_spraying_for_epidemic_response,3),
+    lag3_communication_or_training= dplyr::lag(communication_or_training,3),
+    lag3_number_of_outbreak_detection= dplyr::lag(number_of_outbreak_detection,3),
+    lag3_number_of_outbreak_response= dplyr::lag(number_of_outbreak_response,3),
     
   )%>%
   ungroup() %>%
@@ -198,13 +211,16 @@ d3 <- d2 %>%
          log_cum_inc_36m=scale(log(cum_inc_36m)),
          lag2_log_cum_inc_12m=lag(log_cum_inc_12m,2),
          lag2_log_cum_inc_24m=lag(log_cum_inc_24m,2),
-         lag2_log_cum_inc_36m=lag(log(cum_inc_36m,2))
+         lag2_log_cum_inc_36m=lag(log(cum_inc_36m,2)),
+         lag3_log_cum_inc_12m=lag(log_cum_inc_12m,3),
+         lag3_log_cum_inc_24m=lag(log_cum_inc_24m,3),
+         lag3_log_cum_inc_36m=lag(log(cum_inc_36m,3))
   ) %>%
   ungroup() %>%
-  filter(!is.na(lag2_monthly_cum_ppt) & first_date==as.Date('2004-01-01') & last_date=='2022-12-01')    #filter out regions with partial time series
-  
-  
-  d<- d3[ , c("No..DEN1", "No..DEN2", "No..DEN3", "No..DEN4")]
+  filter(!is.na(lag3_monthly_cum_ppt) & first_date==as.Date('2004-01-01') & last_date=='2022-12-01')
+
+d<- d3[ , c("No..DEN1", "No..DEN2", "No..DEN3", "No..DEN4")]
+
 
 d$podem <- NA  # Initialize the column with NA values
 
@@ -231,7 +247,7 @@ d3<- d3%>%
   dplyr::mutate(prediomentent=as.factor(d$podem))
 
 ###Fix the Bac Lieu province 
-data <- read_excel("./Data/CONFIDENTIAL/20231130_ED_MDR Dengue district data_2000-2023_original modification_updated 20May24.xlsx", sheet=1)
+data <- read_excel("20231130_ED_MDR Dengue district data_2000-2023_original modification_updated 20May24.xlsx", sheet=1)
 filtered_data <- data[data$year >= 2004, ]
 dim(filtered_data)
 
@@ -241,8 +257,10 @@ sum(is.na(filtered_data$Dengue))
 sum(is.na(filtered_data$SevereDHF))
 
 
+library(dplyr)
 filtered_data$district<- toupper(filtered_data$district)
 
+library(dplyr)
 filtered_data <- filtered_data %>%
   arrange(district, province, year, month)
 
@@ -276,7 +294,7 @@ merged_data <- inner_join(BAC_LIEU_old, BAC_LIEU_New, by = c("year", "month","di
 
 # Update the Dengue cases with the new data
 merged_data$m_DHF_cases <- merged_data$Dengue
-merged_data<- merged_data[,-c(92,93)]
+merged_data<- merged_data[,-c(108,109)]
 
 # 
 d3 <- d3
@@ -321,11 +339,15 @@ unique_clusters_districts <- unique(clusters[, c("cluster", "district")])
 d4<- full_join(d4,unique_clusters_districts,by=('district'='district'))
 
 
-saveRDS(d4, './Data/CONFIDENTIAL/Updated_full_data_with_new_boundaries_all_factors_cleaned.rds') 
+saveRDS(d4, 'Updated_full_data_with_new_boundaries_all_factors_cleaned_lag3.rds') 
+
+#getwd()
 ###############################
 #SPATIAL MATRIX:
+
+
 MDR_NEW <- st_read(dsn = "./Data/shapefiles/MDR_NEW_Boundaries_Final.shp") 
-  
+
 # Create a new variable 'District_province' by concatenating 'VARNAME' and 'NAME_En' with an underscore
 MDR_NEW <- MDR_NEW %>%
   dplyr::mutate(District_province = paste( VARNAME,NAME_En, sep = " "))
@@ -367,9 +389,9 @@ spat_IDS <- MDR_NEW %>%
   as.data.frame() %>%
   dplyr::select(district,districtID)
 
-setdiff(toupper(d2$district),toupper(spat_IDS$district))
-setdiff(toupper(spat_IDS$district),toupper(d2$district))
-sort(spat_IDS$district) ==sort(unique(d2$district))
+setdiff(toupper(d3$district),toupper(spat_IDS$district))
+setdiff(toupper(spat_IDS$district),toupper(d3$district))
+sort(spat_IDS$district) ==sort(unique(d3$district))
 
 MDR_NEW<- MDR_NEW %>%
   dplyr::filter(VARNAME != "KIEN HAI",

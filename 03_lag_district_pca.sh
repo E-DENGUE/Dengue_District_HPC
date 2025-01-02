@@ -1,23 +1,24 @@
 #!/bin/bash
-#SBATCH --time=1:00:00
+#SBATCH --time=2:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --partition day,scavenge
 #SBATCH --requeue
-#SBATCH --mail-user=daniel.weinberger@yale.edu
+#SBATCH --mail-user=wa223@yale.edu
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=10G
 #SBATCH -o ./Report/output03/output03.%a.out # STDOUT
-#SBATCH --array=1-9408   # If k models and J hold out time points this is 1- j*k  J=84 times, k=112 districts
+#SBATCH -e ./Report/error03/error03.%a.out 
+#SBATCH --array=1-8064   # If k models and J hold out time points this is 1- j*k  J=84 times, k=112 districts
 
 #Define the number of models being tested
 
-N_models=3
+N_models=1
 K=112
-J=84
+J=72
 
 
 #Load R
-module load R/4.2.0-foss-2020b
+module load  R/4.2.3-foss-2022b
 
 # J:1-108 time periods
 # K 1:N_districts 
@@ -45,5 +46,5 @@ end_seconds=$(date -d "$end_time" +%s)
 running_time=$((end_seconds - start_seconds))
 
 # Output j, k, model number, and running time to a log file
-echo "j=$j, k=$k, i=$i, district_number=$task_id, running_time=$running_time seconds" >> ./Report/log1.txt
+echo "j=$j, k=$k, i=$i, district_number=$task_id, running_time=$running_time seconds" >> ./Report/log3.txt
 # done

@@ -5,7 +5,7 @@ lag_district_pca <- function(vintage_date, district.select, modN){
     filter( date>='2004-09-01')%>%
     left_join(spat_IDS, by='district') %>%
     arrange(district, date) %>%
-    mutate( t = interval(min(date), date) %/% months(1) + 1) %>%
+    mutate( t = lubridate::interval(min(date), date) %/% months(1) + 1) %>%
     group_by(district) %>%
     mutate(district2=district,
            Dengue_fever_rates = m_DHF_cases / pop *100000,
@@ -17,16 +17,16 @@ lag_district_pca <- function(vintage_date, district.select, modN){
            cos12 = cos(2*pi*t/12),
            
     ) %>%
-    filter(date<= (vintage_date %m+% months(2) )) %>%  #only keep vintage date and 2 month ahead of that
+    filter(date<= (vintage_date[1] %m+% months(3) )) %>%  #only keep vintage date and 2 month ahead of that
     ungroup() %>%
     mutate(t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
            time_id1= t ) 
   
   all.lags <- c1a %>%
-    dplyr::select(district,date,log_df_lag2,log_df_lag3,log_df_lag4,log_df_lag5
+    dplyr::select(district,date,log_df_lag3,log_df_lag4,log_df_lag5
     ) %>%
     reshape2::melt(., id.vars=c('district','date')) %>%
-    reshape2::dcast(., date ~ district+variable) %>%
+    reshape2::dcast(., date  ~ district+variable) %>% 
     filter(complete.cases(.)) %>%
     mutate_at( vars(-starts_with("date")), ~ if(is.numeric(.)) scale(.) else .) %>% #scale all variables except date
     clean_names()
@@ -35,6 +35,8 @@ lag_district_pca <- function(vintage_date, district.select, modN){
   # hyper = list(theta1 = list(prior = "loggamma", param = c(3, 
   #    2)))))    
   
+  # Assuming all.lag is a list where each element is a data frame or matrix
+
   
   #nbinomial or poisson
   
@@ -114,10 +116,11 @@ lag_district_pca <- function(vintage_date, district.select, modN){
     ungroup() %>%
     mutate(forecast= as.factor(if_else(is.na(m_DHF_cases_hold),1,0)),
            horizon = if_else(date== (vintage_date %m+% months(1)),1,
-                             if_else(date== (vintage_date %m+% months(2)),2, 0
+                             if_else(date== (vintage_date %m+% months(2)),2,
+                                     if_else(date== (vintage_date %m+% months(3)),3, 0
                              )
-           ),
-           max_allowed_lag = 2
+           )),
+           max_allowed_lag = 3
     )%>%
     filter(horizon <= max_allowed_lag) #get rid of lag2 if lag1 is included as covariate
   #View(c1 %>% dplyr::select(district, date,m_DHF_cases_hold,Dengue_fever_rates,log_df_rate,lag_y,lag2_y, forecast, horizon)  %>% filter(date>=as.Date('2012-01-01')))

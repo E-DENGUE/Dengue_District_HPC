@@ -1,0 +1,1957 @@
+---
+title: "Data_cleaning"
+output: html_document
+date: "2024-06-12"
+---
+
+
+
+This file includes the process to obtain the final dataset that we use for monthly analysis. The data cleaning process involves sourcing data from different resources and arranging it to match our new boundaries. To understand how we obtained the new boundaries, please refer to shapefile_new_from_2004.rmd.
+
+The data processing in this file covers dengue cases, population, weather variables from ERA5 and weather station, preventive factors, and socio-economic factors.
+
+
+##Dengue cases
+```{r,warning=FALSE }
+library(stringr)
+library(ggplot2)
+library(readr)
+library(ggplot2)
+library(spdep)
+library(sp)
+library(MASS)
+library(surveillance)
+library(tidyr)
+library(splines)
+library(tidyverse)
+library(tsibble)
+library(sf)
+library(scales)
+library(RColorBrewer)
+library(viridis)
+library(readxl)
+library(dplyr)
+
+Dengue<- read_excel("C:/Users/uqwareed/OneDrive - The University of Queensland/Two months_predictions/HPC_District_monthly_update_lag/Raw_data/20231130_ED_MDR Dengue district data_2000-2023_original modification_updated 20May24.xlsx", sheet=1)
+
+Dengue_filtered_data <- Dengue[Dengue$year >= 2004, ]
+
+
+# Count missing values
+sum(is.na(Dengue_filtered_data$Dengue))
+sum(is.na(Dengue_filtered_data$SevereDHF))
+
+Dengue_filtered_data <- Dengue_filtered_data %>%
+  arrange(district, province, year, month)
+
+# Define a function to fill missing values with the average from the same month in preceding years
+fill_missing_with_average <- function(data, column) {
+  data %>%
+    group_by(district, province, month) %>%
+    mutate({{column}} := ifelse(is.na({{column}}), mean({{column}}[year %in% (max(year) - 1):(min(year) + 1)], na.rm = TRUE), {{column}})) %>%
+    ungroup()
+}
+
+# Apply the function to the columns "Dengue" and "SevereDHF"
+Dengue_filtered_data <- Dengue_filtered_data %>%
+  fill_missing_with_average(Dengue) %>%
+  fill_missing_with_average(SevereDHF)
+
+# Round up the filled values
+Dengue_filtered_data <- Dengue_filtered_data %>%
+  mutate(
+    Dengue = ceiling(Dengue),
+    SevereDHF = ceiling(SevereDHF)
+  )
+
+# Count the number of remaining missing values
+missing_dengue <- sum(is.na(Dengue_filtered_data$Dengue))
+missing_severe_dhf <- sum(is.na(Dengue_filtered_data$SevereDHF))
+
+# Print the result
+cat("Missing values in Dengue:", missing_dengue, "\n")
+cat("Missing values in SevereDHF:", missing_severe_dhf, "\n")
+
+# Match the boundaries
+Dengue_filtered_data <- Dengue_filtered_data %>%
+  mutate(district = toupper(district))
+
+# Group and mutate the data to standardize district names
+Dengue_filtered_data_summarized <- Dengue_filtered_data %>%
+  group_by(province, district, year, month) %>%
+  mutate(
+    district = case_when(
+      (district %in% c("VINH LOI", "HOA BINH")) & (province == "BAC LIEU") ~ "VINH LOI",
+      (district %in% c("MO CAY","MO CAY NAM", "MO CAY BAC")) & (province == "BEN TRE") ~ "MO CAY",
+      (district %in% c("CO DO", "THOI LAI")) & (province == "CAN THO") ~ "CO DO",
+      (district %in% c("HONG NGU DISTRICT", "HONG NGU CITY" )) & (province == "DONG THAP") ~ "HONG NGU",
+      (district %in% c("NGA BAY CITY", "PHUNG HIEP")) & (province == "HAU GIANG") ~ "NGA BAY",
+      (district %in% c("LONG MY", "LONG MY TOWN")) & (province == "HAU GIANG") ~ "LONG MY",
+      (district %in% c("AN MINH", "U MINH THUONG", "AN BIEN", "VINH THUAN")) & (province == "KIEN GIANG") ~ "AN MINH",
+      (district %in% c("KIEN LUONG", "GIANG THANH")) & (province == "KIEN GIANG") ~ "KIEN LUONG",
+      (district %in% c("KIEN TUONG", "MOC HOA")) & (province == "LONG AN") ~ "MOC HOA",
+      (district %in% c("LONG PHU", "MY XUYEN", "TRAN DE")) & (province == "SOC TRANG") ~ "LONG PHU",
+      (district %in% c("CHAU THANH", "MY TU")) & (province == "SOC TRANG") ~ "MY TU",
+      (district %in% c("CAI LAY", "CAI LAY CITY", "CAI LAY DISTRICT")) & (province == "TIEN GIANG") ~ "CAI LAY",
+      (district %in% c("GO CONG TAY", "GO CONG DONG", "TAN PHU DONG")) & (province == "TIEN GIANG") ~ "GO CONG DONG",
+      (district %in% c("DUYEN HAI DISTRICT", "DUYEN HAI", "DUYEN HAI TOWN", "TRA CU")) & (province == "TRA VINH") ~ "TRA CU",
+      (district %in% c("BINH MINH", "BINH TAN")) & (province == "VINH LONG") ~ "BINH MINH",
+      TRUE ~ district
+    )
+  ) %>%
+  summarise(Dengue = sum(Dengue, na.rm = TRUE), SevereDHF = sum(SevereDHF, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(district = ifelse(district == "RACH GIA CI TY", "RACH GIA CITY", district))
+
+# Read the shapefile
+MDR_NEW <- st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re District-level data_DUNG/MDR_NEW_Boundaries.shp")
+
+# Convert district and province names to uppercase
+MDR_NEW <- MDR_NEW %>%
+  mutate(
+    VARNAME = toupper(VARNAME),
+    NAME_En = toupper(NAME_En)
+  )
+
+# Adjust district names in MDR_NEW
+MDR_NEW <- MDR_NEW %>%
+  mutate(VARNAME = gsub("CAM", "CA", VARNAME)) 
+
+
+Dengue_filtered_data_summarized <- Dengue_filtered_data_summarized %>%
+  mutate(
+    district = toupper(district),
+    province = toupper(province)
+  )
+
+
+# Join data with shapefile
+MDR_Dengue_map_pre <- Dengue_filtered_data_summarized %>%
+  left_join(MDR_NEW, by = c("district" = "VARNAME", "province" = "NAME_En"))
+
+# Select required columns
+selected_columns <- c(
+  "province", "district", "year", "month", "Dengue", "SevereDHF",
+  "NAME_1", "NAME_2", "TYPE_2", "ENGTYPE", "ID"
+)
+
+MDR_Dengue_map_pre <- MDR_Dengue_map_pre %>%
+  dplyr::select(all_of(selected_columns))
+
+MDR_Dengue_map_Final <- st_drop_geometry(MDR_Dengue_map_pre)
+dim(MDR_Dengue_map_Final)
+# Plotting for Bac Lieu
+BAC_LIEU_N <- MDR_Dengue_map_Final %>%
+  filter(district == 'BAC LIEU')
+
+ggplot(BAC_LIEU_N, aes(x = month, y = Dengue, group = year, color = factor(year))) +
+  geom_line() +
+  labs(title = "Monthly Dengue Cases in Bac Lieu",
+       x = "Month",
+       y = "Number of Dengue Cases",
+       color = "Year") +
+  theme_minimal()
+
+# Create a date column
+BAC_LIEU_N <- BAC_LIEU_N %>%
+  mutate(date = as.Date(paste(year, month, "1", sep = "-")))
+
+# Create a time series plot
+ggplot(BAC_LIEU_N, aes(x = date, y = Dengue)) +
+  geom_line() +
+  labs(title = "Time Series of Dengue Cases in Bac Lieu",
+       x = "Date",
+       y = "Number of Dengue Cases") +
+  theme_minimal()
+```
+
+
+
+## Populaion data
+
+```{r setup, include=FALSE,warning=False}
+file_path <- "C:\\Users\\uqwareed\\OneDrive - The University of Queensland\\Re District-level data_DUNG\\MDR_pop_district-Eng version- LT.xlsx"
+
+df <- read_excel(file_path, sheet = 1)
+df<- df[,c(3,5,6,8,9)]
+df<- df[df$Year >=2004,]
+df$District <- str_to_title(df$District)
+df$Province<- str_to_title(df$Province)
+df$prov_dis <- paste0(df$District,"", df$Province)
+
+pop_filtered_data_summarized <- df %>%  group_by( Year, District,Province)%>%
+  mutate(
+        District = 
+      ifelse(
+        (  District %in% c("Mo Cay Nam", "Mo Cay Bac")) &  Province %in% 'Ben Tre',
+       "Mo Cay",
+        ifelse(
+          (  District %in%c("Co Do","Thoi Lai")) &  Province %in% 'Can Tho',
+         "Co Do",
+          ifelse(
+            (  District %in% c("Hong Ngu City", "Hong Ngu Town"))  &  Province %in% 'Dong Thap',
+           "Hong Ngu",
+            ifelse(
+              (  District %in% c("Nga Bay City", "Nga Bay Town","Phung Hiep")) &  Province %in% "Hau Giang",
+              "Nga Bay",
+              ifelse(
+                (  District %in% c("Long My", "Long My Town")) &  Province %in% "Hau Giang" ,
+                "Long My",
+                ifelse(
+                  (  District %in%  c("An Minh", "Vinh Thuan",  "U Minh Thuong" ,"An Bien"  )) &  Province%in% "Kien Giang",
+                  "An Minh",
+                  ifelse(
+                    (  District %in% c("Kien Luong", "Giang Thanh")) &  Province%in% "Kien Giang",
+                   "Kien Luong",
+                    ifelse(
+                      (  District %in% c("Moc Hoa" , "Kien Tuong Town")) &  Province %in% "Long An",
+                      "Moc Hoa" ,
+                      ifelse(
+                        (  District %in% c("Long Phu"  , "My Xuyen", "Tran De")) &  Province %in% "Soc Trang",
+                        "Long Phu"  ,
+                        ifelse(
+                        (  District %in%c("Chau Thanh", "My Tu" )) &  Province %in% "Soc Trang",
+                        "My Tu",
+                        ifelse(
+                          (  District %in% c("Cai Lay", "Cai Lay City" ) )&  Province %in% "Tien Giang",
+                          "Cai Lay",
+                          ifelse(
+                            (  District %in% c("Go Cong Dong", "Go Cong Tay", "Tan Phu Dong" )) &  Province %in% "Tien Giang" ,
+                            "Go Cong Dong",
+                            ifelse(
+                              (  District %in% c("Duyen Hai", "Duyen Hai Town","Tra Cu" )) &  Province %in% "Tra Vinh" ,
+                              "Tra Cu" ,
+                              ifelse(
+                                (  District %in%  c("Binh Minh Town", "Binh Tan" ) ) &  Province %in% "Vinh Long",
+                               "Binh Minh",
+                               ifelse(
+       District %in% c("Vinh Loi", "Hoa Binh") &  Province %in% "Bac Lieu",
+      "Vinh Loi",   District
+                              )
+      
+
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  ) )%>%
+ 
+  summarise(
+    total_population = sum(Total_population,na.rm = TRUE),Population_density=sum(Population_density,na.rm=TRUE))%>%
+  ungroup()
+
+pop_filtered_data_summarized$Province_District<-paste0(pop_filtered_data_summarized$Province,"_",pop_filtered_data_summarized$District)
+
+
+
+
+# Create a new data frame to store the interpolated data
+#repeated the same value for each month 
+
+
+# Assuming filled_data is your original data frame
+# Create a new data frame with the 'Month' column
+expanded_data <- expand.grid(Month = 1:12, District = unique(pop_filtered_data_summarized$District), Province = unique(pop_filtered_data_summarized$Province))
+
+# Merge with filled_data to get the required columns
+expanded_data <- merge(expanded_data, pop_filtered_data_summarized, by = c("District", "Province"))
+
+# Use tidyr's complete function to create all combinations of Year, Month, District, and Province
+expanded_data <- arrange(complete(expanded_data, Year, Month, nesting(District, Province)))
+expanded_data <- expanded_data %>%
+  arrange(Year, Month)
+# Print the expanded_data
+print(expanded_data)
+
+data_2021 <- expanded_data %>%
+  filter(Year == 2021 & District == "Cao Lanh City" & Province == "Dong Thap") 
+
+# Check the extracted 2021 data
+print(data_2021)
+
+# Fill in the missing 2022 data with the 2021 data
+expanded_data <- expanded_data %>%
+  mutate(total_population = ifelse(Year == 2022 & District == "Cao Lanh City" & Province == "Dong Thap",
+                                   data_2021$total_population[match(Month, data_2021$Month)],
+                                   total_population),
+         Population_density = ifelse(Year == 2022 & District == "Cao Lanh City" & Province == "Dong Thap",
+                                     data_2021$Population_density[match(Month, data_2021$Month)],
+                                     Population_density))
+
+
+na_rows <- expanded_data[is.na(expanded_data$total_population), ]
+
+##fill the one year missing pop data for CAO LANH CITY in 2022 to be like in 2021
+
+#Join it with the new shape file
+
+
+MDR_NEW <- sf::st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re District-level data_DUNG/MDR_NEW_Boundaries.shp")
+
+
+MDR_NEW$VARNAME<- toupper(MDR_NEW$VARNAME)
+expanded_data$District<- toupper(expanded_data$District)
+
+MDR_NEW$NAME_En<- toupper(MDR_NEW$NAME_En)
+expanded_data$Province<- toupper(expanded_data$Province)
+
+setdiff(MDR_NEW$VARNAME,expanded_data$District)
+setdiff(expanded_data$District,MDR_NEW$VARNAME)
+# Create a mapping between old names and new names
+district_mapping <- c(  "CAO LANH" ="CAO LANH DISTRICT",
+                      "GIA RAI TOWN" = "GIA RAI" ,
+                      "RACH GIA"= "RACH GIA CITY",
+                      "NGA NAM TOWN" ="NGA NAM" ,
+                     "SOC TRANG" = "SOC TRANG CITY" ,
+                      "TRA VINH" = "TRA VINH CITY" ,
+                      "VINH LONG" = "VINH LONG CITY",
+                     "TAN CHAU TOWN"  ="TAN CHAU")
+
+# Replace the names in filled_data using the mapping
+expanded_data <- expanded_data%>%
+  mutate(
+   District  = ifelse(District  %in% names(district_mapping), district_mapping[District ], District )
+  )
+
+##Fill the missing values 
+
+
+setdiff(MDR_NEW$VARNAME,expanded_data$District)
+setdiff(expanded_data$District,MDR_NEW$VARNAME)
+
+expanded_data$Province_District<- paste0(expanded_data$Province,"_",expanded_data$District)
+MDR_NEW$province_district<- toupper(paste(MDR_NEW$NAME_En, MDR_NEW$VARNAME, sep = "_"))
+
+setdiff(MDR_NEW$province_district,expanded_data$Province_District)
+setdiff(expanded_data$Province_District,MDR_NEW$province_district)
+
+# Assuming 'expanded_data' is your tibble
+MDR_NEW<- MDR_NEW %>%
+  mutate(VARNAME = gsub("CAM", "CA", VARNAME))
+
+MDR_NEW<- MDR_NEW %>%
+  mutate(province_district = gsub("CAM", "CA", province_district))
+
+# View the updated tibble
+print(expanded_data)
+
+
+ matching_district <- (MDR_NEW$province_district %in% expanded_data$Province_District )
+  matching_district
+
+# Display the matching values
+matched_names <- unique(MDR_NEW$province_district[matching_district])
+
+matched_names
+
+Non_matching<- unique(MDR_NEW$province_district[!matching_district])
+
+
+Non_matching
+# Display the non-matching values
+# Assuming matching_district is a logical vector
+indices_not_matching <- which(!matching_district)
+
+# Display the indices or positions where matching_district is FALSE
+print(indices_not_matching)
+
+
+MDR_pop <- left_join(MDR_NEW, expanded_data, by = c("province_district"="Province_District"))
+
+dim(MDR_pop)
+
+
+selected_columns <- c(
+   "NAME_1", "NAME_2", "TYPE_2","Year","Month","VARNAME",
+  "ENGTYPE",  "total_population","District",     "Province","Population_density"
+  
+)
+
+Final_set<- inner_join(MDR_Dengue_map_Final, MDR_pop, by = c("province"  = "NAME_En" ,"district"="VARNAME","year"="Year","month"="Month","NAME_1"="NAME_1","NAME_2"="NAME_2","TYPE_2"="TYPE_2","ENGTYPE"="ENGTYPE"))
+
+
+dim(Final_set)
+
+# Assuming your existing data frame is named existing_data_frame
+# Assuming you want to select specific columns based on the provided names
+
+# Columns to select
+selected_columns <- c(
+   "province", "district", "year", "month", "Dengue", "SevereDHF",
+   "NAME_1", "NAME_2", "TYPE_2","Population_density",
+  "ENGTYPE",   "total_population"
+)
+
+# Create the new data frame
+Final_set_subset <- Final_set %>%
+  dplyr::select(all_of(selected_columns))
+
+
+pop_Dengue_Final_set_subset<- Final_set_subset
+# Print the final subset
+dim(pop_Dengue_Final_set_subset)
+
+# Check for rows with any NA values
+na_rows <- pop_Dengue_Final_set_subset[!complete.cases(pop_Dengue_Final_set_subset), ]
+
+# Display the rows with NA values, if any
+if (nrow(na_rows) > 0) {
+  print("Rows with NA values:")
+  print(na_rows)
+} else {
+  print("No rows with NA values found.")
+}
+
+```
+
+
+
+
+##Socioeconomic variables
+The NIHE team has provided socioeconomic data obtained from the census.
+
+```{r}
+file_path <- "C:\\Users\\uqwareed\\OneDrive - The University of Queensland\\Re District-level data_DUNG\\output_file-LT_revised-w-note_v4.xlsx"
+df <- read_excel(file_path, sheet = 2)
+df<- df[df$Year>=2004,]
+
+#The provided code snippet is intended for filling in missing data concerning Poverty Rate, Access to Hygienic Water, Access to Hygienic #Toilets, Monthly Average Income Per Capital, Total Passenger, and Urbanization Rate. since the data are cooolected for every two years..
+
+
+# Sort the data frame by Province and Year
+df <- df %>% arrange(Province, Year)
+
+# Group by Province and apply linear interpolation to Urbanization_Rate
+df <- df %>%
+  group_by(Province) %>%
+  mutate(Urbanization_Rate = zoo::na.approx(Urbanization_Rate, na.rm = FALSE))
+
+# Fill missing values with the average of the previous and next year for the same province
+df <- df %>%
+  group_by(Province) %>%
+  mutate(Urbanization_Rate = ifelse(is.na(Urbanization_Rate),
+                                    (lag(Urbanization_Rate) + lead(Urbanization_Rate, default = last(Urbanization_Rate))) / 2,
+                                    Urbanization_Rate))
+
+
+
+# Group by Province and apply linear interpolation to Urbanization_Rate
+df <- df %>%
+  arrange(Province, Year) %>%
+  group_by(Province) %>%
+  mutate(
+    Poverty_Rate = zoo::na.approx(Poverty_Rate, na.rm = FALSE),
+    Hygienic_Water_Access = zoo::na.approx(Hygienic_Water_Access, na.rm = FALSE),
+    Hygienic_Toilet_Access = zoo::na.approx(Hygienic_Toilet_Access, na.rm = FALSE),
+    Monthly_Average_Income_Percapita = zoo::na.approx(Monthly_Average_Income_Percapita, na.rm = FALSE),
+    Total_Passenger = zoo::na.approx(Total_Passenger, na.rm = FALSE),
+    Urbanization_Rate = zoo::na.approx(Urbanization_Rate, na.rm = FALSE)
+  )
+
+
+# Fill missing values with the average of the previous and next year for the same province
+df <- df %>%
+  arrange(Province, Year) %>%
+  group_by(Province) %>%
+  mutate(
+    Urbanization_Rate = ifelse(is.na(Urbanization_Rate),
+                               (lag(Urbanization_Rate) + lead(Urbanization_Rate, default = last(Urbanization_Rate))) / 2,
+                               Urbanization_Rate),
+    
+    Poverty_Rate = ifelse(is.na(Poverty_Rate),
+                          (lag(Poverty_Rate) + lead(Poverty_Rate, default = last(Poverty_Rate))) / 2,
+                          Poverty_Rate),
+    
+    Hygienic_Water_Access = ifelse(is.na(Hygienic_Water_Access),
+                                   (lag(Hygienic_Water_Access) + lead(Hygienic_Water_Access, default = last(Hygienic_Water_Access))) / 2,
+                                   Hygienic_Water_Access),
+    
+    Hygienic_Toilet_Access = ifelse(is.na(Hygienic_Toilet_Access),
+                                    (lag(Hygienic_Toilet_Access) + lead(Hygienic_Toilet_Access, default = last(Hygienic_Toilet_Access))) / 2,
+                                    Hygienic_Toilet_Access),
+    
+    Monthly_Average_Income_Percapita = ifelse(is.na(Monthly_Average_Income_Percapita),
+                                              (lag(Monthly_Average_Income_Percapita) + lead(Monthly_Average_Income_Percapita, default = last(Monthly_Average_Income_Percapita))) / 2,
+                                              Monthly_Average_Income_Percapita),
+    
+    Total_Passenger = ifelse(is.na(Total_Passenger),
+                             (lag(Total_Passenger) + lead(Total_Passenger, default = last(Total_Passenger))) / 2,
+                             Total_Passenger)
+  )
+
+
+
+
+
+Outmigration_Rate_df <- df[, c(1, 2, 11)]
+
+# Fill missing values for 2004 with values from 2005 for each province
+Outmigration_Rate_df <- Outmigration_Rate_df %>%
+  group_by(Province) %>%
+  fill(Outmigration_Rate, .direction = "downup")
+
+# Print the updated data frame
+print(Outmigration_Rate_df)
+
+df$Outmigration_Rate<- Outmigration_Rate_df$Outmigration_Rate
+
+
+# Assuming your data frame is named df
+Inmigration_Rate_df <- df[, c(1, 3, 11)]
+
+# Assuming your data frame is named df
+s_filled <- Inmigration_Rate_df %>%
+  group_by(Province) %>%
+  mutate(Inmigration_Rate = ifelse(is.na(Inmigration_Rate) & Year == 2004, lead(Inmigration_Rate), Inmigration_Rate),
+         Inmigration_Rate = ifelse(is.na(Inmigration_Rate) & Year == 2006, (lag(Inmigration_Rate) + lead(Inmigration_Rate)) / 2, Inmigration_Rate))
+
+# View the filled data frame
+#View(s_filled)
+
+df$Inmigration_Rate<- s_filled$Inmigration_Rate
+
+
+# Assuming your data frame is named df
+NetImmigration_Rate <- df[, c(1, 4, 11)]
+
+
+# Assuming your data frame is named df
+s2_filled <- NetImmigration_Rate %>%
+  group_by(Province) %>%
+  mutate(NetImmigration_Rate = ifelse(is.na(NetImmigration_Rate) & Year == 2004, lead(NetImmigration_Rate), NetImmigration_Rate),
+         NetImmigration_Rate = ifelse(is.na(NetImmigration_Rate) & Year == 2006, (lag(NetImmigration_Rate) + lead(NetImmigration_Rate)) / 2, NetImmigration_Rate))
+
+
+
+df$NetImmigration_Rate<- s2_filled$NetImmigration_Rate
+s<- df %>%
+  group_by(Province) %>%
+  mutate(NetImmigration_Rate = ifelse(is.na(NetImmigration_Rate), (df$Inmigration_Rate)-(df$Outmigration_Rate), NetImmigration_Rate))
+
+df$NetImmigration_Rate<- s$NetImmigration_Rate
+
+
+#Fill the poverty rate for the years 2004 and 2005 for each province using the linear interpolation.
+
+
+# Assuming your data frame is named df
+d <- df[, c(1, 5, 11)]
+
+# Identify the rows with missing values for 2004 and 2005
+missing_rows <- which(is.na(d$Poverty_Rate) & (d$Year == 2004 ))
+
+# Loop through each Province and fill missing values using linear model predictions
+for (province in unique(d$Province)) {
+  # Subset data for the current province
+  province_data <- d[d$Province == province, ]
+  
+  # Create a linear model
+  lm_model <- lm(Poverty_Rate ~ Year, data = province_data)
+  
+  # Predict missing values
+  predictions <- predict(lm_model, newdata = data.frame(Year = c(2004)))
+  
+  # Fill in missing values for the current province
+  d$Poverty_Rate[missing_rows] <- predictions
+}
+
+# View the updated data frame
+
+
+##filling 2005 
+missing_rows <- which(is.na(d$Poverty_Rate) & (d$Year == 2005))
+
+# Loop through each Province and fill missing values using linear model predictions
+for (province in unique(d$Province)) {
+  # Subset data for the current province
+  province_data <- d[d$Province == province, ]
+  
+  # Create a linear model
+  lm_model <- lm(Poverty_Rate ~ Year, data = province_data)
+  
+  # Predict missing values
+  predictions <- predict(lm_model, newdata = data.frame(Year = c(2005)))
+  
+  # Fill in missing values for the current province
+  d$Poverty_Rate[missing_rows] <- predictions
+}
+
+
+
+df$Poverty_Rate<- d$Poverty_Rate
+
+df <- df[, c(1:11)]
+
+missing_values <- is.na(df)
+
+# Summarize the count of missing values in each column
+missing_count <- colSums(missing_values)
+
+# Display the count of missing values for each column
+print(missing_count)
+
+##match it with dengue cases 
+socio_dengue_pop<- left_join(pop_Dengue_Final_set_subset,df,by=c("province"="Province","year"="Year"))
+
+
+```
+
+##Weather variables from ERA5
+ws_avg: daily average wind speed (m/s)
+t2m_avg: daily average temperature (in deg K = deg C + 273.15)
+rh_avg: daily average relative humidity (%)
+ ws_max: daily maximum wind speed (m/s)
+ t2m_max: daily maximum temperature (in deg K = deg C + 273.15)
+ rh_max: daily maximum relative humidity (%)
+ ws_min: daily minimum wind speed (m/s)
+t2m_min: daily minimum temperature (in deg K = deg C + 273.15)
+rh_min: daily minimum relative humidity (%)
+ tp_accum: accumulated total precipitation (m)
+ 
+ 
+ These data obtained from Van Github per request 
+
+```{r}
+
+# Set the directory path
+
+##These data can be found in Van Github per request
+directory_path <- "C:/Users/uqwareed/OneDrive - The University of Queensland/ERA5land_VN_districs-final/ERA5land_VN_districs-main/MekongDelta/metdata/ERA5/ERA5land_data"
+
+# Get a list of all files in the directory with a .csv extension
+files <- list.files(path = directory_path, pattern = "\\.csv$", full.names = TRUE)
+
+##These lines will take long time to run 
+# Initialize an empty data frame to store the results
+result_df <- data.frame()
+# Iterate through the list of files and read each CSV file
+for (file in files) {
+  # Extract year and month from the file name
+  file_parts <- strsplit(basename(file), "\\.")[[1]]
+  year_month <- substr(file_parts[1], 1, 6)
+  year <- substr(year_month, 1, 4)
+  month <- substr(year_month, 5, 6)
+
+  # Read the CSV file
+  df <- read_csv(file, col_types = cols(.default = "c"))
+df1 <- apply(df[-c(1,2),2:ncol(df)], 2, function(x) as.numeric(as.character(x)))
+  # Calculate the mean for each column
+  means <- colMeans(df1, na.rm = TRUE)
+
+  # Combine year, month, and mean into a data frame
+  summary_data <- data.frame(
+    Year = as.integer(year),
+    Month = as.integer(month),ID= as.vector(as.character(df[1,2:ncol(df)])),
+    Mean = means,names= as.vector(as.character(df[1,2:ncol(df)]))
+  )
+
+  # Append the summary data to the result data frame
+  result_df <- bind_rows(result_df, summary_data)
+}
+
+# Print the resulting data frame
+#print(result_df)
+#saveRDS(result_df,'result_df.rds')
+
+
+##Reshape the data set
+
+result_df<- readRDS('C:/Users/uqwareed/OneDrive - The University of Queensland/ERA5land_VN_districs-final/ERA5land_VN_districs-main/MekongDelta/result_df.rds')
+# Assuming result_df is your data frame
+unique_names <- unique(result_df$names)
+
+
+new_df <- result_df %>%
+  group_by(Year, Month) %>%
+  summarize(
+    ws_avg = Mean[names == "ws_avg"],
+    ws_max = Mean[names == "ws_max"],
+    ws_min = Mean[names == "ws_min"],
+    t2m_avg = Mean[names == "t2m_avg"],
+    t2m_max = Mean[names == "t2m_max"],
+    t2m_min = Mean[names == "t2m_min"],
+    rh_avg = Mean[names == "rh_avg"],
+    rh_max = Mean[names == "rh_max"],
+    rh_min = Mean[names == "rh_min"],
+    tp_accum = Mean[names == "tp_accum"]
+  ) %>%
+  ungroup()  # Remove grouping for the new data frame
+
+print(new_df)
+
+#add the ID
+result_df <- new_df %>%
+  mutate(ID = rep(0:133, length.out = n()))
+
+# View the updated data frame
+print(result_df)
+tail(result_df)
+
+
+#Match the ID with the  VARNAME_2 name
+
+VARNAME_2_inf<- read.csv('C:/Users/uqwareed/OneDrive - The University of Queensland/ERA5land_VN_districs-final/ERA5land_VN_districs-main/MekongDelta/district_infomation.csv')
+
+VARNAME_2_inf$X<- as.numeric(VARNAME_2_inf$X)
+unique(VARNAME_2_inf$X)
+result_df$ID <- as.numeric(result_df$ID)
+unique(result_df$ID)
+
+setdiff(unique(VARNAME_2_inf$X),unique(result_df$ID))
+
+DAT<- left_join(result_df, VARNAME_2_inf,by=c('ID'='X'))
+
+unique(paste(DAT$VARNAME_2, DAT$ID, sep = "_"))
+
+unique(paste(DAT$VARNAME_2, DAT$NAME_1,DAT$NAME_2, sep = "_"))
+
+#This shape file obtained form Van github 
+MDR_2 <- sf::st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re Districts in file_shapefile/VMD_districts_2022.shp")
+
+DAT_MDR_2<- left_join(DAT,MDR_2,by=c("VARNAME_2"="VARNAME_2","NAME_1" ="NAME_1" ,"NAME_2"="NAME_2" ))
+
+library(sf)
+
+Full_data<- st_drop_geometry(DAT_MDR_2)
+
+filtered_data <- Full_data[Full_data$Year >= 2004, ]
+
+dim(filtered_data)
+names(filtered_data)
+
+filtered_data<-filtered_data[,-c(13,17,18,19,20,21,22,23,24,25,26,27,16)]
+names(filtered_data)
+
+# Assuming your data frame is named filtered_data.
+filtered_data_summarized <- filtered_data %>%  group_by(NAME_1 ,NAME_2, Year, Month)%>%
+  mutate(
+       NAME_2 = 
+      ifelse(
+        ( NAME_2 %in% c("Mỏ Cày Nam", "Mỏ Cày Bắc")) & NAME_1 %in% "Bến Tre",
+       "Mỏ Cày",
+        ifelse(
+          ( NAME_2 %in%c( "Cờ Đỏ","Thới Lai")) & NAME_1 %in% "Cần Thơ",
+          "Cờ Đỏ",
+          ifelse(
+            ( NAME_2 %in% c("Hồng Ngự (Thành phố)", "Hồng Ngự"))  & NAME_1 %in% "Đồng Tháp",
+           "Hồng Ngự",
+            ifelse(
+              ( NAME_2 %in% c("Ngã Bảy", "Phụng Hiệp")) & NAME_1 %in% "Hậu Giang",
+              "Ngã Bảy",
+              ifelse(
+                ( NAME_2 %in% c("Long Mỹ", "Long Mỹ (Thị xã)")) & NAME_1 %in% "Hậu Giang" ,
+                "Long Mỹ",
+                ifelse(
+                  ( NAME_2 %in%  c("An Minh", "Vĩnh Thuận", "U Minh Thượng" ,"An Biên")) & NAME_1%in% "Kiên Giang",
+                  "An Minh",
+                  ifelse(
+                    ( NAME_2 %in% c("Kiên Lương", "Giang Thành")) & NAME_1%in% "Kiên Giang",
+                    "Kiên Lương",
+                    ifelse(
+                      ( NAME_2 %in% c("Mộc Hóa", "Kiến Tường")) & NAME_1 %in% "Long An",
+                      "Mộc Hóa",
+                      ifelse(
+                        ( NAME_2 %in% c("Long Phú", "Mỹ Xuyên", "Trần Đề" )) & NAME_1 %in% "Sóc Trăng",
+                        "Long Phú",
+                        ifelse(
+                        ( NAME_2 %in%c("Châu Thành", "Mỹ Tú" )) & NAME_1 %in% "Sóc Trăng",
+                        "Mỹ Tú",
+                        ifelse(
+                          ( NAME_2 %in% c("Cai Lậy", "Cai Lậy (Thị xã)" ) )& NAME_1 %in% "Tiền Giang",
+                          "Cai Lậy",
+                          ifelse(
+                            ( NAME_2 %in% c("Gò Công Đông", "Gò Công Tây", "Tân Phú Đông" )) & NAME_1 %in% "Tiền Giang" ,
+                            "Gò Công Đông",
+                            ifelse(
+                              ( NAME_2 %in% c("Duyên Hải", "Duyên Hải (Thị xã)","Trà Cú")) & NAME_1 %in% "Trà Vinh" ,
+                              "Trà Cú",
+                              ifelse(
+                                ( NAME_2 %in%  c("Bình Minh", "Bình Tân") ) & NAME_1 %in% "Vĩnh Long",
+                               "Bình Minh",
+                               ifelse(
+      NAME_2 %in% c("Vĩnh Lợi", "Hoà Bình") & NAME_1 %in% "Bạc Liêu",
+      "Vĩnh Lợi",  NAME_2
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  ) )%>%
+ 
+  summarise(ws_avg = mean(ws_avg), ws_max = mean(ws_max), ws_min = mean(ws_min), t2m_avg = mean(t2m_avg), t2m_max = mean(t2m_max), t2m_min = mean(t2m_min), rh_avg = mean(rh_avg), rh_max = mean(rh_max),rh_min = mean(rh_min),tp_accum = mean(tp_accum)) %>%
+  ungroup()
+
+
+dim(filtered_data_summarized )
+
+
+##Check the dimension to be similar to the dengue cases.
+filtered_data_summarized_without_2023_year <- filtered_data_summarized %>%
+  filter(!(Year == 2023))
+MDR_NEW <- st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re District-level data_DUNG/MDR_NEW_Boundaries.shp")
+
+dim(filtered_data_summarized_without_2023_year )
+MDR_Dengue_map_pre <- left_join(MDR_NEW, filtered_data_summarized, by = c("NAME_1" = "NAME_1" ,"NAME_2"="NAME_2"))
+
+dim(MDR_Dengue_map_pre)
+
+selected_columns <- c(
+   "NAME_1", "NAME_2", "TYPE_2","Year","Month","VARNAME",
+  "ENGTYPE",  "ws_avg", "ws_max", "ws_min", "t2m_avg",
+  "t2m_max", "t2m_min", "rh_avg", "rh_max", "rh_min", "tp_accum"
+)
+
+# Create the new data frame
+D <- MDR_Dengue_map_pre %>%
+  dplyr::select(all_of(selected_columns))
+D1<- st_drop_geometry(D)
+
+ 
+
+
+MDR_weather_map <- left_join(MDR_NEW, filtered_data_summarized_without_2023_year, by = c("NAME_1" = "NAME_1" ,"NAME_2"="NAME_2"))
+
+
+MDR_weather_map$NAME_En<- toupper(MDR_weather_map$NAME_En)
+MDR_weather_map$VARNAME<- toupper(MDR_weather_map$VARNAME)
+
+Final_set<- inner_join(socio_dengue_pop, MDR_weather_map, by = c("province"  = "NAME_En" ,"district"="VARNAME","year"="Year","month"="Month","NAME_1"="NAME_1","NAME_2"="NAME_2","TYPE_2"="TYPE_2","ENGTYPE"="ENGTYPE"))
+
+dim(Final_set)
+
+# Assuming your existing data frame is named existing_data_frame
+# Assuming you want to select specific columns based on the provided names
+
+# Columns to select
+selected_columns <- c(
+   "province", "district", "year", "month", "Dengue", "SevereDHF",
+     "ws_avg", "ws_max", "ws_min", "t2m_avg",
+  "t2m_max", "t2m_min", "rh_avg", "rh_max", "rh_min", "tp_accum",
+  "total_population"  ,               "Outmigration_Rate",               
+ "Inmigration_Rate"               ,  "NetImmigration_Rate" ,             "Poverty_Rate" ,                   
+ "Hygienic_Water_Access"           , "Monthly_Average_Income_Percapita" ,"Total_Passenger",                 
+ "Hygienic_Toilet_Access"       ,    "Urbanization_Rate"
+)
+
+# Create the new data frame
+socio_dengue_pop_subset_ERA5_weather <- Final_set %>%
+  dplyr::select(all_of(selected_columns))
+
+```
+
+
+##Weather data from weather station 
+
+ws_avg: daily average wind speed (m/s)
+t2m_avg: daily average temperature (in deg K = deg C + 273.15)
+rh_avg: daily average relative humidity (%)
+ ws_max: daily maximum wind speed (m/s)
+ t2m_max: daily maximum temperature (in deg K = deg C + 273.15)
+ rh_max: daily maximum relative humidity (%)
+ ws_min: daily minimum wind speed (m/s)
+t2m_min: daily minimum temperature (in deg K = deg C + 273.15)
+rh_min: daily minimum relative humidity (%)
+ tp_accum: accumulated total precipitation (m)
+
+
+```{r}
+
+
+# Set the directory path
+directory_path <- "C:/Users/uqwareed/OneDrive - The University of Queensland/ERA5land_VN_districs-final/ERA5land_VN_districs-main/MekongDelta/metdata/IMHEN/04_data4edengue/v2"
+
+# Get a list of all files in the directory with a .csv extension
+files <- list.files(path = directory_path, pattern = "\\.csv$", full.names = TRUE)
+
+
+# Initialize an empty data frame to store the results
+result_df <- data.frame()
+# Iterate through the list of files and read each CSV file
+for (file in files) {
+  # Extract year and month from the file name
+  file_parts <- strsplit(basename(file), "\\.")[[1]]
+  year_month <- substr(file_parts[1], 1, 6)
+  year <- substr(year_month, 1, 4)
+  month <- substr(year_month, 5, 6)
+
+  # Read the CSV file
+  df <- read_csv(file, col_types = cols(.default = "c"))
+df1 <- apply(df[-c(1,2),2:ncol(df)], 2, function(x) as.numeric(as.character(x)))
+  # Calculate the mean for each column
+  means <- colMeans(df1, na.rm = TRUE)
+
+  # Combine year, month, and mean into a data frame
+  summary_data <- data.frame(
+    Year = as.integer(year),
+    Month = as.integer(month),ID= as.vector(as.character(df[1,2:ncol(df)])),
+    Mean = means,names= as.vector(as.character(df[1,2:ncol(df)]))
+  )
+
+  # Append the summary data to the result data frame
+  result_df <- bind_rows(result_df, summary_data)
+}
+
+# Print the resulting data frame
+#print(result_df)
+#saveRDS(result_df,'result_df_weather_station_v3.rds')
+
+result_df<- readRDS('C:/Users/uqwareed/OneDrive - The University of Queensland/ERA5land_VN_districs-final/ERA5land_VN_districs-main/MekongDelta/result_df_weather_station_v2.rds')
+#result_df<- readRDS('result_df.rds')
+# Assuming result_df is your data frame
+unique_names <- unique(result_df$names)
+
+
+new_df <- result_df[,-c(3)] %>%
+  group_by(Year, Month) %>%
+  summarize(
+    t2m_avg = Mean[names == "t2m_avg"],
+    t2m_max = Mean[names == "t2m_max"],
+    t2m_min = Mean[names == "t2m_min"],
+     tp_accum = Mean[names == "tp_accum"],
+    rh_avg=Mean[names == "rh_avg"],
+    rh_min=Mean[names == "rh_min"],
+    ws_avg=Mean[names == "ws_avg"]
+    
+  ) %>%
+  ungroup()  # Remove grouping for the new data frame
+
+
+#add the ID
+result_df <- new_df %>%
+  mutate(ID = rep(0:133, length.out = n()))
+
+# View the updated data frame
+print(result_df)
+tail(result_df)
+
+
+
+VARNAME_2_inf<- read.csv('C:/Users/uqwareed/OneDrive - The University of Queensland/ERA5land_VN_districs-final/ERA5land_VN_districs-main/MekongDelta/district_infomation.csv')
+
+VARNAME_2_inf$X<- as.numeric(VARNAME_2_inf$X)
+unique(VARNAME_2_inf$X)
+result_df$ID <- as.numeric(result_df$ID)
+unique(result_df$ID)
+
+setdiff(unique(VARNAME_2_inf$X),unique(result_df$ID))
+
+DAT<- left_join(result_df, VARNAME_2_inf,by=c('ID'='X'))
+
+unique(paste(DAT$VARNAME_2, DAT$ID, sep = "_"))
+
+unique(paste(DAT$VARNAME_2, DAT$NAME_1,DAT$NAME_2, sep = "_"))
+
+
+MDR_2 <- sf::st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re Districts in file_shapefile/VMD_districts_2022.shp")
+
+DAT_MDR_2<- left_join(DAT,MDR_2,by=c("VARNAME_2"="VARNAME_2","NAME_1" ="NAME_1" ,"NAME_2"="NAME_2" ))
+
+
+
+library(sf)
+
+Full_data<- st_drop_geometry(DAT_MDR_2)
+
+filtered_data <- Full_data[Full_data$Year >= 2004, ]
+
+dim(filtered_data)
+names(filtered_data)
+
+filtered_data<-filtered_data[,-c(13:ncol(filtered_data))]
+names(filtered_data)
+
+
+filtered_data_summarized <- filtered_data %>%  group_by(NAME_1 ,NAME_2, Year, Month)%>%
+  mutate(
+       NAME_2 = 
+      ifelse(
+        ( NAME_2 %in% c("Mỏ Cày Nam", "Mỏ Cày Bắc")) & NAME_1 %in% "Bến Tre",
+       "Mỏ Cày",
+        ifelse(
+          ( NAME_2 %in%c( "Cờ Đỏ","Thới Lai")) & NAME_1 %in% "Cần Thơ",
+          "Cờ Đỏ",
+          ifelse(
+            ( NAME_2 %in% c("Hồng Ngự (Thành phố)", "Hồng Ngự"))  & NAME_1 %in% "Đồng Tháp",
+           "Hồng Ngự",
+            ifelse(
+              ( NAME_2 %in% c("Ngã Bảy", "Phụng Hiệp")) & NAME_1 %in% "Hậu Giang",
+              "Ngã Bảy",
+              ifelse(
+                ( NAME_2 %in% c("Long Mỹ", "Long Mỹ (Thị xã)")) & NAME_1 %in% "Hậu Giang" ,
+                "Long Mỹ",
+                ifelse(
+                  ( NAME_2 %in%  c("An Minh", "Vĩnh Thuận", "U Minh Thượng" ,"An Biên")) & NAME_1%in% "Kiên Giang",
+                  "An Minh",
+                  ifelse(
+                    ( NAME_2 %in% c("Kiên Lương", "Giang Thành")) & NAME_1%in% "Kiên Giang",
+                    "Kiên Lương",
+                    ifelse(
+                      ( NAME_2 %in% c("Mộc Hóa", "Kiến Tường")) & NAME_1 %in% "Long An",
+                      "Mộc Hóa",
+                      ifelse(
+                        ( NAME_2 %in% c("Long Phú", "Mỹ Xuyên", "Trần Đề" )) & NAME_1 %in% "Sóc Trăng",
+                        "Long Phú",
+                        ifelse(
+                        ( NAME_2 %in%c("Châu Thành", "Mỹ Tú" )) & NAME_1 %in% "Sóc Trăng",
+                        "Mỹ Tú",
+                        ifelse(
+                          ( NAME_2 %in% c("Cai Lậy", "Cai Lậy (Thị xã)" ) )& NAME_1 %in% "Tiền Giang",
+                          "Cai Lậy",
+                          ifelse(
+                            ( NAME_2 %in% c("Gò Công Đông", "Gò Công Tây", "Tân Phú Đông" )) & NAME_1 %in% "Tiền Giang" ,
+                            "Gò Công Đông",
+                            ifelse(
+                              ( NAME_2 %in% c("Duyên Hải", "Duyên Hải (Thị xã)","Trà Cú")) & NAME_1 %in% "Trà Vinh" ,
+                              "Trà Cú",
+                              ifelse(
+                                ( NAME_2 %in%  c("Bình Minh", "Bình Tân") ) & NAME_1 %in% "Vĩnh Long",
+                               "Bình Minh",
+                               ifelse(
+      NAME_2 %in% c("Vĩnh Lợi", "Hoà Bình") & NAME_1 %in% "Bạc Liêu",
+      "Vĩnh Lợi",  NAME_2
+                              )
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  ) )%>%
+ 
+  summarise( t2m_avg = mean(t2m_avg), t2m_max = mean(t2m_max), t2m_min = mean(t2m_min),tp_accum=mean(tp_accum),
+           rh_avg=mean(rh_avg),rh_min=mean(rh_min),ws_avg=mean(ws_avg)  ) %>%
+  ungroup()
+
+
+dim(filtered_data_summarized )
+
+
+##Check the dimension to be similar to the dengue cases.
+filtered_data_summarized_without_2023_year <- filtered_data_summarized %>%
+  filter(!(Year == 2023))
+MDR_NEW <- st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re District-level data_DUNG/MDR_NEW_Boundaries_Final.shp")
+
+dim(filtered_data_summarized_without_2023_year )
+MDR_Dengue_map_pre <- left_join(MDR_NEW, filtered_data_summarized, by = c("NAME_1" = "NAME_1" ,"NAME_2"="NAME_2"))
+
+dim(MDR_Dengue_map_pre)
+
+selected_columns <- c(
+   "NAME_1", "NAME_2", "TYPE_2","Year","Month","VARNAME",
+  "ENGTYPE",   "t2m_avg", "tp_accum",
+  "t2m_max", "t2m_min","rh_avg",   "rh_min" ,  "ws_avg"  
+)
+
+# Create the new data frame
+D <- MDR_Dengue_map_pre %>%
+  dplyr::select(all_of(selected_columns))
+D1<- st_drop_geometry(D)
+#write.csv(D1,'Weather_Data_with_New_Boundaries_2004_2023.csv')
+#write.csv(filtered_data_summarized,'weather_station_6_variables.csv')
+
+library(sf)
+MDR_NEW <- st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re District-level data_DUNG/MDR_NEW_Boundaries.shp")
+MDR_NEW$NAME_En<- toupper(MDR_NEW$NAME_En)
+MDR_NEW$VARNAME<- toupper(MDR_NEW$VARNAME)
+
+
+
+ 
+ matching_district <- (MDR_NEW$NAME_2 %in% filtered_data_summarized$NAME_2 )
+  matching_district 
+
+# Display the matching values
+matched_names <- unique(MDR_NEW$NAME_2[matching_district])
+
+matched_names
+
+Non_matching<- unique(MDR_NEW$NAME_2[!matching_district])
+
+
+Non_matching
+# Display the non-matching values
+# Assuming matching_district is a logical vector
+indices_not_matching <- which(!matching_district)
+
+# Display the indices or positions where matching_district is FALSE
+print(indices_not_matching)
+
+
+
+
+
+MDR_Dengue_map_weather <- left_join(MDR_NEW, filtered_data_summarized_without_2023_year, by = c("NAME_1" = "NAME_1" ,"NAME_2"="NAME_2"))
+
+dim(MDR_Dengue_map_weather)
+
+Dengue_cases<- MDR_Dengue_map_Final
+
+MDR_Dengue_map_weather$NAME_En<- toupper(MDR_Dengue_map_weather$NAME_En)
+MDR_Dengue_map_weather$VARNAME<- toupper(MDR_Dengue_map_weather$VARNAME)
+
+
+
+Final_set<- inner_join(socio_dengue_pop, MDR_Dengue_map_weather, by = c("province"  = "NAME_En" ,"district"="VARNAME","year"="Year","month"="Month","NAME_1"="NAME_1","NAME_2"="NAME_2","TYPE_2"="TYPE_2","ENGTYPE"="ENGTYPE"))
+
+dim(Final_set)
+
+# Assuming your existing data frame is named existing_data_frame
+# Assuming you want to select specific columns based on the provided names
+
+# Columns to select
+selected_columns <- c(
+   "province", "district", "year", "month", "Dengue", "SevereDHF",
+   "NAME_1", "NAME_2", "TYPE_2",
+  "ENGTYPE",   "t2m_avg",
+  "t2m_max", "t2m_min", "tp_accum","rh_avg",   "rh_min" ,  "ws_avg",
+  "total_population" ,  "Population_density"  ,              "Outmigration_Rate"  ,             
+ "Inmigration_Rate"   ,              "NetImmigration_Rate"  ,            "Poverty_Rate",                    
+ "Hygienic_Water_Access",            "Monthly_Average_Income_Percapita", "Total_Passenger",                 
+ "Hygienic_Toilet_Access",           "Urbanization_Rate" 
+)
+
+# Create the new data frame
+socio_dengue_pop_weather_station <- Final_set %>%
+  dplyr::select(all_of(selected_columns))
+
+
+###Save the results form the different data sets in one file 
+```
+
+##Preventive factors
+
+```{r setup, include=FALSE}
+file_path <- "C:\\Users\\uqwareed\\OneDrive - The University of Queensland\\Re District-level data_DUNG\\Preventive_factor_dengue_cases.xlsx"
+
+Ento <- read_excel(file_path, sheet = 2)
+Ento<- Ento[Ento$year >= 2004 & Ento$year < 2023, -c(3, 4, 5)]
+
+Labo <- read_excel(file_path, sheet = 3)
+Labo<- Labo[Labo$year >= 2004 & Labo$year < 2023, ]
+
+Intervention<- read_excel(file_path, sheet = 4,na = "NA")
+Intervention<- Intervention[Intervention$year>=2004 & Intervention$year < 2023,-c(3,4,5)]
+
+
+# Capitalize the first letter of each word in District and Province columns
+Ento$District <- str_to_title(Ento$District)
+Ento$Province <- str_to_title(Ento$Province)
+Ento$prov_dis <- paste0(Ento$District, " ", Ento$Province)
+
+# Repeat the same for Labo data frame
+Labo$District <- str_to_title(Labo$District)
+Labo$Province <- str_to_title(Labo$Province)
+Labo$prov_dis <- paste0(Labo$District, " ", Labo$Province)
+
+# Repeat the same for Intervention data frame
+Intervention$District <- str_to_title(Intervention$District)
+Intervention$Province <- str_to_title(Intervention$Province)
+Intervention$prov_dis <- paste0(Intervention$District, " ", Intervention$Province)
+
+
+Labo_data_summarized<- Labo %>%  group_by( year,Month, District,Province)%>%
+  dplyr::mutate(
+    District = case_when(
+      District %in% c("Mo Cay Nam", "Mo Cay Bac") & Province == "Ben Tre" ~ "Mo Cay",
+      District %in% c("Co Do", "Thoi Lai",'Can Tho City') & Province == "Can Tho" ~ "Co Do",
+      District %in% c("Hong Ngu City", "Hong Ngu Town") & Province == "Dong Thap" ~ "Hong Ngu",
+      District %in% c("Nga Bay City", "Nga Bay Town", "Phung Hiep") & Province == "Hau Giang" ~ "Nga Bay",
+      District %in% c( "Long My" ,"Long My City", "Long My Town") & Province == "Hau Giang" ~ "Long My",
+      District %in% c("An Minh", "Vinh Thuan", "U Minh Thuong", "An Bien") & Province == "Kien Giang" ~ "An Minh",
+      District %in% c("Kien Luong","Kien Tuong", "Giang Thanh") & Province == "Kien Giang" ~ "Kien Luong",
+      District %in% c("Moc Hoa" , "Kien Tuong","Thi Xa Kien Tuong") & Province == "Long An" ~ "Moc Hoa",
+      District %in% c("Long Phu", "My Xuyen", "Tran De") & Province == "Soc Trang" ~ "Long Phu",
+      District %in% c("Chau Thanh", "My Tu") & Province == "Soc Trang" ~ "My Tu",
+      District %in% c("Cai Lay", "Cai Lay City" ,"Tx. Cai Lay")  & Province == "Tien Giang" ~ "Cai Lay",
+      District %in% c("Go Cong Dong", "Go Cong Tay", "Tan Phu Dong") & Province == "Tien Giang" ~ "Go Cong Dong",
+      District %in% c("Thi Xa Duyen Hai","Duyen Hai","Duyen Hai City", "Duyen Hai Town","Tra Cu" ) & Province == "Tra Vinh" ~ "Tra Cu",
+      District %in% c("Binh Minh Town", "Binh Tan") & Province == "Vinh Long" ~ "Binh Minh",
+      District %in% c("Vinh Loi", "Hoa Binh") & Province == "Bac Lieu" ~ "Vinh Loi",
+      TRUE ~ District
+    )
+  ) %>%
+  summarise(
+  `Total test` = sum(`Total test`, na.rm = TRUE),
+  `No. DEN1` = sum(`No. DEN1`, na.rm = TRUE),
+  `No. DEN2` = sum(`No. DEN2`, na.rm = TRUE),
+  `No. DEN3` = sum(`No. DEN3`, na.rm = TRUE),
+  `No. DEN4` = sum(`No. DEN4`, na.rm = TRUE)
+) %>%
+  ungroup()
+# Create a new data frame to store the interpolated data
+
+dim(Labo_data_summarized)
+
+#repeated the same value for each month 
+
+Labo_data <- Labo_data_summarized %>%
+  arrange(year, Month)
+
+#Join it with the new shape file
+Labo_data$District<- toupper(Labo_data$District)
+Labo_data$Province<- toupper(Labo_data$Province)
+
+    MDR_NEW$VARNAME = toupper(MDR_NEW$VARNAME)
+     MDR_NEW$NAME_En = toupper( MDR_NEW$NAME_En)
+  
+
+MDR_NEW <- MDR_NEW %>%
+  mutate(NAME_En = gsub("CAM", "CA", NAME_En))
+        
+
+setdiff(MDR_NEW$NAME_En,Labo_data$Province)
+
+setdiff(MDR_NEW$VARNAME,toupper(Labo_data$District))
+
+setdiff(toupper(Labo_data$District),MDR_NEW$VARNAME)
+# Create a mapping between old names and new names
+district_mapping <- c(  "TP. BEN TRE" ="BEN TRE",
+                      "SOC TRANG" = "SOC TRANG CITY" ,
+                      "RACH GIA"= "RACH GIA CITY",
+                     "SOC TRANG" = "SOC TRANG CITY" ,
+                      "TRA VINH" = "TRA VINH CITY" ,
+                     "CAO LANH" = "CAO LANH DISTRICT",
+                     "TP MY THO"  ="MY THO",
+                     "TP VINH LONG"="VINH LONG CITY",
+                     "TRA VINH"="TRA VINH CITY",
+                     "CAN THO CITY"="CAN THO",
+                     "VI THANH CITY"="VI THANH"
+                     )
+
+ 
+# Replace the names in filled_data using the mapping
+Labo_data <- Labo_data%>%
+  dplyr::mutate(
+   District  = ifelse(toupper(District)  %in% names(district_mapping), district_mapping[District ], District )
+  )
+
+Labo_data <- Labo_data %>%
+  mutate(District = if_else(District == "TP. BEN TRE", "BEN TRE", District))
+
+setdiff(toupper(MDR_NEW$VARNAME),toupper(Labo_data$District))
+setdiff(toupper(Labo_data$District),toupper(MDR_NEW$VARNAME))
+
+Labo_data$Province_District<- paste0(Labo_data$Province,"_",Labo_data$District)
+MDR_NEW$province_district<- toupper(paste(MDR_NEW$NAME_En, MDR_NEW$VARNAME, sep = "_"))
+
+setdiff(MDR_NEW$province_district,Labo_data$Province_District)
+setdiff(Labo_data$Province_District,MDR_NEW$province_district)
+
+
+ matching_district <- (MDR_NEW$province_district %in% Labo_data$Province_District )
+  matching_district
+
+   matching_district <- (Labo_data$Province_District %in% MDR_NEW$province_district  )
+  matching_district
+# Display the matching values
+matched_names <- unique(Labo_data$Province_District[matching_district])
+
+matched_names
+
+Non_matching<- unique(Labo_data$Province_District[!matching_district])
+
+
+Non_matching
+# Display the non-matching values
+# Assuming matching_district is a logical vector
+indices_not_matching <- which(!matching_district)
+
+# Display the indices or positions where matching_district is FALSE
+print(indices_not_matching)
+
+
+MDR_Dengue_Labo <- left_join(MDR_NEW, Labo_data
+                             , by = c("VARNAME"="District","NAME_En"="Province","province_district"="Province_District"))
+#MDR_Dengue_pop$total_population<- ceiling(MDR_Dengue_pop$total_population)
+dim(MDR_Dengue_Labo)
+##The Labo data is not clloected fro each months so its dimension did not match the dengue cases.
+MDR_Dengue_Labo <- sf::st_drop_geometry( MDR_Dengue_Labo )%>%
+  distinct(year, Month, province_district, .keep_all = TRUE)
+
+dim(MDR_Dengue_Labo)
+
+
+MDR_Dengue_Labo$NAME_En<- toupper(MDR_Dengue_Labo$NAME_En)
+MDR_Dengue_Labo$VARNAME<- toupper(MDR_Dengue_Labo$VARNAME)
+
+Dengue_cases<- MDR_Dengue_map_Final %>%
+  mutate(province = gsub("CAM", "CA", province))
+
+Final_set_labo<- left_join(Dengue_cases, MDR_Dengue_Labo, by = c("province"  = "NAME_En" ,"district"="VARNAME","year"="year","month"="Month"))
+
+dim(Final_set_labo)
+
+##Inversigate the NA 
+
+selected_columns <- c("province" ,         "district" ,"year","month", "Dengue","SevereDHF" ,
+  "Total test"    ,    "No. DEN1"  ,        "No. DEN2"  ,        "No. DEN3"   ,       "No. DEN4"  
+)
+
+LABO <- Final_set_labo %>%
+  dplyr::select(all_of(selected_columns))
+##Labo is not conducted every month, so to match with data it assumed to be zeros 
+
+LABO <- LABO %>%
+  mutate_at(vars(`Total test`, `No. DEN1`, `No. DEN2`, `No. DEN3`, `No. DEN4`), ~ replace_na(., 0))
+
+na_rows <- LABO[!complete.cases(LABO), ]
+
+# Display the rows with NA values, if any
+if (nrow(na_rows) > 0) {
+  print("Rows with NA values:")
+  print(na_rows)
+} else {
+  print("No rows with NA values found.")
+}
+
+#Ento data set
+##Firstly fill all the months in the data 
+ dim(Ento)
+
+names(Ento)
+
+library(mice)
+
+Ento$HI_larvae<- as.numeric(Ento$HI_larvae)
+Ento$BI_larvae<- as.numeric(Ento$BI_larvae)
+Ento$CI_larvae<- as.numeric(Ento$CI_larvae)
+Ento$DI<- as.numeric(Ento$DI)
+Ento$HI_Mos<- as.numeric(Ento$HI_Mos)
+# Specify the predictors and target variable
+predictors <- setdiff(names(Ento), c("BI_larvae", "year", "Month", "Province", "District", "prov_dis"))
+target <- "BI_larvae"
+# Remove problematic variables from predictors if necessary
+#predictors <- setdiff(predictors, c("communication_and/or_training"))
+
+# Perform multiple imputation
+imputed_data <- mice(Ento[, c(predictors, target)], method = "pmm", m = 5)
+
+# Complete the imputation
+completed_data1 <- complete(imputed_data)
+
+dim(completed_data1)
+
+
+# Fill NA values using ifelse
+Ento$BI_larvae <- ifelse(
+ is.na(Ento$BI_larvae),  # Condition: NA values
+ ( completed_data1$BI_larvae),  # Value if NA
+ Ento$BI_larvae  # Value if not NA
+)
+
+
+# Specify the predictors and target variable
+predictors <- setdiff(names(Ento), c("CI_larvae", "year", "Month", "Province", "District", "prov_dis"))
+target <- "CI_larvae"
+# Remove problematic variables from predictors if necessary
+#predictors <- setdiff(predictors, c("communication_and/or_training"))
+
+# Perform multiple imputation
+imputed_data <- mice(Ento[, c(predictors, target)], method = "pmm", m = 5)
+
+# Complete the imputation
+completed_data1 <- complete(imputed_data)
+
+dim(completed_data1)
+Ento$CI_larvae <- ifelse(
+ is.na(Ento$CI_larvae),  # Condition: NA values
+ ( completed_data1$CI_larvae),  # Value if NA
+ Ento$CI_larvae  # Value if not NA
+)
+
+
+predictors <- setdiff(names(Ento), c("HI_larvae", "year", "Month", "Province", "District", "prov_dis"))
+target <- "HI_larvae"
+# Remove problematic variables from predictors if necessary
+#predictors <- setdiff(predictors, c("communication_and/or_training"))
+
+# Perform multiple imputation
+imputed_data <- mice(Ento[, c(predictors, target)], method = "pmm", m = 5)
+
+# Complete the imputation
+completed_data1 <- complete(imputed_data)
+
+dim(completed_data1)
+Ento$HI_larvae <- ifelse(
+ is.na(Ento$HI_larvae ),  # Condition: NA values
+ ( completed_data1$HI_larvae ),  # Value if NA
+ Ento$HI_larvae  # Value if not NA
+)
+
+
+predictors <- setdiff(names(Ento), c("DI", "year", "Month", "Province", "District", "prov_dis"))
+target <- "DI"
+# Remove problematic variables from predictors if necessary
+#predictors <- setdiff(predictors, c("communication_and/or_training"))
+
+# Perform multiple imputation
+imputed_data <- mice(Ento[, c(predictors, target)], method = "pmm", m = 5)
+
+# Complete the imputation
+completed_data1 <- complete(imputed_data)
+
+Ento$DI <- ifelse(
+ is.na(Ento$DI ),  # Condition: NA values
+ ( completed_data1$DI ),  # Value if NA
+ Ento$DI  # Value if not NA
+)
+
+
+predictors <- setdiff(names(Ento), c("HI_Mos", "year", "Month", "Province", "District", "prov_dis"))
+target <- "HI_Mos"
+imputed_data <- mice(Ento[, c(predictors, target)], method = "pmm", m = 5)
+
+completed_data1 <- complete(imputed_data)
+Ento$HI_Mos <- ifelse(
+ is.na(Ento$HI_Mos ),  
+ ( completed_data1$HI_Mos ), 
+ Ento$HI_Mos  
+)
+
+Ento_data_summarized <- Ento %>%  group_by( year,Month, District,Province)%>%
+  mutate(
+        District = 
+      ifelse(
+        (  District %in% c("Mo Cay Nam", "Mo Cay Bac")) &  Province %in% 'Ben Tre',
+       "Mo Cay",
+        ifelse(
+          (  District %in%c("Co Do","Thoi Lai",'Can Tho City')) &  Province %in% 'Can Tho',
+         "Co Do",
+          ifelse(
+            (  District %in% c("Hong Ngu City", "Hong Ngu Town"))  &  Province %in% 'Dong Thap',
+           "Hong Ngu",
+            ifelse(
+              (  District %in% c("Nga Bay City", "Nga Bay Town","Phung Hiep","Nga Bay")) &  Province %in% c("Hau Giang",'Can Tho'),
+              "Nga Bay",
+              ifelse(
+                (  District %in% c("Thi Xa Long My", "Long My" ,"Long My City", "Long My Town")) &  Province %in% "Hau Giang" ,
+                "Long My",ifelse(
+                  (District %in% c(  "Thi Xa Long My"  ,"Long My" ,"Long My City", "Long My Town")) &  Province %in% "Can Tho" ,
+                "Long My",
+                ifelse(
+                  (  District %in%  c("An Minh", "Vinh Thuan",  "U Minh Thuong" ,"An Bien"  )) &  Province%in% "Kien Giang",
+                  "An Minh",
+                  ifelse(
+                    (  District %in% c("Kien Luong", "Giang Thanh")) &  Province%in% "Kien Giang",
+                   "Kien Luong",
+                    ifelse(
+                      (  District %in% c("Moc Hoa" , "Kien Tuong")) &  Province %in% "Long An",
+                      "Moc Hoa" ,
+                      ifelse(
+                        (  District %in% c("Long Phu"  , "My Xuyen", "Tran De")) &  Province %in% "Soc Trang",
+                        "Long Phu"  ,
+                        ifelse(
+                        (  District %in%c("Chau Thanh", "My Tu" )) &  Province %in% "Soc Trang",
+                        "My Tu",
+                        ifelse(
+                          (  District %in% c("Cai Lay", "Cai Lay City" ,"Tx. Cai Lay") )&  Province %in% "Tien Giang",
+                          "Cai Lay",
+                          ifelse(
+                            (  District %in% c("Go Cong Dong", "Go Cong Tay", "Tan Phu Dong" )) &  Province %in% "Tien Giang" ,
+                            "Go Cong Dong",
+                            ifelse(
+                              (  District %in% c("Duyen Hai","Duyen Hai City", "Duyen Hai Town","Tra Cu" )) &  Province %in% "Tra Vinh" ,
+                              "Tra Cu" ,
+                              ifelse(
+                                (  District %in%  c("Binh Minh Town", "Binh Tan" ) ) &  Province %in% "Vinh Long",
+                               "Binh Minh",
+                               ifelse(
+       District %in% c("Vinh Loi", "Hoa Binh") &  Province %in% "Bac Lieu",
+      "Vinh Loi",   District
+                              )
+      
+
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+ ) ) )%>%
+ 
+ summarise(
+  BI_larvae = sum(as.numeric(BI_larvae), na.rm = TRUE),
+  CI_larvae = sum(as.numeric(CI_larvae), na.rm = TRUE),
+ HI_larvae = sum(as.numeric(HI_larvae), na.rm = TRUE),
+ DI = sum(as.numeric(DI), na.rm = TRUE),
+  HI_Mos = sum(as.numeric(HI_Mos), na.rm = TRUE),
+) %>%
+  ungroup()
+# Create a new data frame to store the interpolated data
+dim(Ento_data_summarized)
+
+#repeated the same value for each month 
+
+Ento_data <- Ento_data_summarized %>%
+  arrange(year, Month)
+
+Ento_data<- Ento_data[Ento_data$District != "NA"  , ]
+
+
+
+#Join it with the new shape file
+
+MDR_NEW <- sf::st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re District-level data_DUNG/MDR_NEW_Boundaries.shp")
+
+MDR_NEW<- MDR_NEW %>%
+  mutate(NAME_En = gsub("CAM", "CA", NAME_En))
+
+
+MDR_NEW$VARNAME<- toupper(MDR_NEW$VARNAME)
+Ento_data$District<- toupper(Ento_data$District)
+
+MDR_NEW$NAME_En<- toupper(MDR_NEW$NAME_En)
+Ento_data$Province<- toupper(Ento_data$Province)
+
+setdiff(MDR_NEW$VARNAME,Ento_data$District)
+setdiff(Ento_data$District,MDR_NEW$VARNAME)
+
+# Create a mapping between old names and new names
+district_mapping <- c(  "TP. BEN TRE" ="BEN TRE",
+                      "SOC TRANG" = "SOC TRANG CITY" ,
+                      "RACH GIA"= "RACH GIA CITY",
+                     "SOC TRANG" = "SOC TRANG CITY" ,
+                      "TRA VINH" = "TRA VINH CITY" ,
+                     "CAO LANH" = "CAO LANH DISTRICT",
+                     "TP MY THO"  ="MY THO",
+                     "TP VINH LONG"="VINH LONG CITY",
+                     "TRA VINH"="TRA VINH CITY",
+                     "CAN THO CITY"="CAN THO",
+                     "VI THANH CITY"="VI THANH",
+                     "VINH LONG"="VINH LONG CITY",
+                     "RACH GIA"="RACH GIA CITY"
+                     )
+
+# Replace the names in filled_data using the mapping
+Ento_data <- Ento_data%>%
+  mutate(
+   District  = ifelse(District  %in% names(district_mapping), district_mapping[District ], District )
+  )
+
+
+setdiff(MDR_NEW$VARNAME,Ento_data$District)
+setdiff(Ento_data$District,MDR_NEW$VARNAME)
+
+##The Ento data set has a lot of missing districts 
+
+MDR_Dengue_Ento <- left_join(MDR_NEW, Ento_data,
+    by = c("VARNAME"="District","NAME_En"="Province"))
+
+dim(MDR_Dengue_Ento)
+
+not_matched <- anti_join(MDR_NEW, Ento_data,
+    by = c("VARNAME"="District","NAME_En"="Province"))
+
+# View the dimensions of the resulting data frame
+dim(not_matched)
+
+#Match it with dengue cases to remove any duplication.
+
+Dengue_cases<- MDR_Dengue_map_Final %>%
+  mutate(province = gsub("CAM", "CA", province))
+
+Dengue_cases<- Dengue_cases %>%
+  mutate(district = gsub("CAM", "CA", district))
+
+MDR_Dengue_Ento$NAME_En<- toupper(MDR_Dengue_Ento$NAME_En)
+MDR_Dengue_Ento$VARNAME<- toupper(MDR_Dengue_Ento$VARNAME)
+
+MDR_Dengue_Ento<- MDR_Dengue_Ento%>%
+  mutate(NAME_En = gsub("CAM", "CA", NAME_En))
+
+MDR_Dengue_Ento<- MDR_Dengue_Ento %>%
+  mutate(VARNAME = gsub("CAM", "CA", VARNAME))
+
+Dengue_cases$province_district<- toupper(paste(Dengue_cases$province, Dengue_cases$district, sep = "_"))
+
+setdiff(MDR_Dengue_Ento$province_district,Dengue_cases$province_district)
+
+Final_set_Ento<- left_join(Dengue_cases, MDR_Dengue_Ento, by = c("year"="year","month"="Month","province"="NAME_En","district"="VARNAME"))
+
+dim(Final_set_Ento)
+
+selected_columns <- c(
+   "province",          "district",          "year"   ,           "month"     ,        "Dengue" ,           "SevereDHF"  ,     "province", "Dengue","SevereDHF" ,          "BI_larvae",           "CI_larvae" ,         
+ "HI_larvae" ,          "DI"  
+)
+
+ENTO <- Final_set_Ento %>%
+  dplyr::select(all_of(selected_columns))
+
+
+
+#For intervention data
+
+Intervention<- read_excel(file_path, sheet = 4,na = "NA")
+
+Intervention<- Intervention[Intervention$year>=2004 & Intervention$year < 2023,-c(3,4,5)]
+
+Intervention$District <- str_to_title(Intervention$District)
+Intervention$Province <- str_to_title(Intervention$Province)
+Intervention$prov_dis <- paste0(Intervention$District, " ", Intervention$Province)
+
+unique_combinations <- unique(Labo[, c("Province", "District", "prov_dis")])
+
+# Create a data frame with all combinations of year and month
+year_month <- expand.grid(
+  year = unique(Intervention$year),
+  month = 1:12
+)
+
+# Create a template data frame by merging year_month with unique_combinations
+template_df <- merge(year_month, unique_combinations, by = NULL)
+
+# Left join your data onto the template data frame
+Intervention<- merge(template_df, Intervention, by = c("year", "month", "Province", "District", "prov_dis"), all.x = TRUE)
+
+###Expand the data to inclde also the years from 2004 to 2014
+library(dplyr)
+
+# Create a data frame with all combinations of years, months, provinces, and districts
+all_combinations <- expand.grid(year = 2004:2022,
+                                month = 1:12
+                                )
+
+template_df <- merge(all_combinations, unique_combinations, by = NULL)
+
+# Left join your data onto the template data frame
+Intervention<- merge(template_df, Intervention, by = c("year", "month", "Province", "District", "prov_dis"), all.x = TRUE)
+
+library(dplyr)
+
+# Load the mice package for multiple imputation
+library(mice)
+
+# Specify the predictors and target variable
+predictors <- setdiff(names(Intervention), c("breeding_site_elimination_campaign", "year", "month", "Province", "District", "prov_dis"))
+target <- "breeding_site_elimination_campaign"
+# Remove problematic variables from predictors if necessary
+#predictors <- setdiff(predictors, c("communication_and/or_training"))
+
+# Perform multiple imputation
+imputed_data <- mice(Intervention[, c(predictors, target)], method = "pmm", m = 5)
+
+# Complete the imputation
+completed_data1 <- complete(imputed_data)
+
+# Check if there are still missing values
+sum(is.na(completed_data1$large_scale_spraying_for_epidemic_response))
+
+dim(completed_data1)
+
+# Create a logical condition to identify NA values in breeding_site_elimination_campaign
+na_condition <- is.na(Intervention$breeding_site_elimination_campaign)
+
+# Fill NA values using ifelse
+Intervention$breeding_site_elimination_campaign <- ifelse(
+ is.na(Intervention$breeding_site_elimination_campaign),  # Condition: NA values
+  completed_data1$breeding_site_elimination_campaign,  # Value if NA
+  Intervention$breeding_site_elimination_campaign  # Value if not NA
+)
+
+Intervention$active_spraying <- ifelse(
+ is.na(Intervention$active_spraying),  # Condition: NA values
+  completed_data1$active_spraying,  # Value if NA
+  Intervention$active_spraying  # Value if not NA
+)
+
+Intervention$large_scale_spraying_for_epidemic_response <- ifelse(
+ is.na(Intervention$large_scale_spraying_for_epidemic_response),  # Condition: NA values
+  completed_data1$large_scale_spraying_for_epidemic_response,  # Value if NA
+  Intervention$large_scale_spraying_for_epidemic_response  # Value if not NA
+)
+
+Intervention$communication_or_training <- ifelse(
+ is.na(Intervention$communication_or_training),  # Condition: NA values
+  completed_data1$communication_or_training,  # Value if NA
+  Intervention$communication_or_training  # Value if not NA
+)
+
+Intervention$number_of_outbreak_detection <- ifelse(
+ is.na(Intervention$number_of_outbreak_detection),  # Condition: NA values
+  completed_data1$number_of_outbreak_detection,  # Value if NA
+  Intervention$number_of_outbreak_detection  # Value if not NA
+)
+
+Intervention$number_of_outbreak_response <- ifelse(
+ is.na(Intervention$number_of_outbreak_response),  # Condition: NA values
+  completed_data1$number_of_outbreak_response,  # Value if NA
+  Intervention$number_of_outbreak_response  # Value if not NA
+)
+
+Intervention_data_summarized <- Intervention %>%  group_by( year,month, District,Province)%>%
+  mutate(
+        District = 
+      ifelse(
+        (  District %in% c("Mo Cay Nam", "Mo Cay Bac")) &  Province %in% 'Ben Tre',
+       "Mo Cay",
+        ifelse(
+          (  District %in%c("Co Do","Thoi Lai",'Can Tho City')) &  Province %in% 'Can Tho',
+         "Co Do",
+          ifelse(
+            (  District %in% c("Hong Ngu City", "Hong Ngu Town","Thi Xa Hong Ngu"))  &  Province %in% 'Dong Thap',
+           "Hong Ngu",
+            ifelse(
+              (  District %in% c("Nga Bay City", "Nga Bay Town","Phung Hiep","Nga Bay")) &  Province %in% c("Hau Giang",'Can Tho'),
+              "Nga Bay",
+              ifelse(
+                (  District %in% c( "Thi Xa Long My","Long My" ,"Long My City", "Long My Town")) &  Province %in% "Hau Giang" ,
+                "Long My",ifelse(
+                  (District %in% c( "Long My" ,"Long My City", "Long My Town","Thi Xa Long My")) &  Province %in% "Can Tho" ,
+                "Long My",
+                ifelse(
+                  (  District %in%  c("An Minh", "Vinh Thuan",  "U Minh Thuong" ,"An Bien"  )) &  Province%in% "Kien Giang",
+                  "An Minh",
+                  ifelse(
+                    (  District %in% c("Kien Luong", "Giang Thanh")) &  Province%in% "Kien Giang",
+                   "Kien Luong",
+                    ifelse(
+                      (  District %in% c("Moc Hoa" , "Kien Tuong","Thi Xa Kien Tuong")) &  Province %in% "Long An",
+                      "Moc Hoa" ,
+                      ifelse(
+                        (  District %in% c("Long Phu"  , "My Xuyen", "Tran De")) &  Province %in% "Soc Trang",
+                        "Long Phu"  ,
+                        ifelse(
+                        (  District %in%c("Chau Thanh", "My Tu" )) &  Province %in% "Soc Trang",
+                        "My Tu",
+                        ifelse(
+                          (  District %in% c("Thi Xa Cai Lay","Cai Lay", "Cai Lay City" ,"Tx. Cai Lay") )&  Province %in% "Tien Giang",
+                          "Cai Lay",
+                          ifelse(
+                            (  District %in% c("Go Cong Dong", "Go Cong Tay", "Tan Phu Dong" )) &  Province %in% "Tien Giang" ,
+                            "Go Cong Dong",
+                            ifelse(
+                              (  District %in% c("Thi Xa Duyen Hai","Duyen Hai","Duyen Hai City", "Duyen Hai Town","Tra Cu" )) &  Province %in% "Tra Vinh" ,
+                              "Tra Cu" ,
+                              ifelse(
+                                (  District %in%  c("Binh Minh Town", "Binh Tan" ) ) &  Province %in% "Vinh Long",
+                               "Binh Minh",
+                               ifelse(
+       District %in% c("Vinh Loi", "Hoa Binh") &  Province %in% "Bac Lieu",
+      "Vinh Loi",   District
+                              )
+      
+
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+ ) ) )%>%
+ 
+ summarise(
+ breeding_site_elimination_campaign = sum(as.numeric(breeding_site_elimination_campaign), na.rm = TRUE),
+ active_spraying = sum(as.numeric(active_spraying), na.rm = TRUE),
+large_scale_spraying_for_epidemic_response = sum(as.numeric(large_scale_spraying_for_epidemic_response), na.rm = TRUE),
+`communication_or_training`= sum(as.numeric(`communication_or_training`), na.rm = TRUE),
+  number_of_outbreak_detection = sum(as.numeric(number_of_outbreak_detection), na.rm = TRUE),
+number_of_outbreak_response = sum(as.numeric(number_of_outbreak_response), na.rm = TRUE)
+) %>%
+  ungroup()
+
+dim(Intervention_data_summarized)
+# Create a new data frame to store the interpolated data
+#Ento_data_summarized<- na.omit(Ento_data_summarized)
+
+
+Intervention_data <- Intervention_data_summarized %>%
+  arrange(year, month)
+
+
+Intervention_data<-Intervention_data[Intervention_data$District != "NA"  , ]
+
+MDR_NEW <- sf::st_read(dsn = "C:/Users/uqwareed/OneDrive - The University of Queensland/Re District-level data_DUNG/MDR_NEW_Boundaries.shp")
+
+Intervention_data$Province  <- ifelse(
+  is.na(Intervention_data$Province) &Intervention_data$District == "CAO LANH",  # Condition: NA in Province and District is "CAO
+  "DONG THAP",  # Value if condition is met
+  Intervention_data$Province # Original value if condition is not met
+)
+
+MDR_NEW$VARNAME<- toupper(MDR_NEW$VARNAME)
+Intervention_data$District<- toupper(Intervention_data$District)
+
+MDR_NEW$NAME_En<- toupper(MDR_NEW$NAME_En)
+
+
+MDR_NEW<- MDR_NEW %>%
+  mutate(NAME_En = gsub("CAM", "CA", NAME_En))
+
+Intervention_data$Province<- toupper(Intervention_data$Province)
+
+setdiff(MDR_NEW$VARNAME,Intervention_data$District)
+setdiff(Intervention_data$District,MDR_NEW$VARNAME)
+# Create a mapping between old names and new names
+district_mapping <- c(  "TP. BEN TRE" ="BEN TRE",
+                      "SOC TRANG" = "SOC TRANG CITY" ,
+                      "RACH GIA"= "RACH GIA CITY",
+                    "THANH PHO SOC TRANG" = "SOC TRANG CITY" ,
+                      "TRA VINH" = "TRA VINH CITY" ,
+                     "CAO LANH" = "CAO LANH DISTRICT",
+                     "TP MY THO"  ="MY THO",
+                     "TP VINH LONG"="VINH LONG CITY",
+                     "TRA VINH"="TRA VINH CITY",
+                     "CAN THO CITY"="CAN THO",
+                     "VI THANH CITY"="VI THANH",
+                     "VINH LONG"="VINH LONG CITY",
+                      "THANH PHO RACH GIA"="RACH GIA CITY",
+                    "THI XA VI THANH"   = "VI THANH" ,
+                    "THANH PHO CA MAU"= "CA MAU" ,
+                    "THANH PHO TAN AN"  ="TAN AN",
+                   "THANH PHO CAO LANH"= "CAO LANH DISTRICT",
+                   "THANH PHO TRA VINH"="TRA VINH CITY" ,
+                   "SA ĐEC"="SA DEC",
+                   "THI XA GO CONG" ="GO CONG" ,
+                   "THANH PHO VINH LONG"="VINH LONG CITY",
+                   "THANH PHO BAC LIEU"="BAC LIEU" ,
+                   "THANH PHO BEN TRE" = "BEN TRE" ,
+                   "THANH PHO VINH LONG"="VINH LONG CITY"
+                    )
+
+# Replace the names in filled_data using the mapping
+Intervention_data <- Intervention_data%>%
+  mutate(
+   District  = ifelse(District  %in% names(district_mapping), district_mapping[District ], District )
+  )
+
+
+
+setdiff(MDR_NEW$VARNAME,Intervention_data$District)
+setdiff(Intervention_data$District,MDR_NEW$VARNAME)
+
+# Replace NA values with a similar name
+#similar_name <- "CAO LANH CITY"
+#Intervention_data$District[is.na(Intervention_data$District)] <- similar_name
+# Fill NA values in Province column based on District
+setdiff(Intervention_data$Province,MDR_NEW$NAME_En)
+
+
+
+Intervention_data$Province_District<- paste0(Intervention_data$Province,"_",Intervention_data$District)
+MDR_NEW$province_district<- toupper(paste(MDR_NEW$NAME_En, MDR_NEW$VARNAME, sep = "_"))
+
+setdiff(MDR_NEW$province_district,Intervention_data$Province_District)
+setdiff(Intervention_data$Province_District,MDR_NEW$province_district)
+
+# Assuming 'expanded_data' is your tibble
+MDR_NEW<- MDR_NEW %>%
+  mutate(VARNAME = gsub("CAM", "CA", VARNAME))
+
+MDR_NEW<- MDR_NEW %>%
+  mutate(province_district = gsub("CAM", "CA", province_district))
+
+
+
+ matching_district <- (MDR_NEW$province_district %in% Intervention_data$Province_District )
+  matching_district
+
+   matching_district <- (Intervention_data$Province_District %in% MDR_NEW$province_district  )
+  matching_district
+# Display the matching values
+matched_names <- unique(Intervention_data$Province_District[matching_district])
+
+matched_names
+
+Non_matching<- unique(Intervention_data$Province_District[!matching_district])
+
+
+Non_matching
+# Display the non-matching values
+# Assuming matching_district is a logical vector
+indices_not_matching <- which(!matching_district)
+
+# Display the indices or positions where matching_district is FALSE
+print(indices_not_matching)
+
+MDR_Dengue_Intervention <- left_join(MDR_NEW, Intervention_data
+                             , by = c("VARNAME"="District","NAME_En"="Province","province_district"="Province_District"))
+#MDR_Dengue_pop$total_population<- ceiling(MDR_Dengue_pop$total_population)
+dim(MDR_Dengue_Intervention)
+##The Intervention data is not collected fro each months so its dimension did not match the dengue cases.
+
+
+MDR_Dengue_Intervention$NAME_En<- toupper(MDR_Dengue_Intervention$NAME_En)
+MDR_Dengue_Intervention$VARNAME<- toupper(MDR_Dengue_Intervention$VARNAME)
+
+Dengue_cases<- Dengue_cases %>%
+  mutate(province = gsub("CAM", "CA", province))
+
+Final_set<- inner_join(Dengue_cases, MDR_Dengue_Intervention, by = c("province"  = "NAME_En" ,"district"="VARNAME","year"="year","month"="month"))
+
+dim(Final_set)
+Final_set <- distinct(Final_set)
+
+# Check dimensions after removing duplicates
+dim(Final_set)
+Final_set <- sf::st_drop_geometry( Final_set )%>%
+  distinct(year, month, province_district, .keep_all = TRUE)
+
+library(dplyr)
+
+# Perform an anti-join to find rows that did not match
+not_matched <- anti_join(Dengue_cases, MDR_Dengue_Intervention, by = c("province"  = "NAME_En" ,"district"="VARNAME","year"="year","month"="month"))
+
+# View the dimensions of the resulting data frame
+dim(not_matched)
+
+##Inversigate the NA 
+
+library(dplyr)
+
+# Extract rows with NA values
+
+
+selected_columns <- c(
+   "NAME_1.x"   ,       "NAME_2.x", "TYPE_2.x","year","month",
+   "ENGTYPE.x" ,"district",     "province", "Dengue","SevereDHF" ,
+ "breeding_site_elimination_campaign"  ,       "active_spraying",                           
+"large_scale_spraying_for_epidemic_response", "communication_or_training",                 
+ "number_of_outbreak_detection"    ,           "number_of_outbreak_response" 
+)
+
+D3 <- Final_set %>%
+  dplyr::select(all_of(selected_columns))
+
+
+
+```
