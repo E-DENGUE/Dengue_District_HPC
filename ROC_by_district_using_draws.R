@@ -178,3 +178,4 @@ ggplot(summarized_data, aes(x = as.factor(year), y = total_epidemics)) +
 
 
 
+##
