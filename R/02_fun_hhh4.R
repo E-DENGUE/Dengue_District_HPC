@@ -1,9 +1,9 @@
 hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   
- sim.mat <- readRDS('./Data/tsclust_simmat.rds')
+  sim.mat <- readRDS('./Data/tsclust_simmat.rds')
   
   
-  MDR_NEW <- readRDS( "./Data/MDR_NEW.rds") %>%
+  MDR_NEW <- readRDS( "./Dengue_District_HPC-predict_3mo/Data/MDR_NEW.rds") %>%
     arrange(ID)
   
   row.names(MDR_NEW) <- MDR_NEW$VARNAME
@@ -215,18 +215,15 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   #      hide0s = TRUE, par.settings = NULL, legend = FALSE)
   # plot(dengueSim, "fan", means.args = list(), key.args = list(), add=T)
   
-  #for CRPS evaluation:
-  samps <- matrix(dengueSim[max_horizon,,], nrow=dim(dengueSim)[2])
+  samps <- dengueSim[(max_horizon-2):max_horizon,,] #samples from fitted model
   
-  pop_forecast <- population(dengue_df)[last_fit_t+max_horizon,] #NOTE THIS IS ALREADY DIVIDED BY 100,000
-  obs_forecast <- cases[last_fit_t+max_horizon,]
+  pop_forecast <- population(dengue_df)[(last_fit_t+max_horizon-2):(last_fit_t+max_horizon),] #NOTE THIS IS ALREADY DIVIDED BY 100,000
+  obs_forecast <- cases[(last_fit_t+max_horizon-2):(last_fit_t+max_horizon),]   
   
-  samps.inc <- apply(samps,2, function(x) x/pop_forecast)
+  samps.inc <- array(apply(samps,3, function(x) x/pop_forecast), dim=dim(samps))
   
   #Log(Incidence)
-  log.samps.inc <- log(apply(samps,2, function(x)  (x+1)/pop_forecast))
-  
-  colnames(log.samps.inc) <- paste0('rep',1:ncol(log.samps.inc))
+  log.samps.inc <- array(apply(samps,3, function(x) log((x+1)/pop_forecast) ), dim=dim(samps))
   
   log.samps.inc_mean <-apply(log.samps.inc,1,mean)
   
@@ -235,46 +232,108 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   
   #combine the CRPS scores with the 95% posterior predictive distribution (equal tailed)
   forecast_ds <- c1 %>%
-    filter(date == vintage_date %m+% months(max_horizon))
+    filter(date == vintage_date + months(1)|date == vintage_date + months(2)|date == vintage_date + months(3))
   
   out_ds <- forecast_ds %>%
     dplyr::select(date, district,   pop, m_DHF_cases)%>%
     mutate( forecast=1,
-            horizon = max_horizon,
-            pred_mean = apply(samps,1,mean),
-            pred_lcl = apply(samps,1,quantile, probs=0.025),
-            pred_ucl = apply(samps,1,quantile, probs=0.975))
+            horizon =  if_else(
+              date == (vintage_date + months(1)), 1,
+              if_else(
+                date == (vintage_date + months(2)), 2,
+                if_else(
+                  date == (vintage_date + months(3)), 3,
+                  0
+                )
+              )
+            )
+    )
   
-  crps1 <- crps_sample(obs_inc, samps.inc)
   
-  crps2 <- crps_sample(log_obs_inc, log.samps.inc) #on the log scale, as recommended by https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1011393#sec008
   
-  crps3 <- cbind.data.frame(crps1, crps2,out_ds) 
   
-  c1b <- c1 %>%
-    ungroup() %>%
-    mutate(forecast= if_else( date==(vintage_date %m+% months(max_horizon)),1,0),
-           horizon = if_else(date== (vintage_date %m+% months(1) ),1,
-                             if_else(date== (vintage_date %m+% months(2)),2,
-                                     if_else(date== (vintage_date %m+% months(3)),3,0
-                             )
-           ),
-    ))%>%
-    filter(date <= (vintage_date %m+% months(max_horizon))) 
   
-  c1.out <- c1b %>%
-    dplyr::select(date, district, m_DHF_cases,pop, forecast,horizon ) 
+  crps3 <- data.frame()
+  c1.out <- data.frame()
+  samps_out_list <- list()
   
-  samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+  for (h in 1:max_horizon) {
+    samps <- matrix(dengueSim[h,,], nrow=dim(dengueSim)[2])
+    
+    pop_forecast <- population(dengue_df)[last_fit_t+h,]
+    obs_forecast <- cases[last_fit_t+h,]
+    
+    samps.inc <- apply(samps, 2, function(x) x / pop_forecast)
+    log.samps.inc <- log(apply(samps, 2, function(x) (x + 1) / pop_forecast))
+    log.samps.inc_mean <- apply(log.samps.inc, 1, mean)
+    
+    obs_inc <- obs_forecast / pop_forecast
+    log_obs_inc <- log((obs_forecast + 1) / pop_forecast)
+    
+    # Create forecast data frame
+    forecast_ds <- c1 %>%
+      filter(date == vintage_date + months(h))
+    
+    out_ds <- forecast_ds %>%
+      dplyr::select(date, district, pop, m_DHF_cases) %>%
+      mutate(
+        forecast = 1,
+        horizon = h,
+        pred_mean = apply(samps, 1, mean),
+        pred_lcl = apply(samps, 1, quantile, probs = 0.025),
+        pred_ucl = apply(samps, 1, quantile, probs = 0.975)
+      )
+    
+    # Calculate CRPS scores
+    crps1 <- crps_sample(obs_inc, samps.inc)
+    crps2 <- crps_sample(log_obs_inc, log.samps.inc)
+    
+    # Combine CRPS scores and forecast data
+    crps3 <- cbind.data.frame(crps1, crps2,out_ds)    
+    
+    # Prepare c1.out for this horizon
+    vintage_date <- as.Date(vintage_date)
+    c1b <- c1 %>%
+      ungroup() %>%
+      mutate(
+        forecast = if_else(date == (vintage_date %m+% months(h)), 1, 0),
+        horizon = if_else(date == (vintage_date %m+% months(h)), h, 0)
+      ) 
+    
+    
+    c1.out <- c1b %>%
+      dplyr::select(date, district, m_DHF_cases,pop, forecast,horizon ) 
+    
+    samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+    
+    out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
+    samps_out_list[[h]] <-  out.list
+  }
+  
+  
+  # rbind lists by matching names
+  combine_lists <- function(all_lists) {
+    names_list <- unique(unlist(lapply(all_lists, names)))
+    combined <- lapply(names_list, function(name) {
+      do.call(rbind, lapply(all_lists, function(lst) lst[[name]]))
+    })
+    names(combined) <- names_list
+    combined
+  }
+  
+  out.list <- combine_lists(samps_out_list)
+  
+  # Show the combined list
+  #out.list
+  
+  c1.out<- out.list$ds
+  crps3<- out.list$scores
+  samps.out<- out.list$log.samps.inc
   
   out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
+  
   saveRDS(out.list,paste0('./Results/Results_hhh4/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
   
   return(out.list)
 }
 
-# ptm <- proc.time()
-# test1 <- call_hhh4(date.test.in=as.Date('2015-01-01'), modN='hhh4_np')
-# proc.time() - ptm
-
-#problem is with CAO-LANH-CITY
