@@ -1,16 +1,27 @@
 source('./R/99_load.R')
-
 # Parse command-line arguments
 args <- commandArgs(trailingOnly = TRUE)
 j <- as.numeric(args[1])  
 k <- as.numeric(args[2])
 
-#i=1 #108 dates total
+#j=1 #108 dates total
 #k=1 #10 models
 
 #which models to run?
-all.mods <- list('mod28'=mod28,'mod29'=mod29, 'mod30'=mod30,'mod31'=mod31,'mod32'=mod32,  'mod33'=mod33,  'mod34'=mod34,  'mod35'=mod35,  'mod36'=mod36,  'mod37'=mod37,  'mod38'=mod38)
+library(stringr)
 
-modN_extract = as.numeric(str_match(names(all.mods)[k], "mod(\\d+)")[1,2])
+all.mods <- list('mod1' = mod6, 'mod2' = mod60, 'mod3' = mod61)
 
-mod1 <- inla_spacetime_mod(date.test.in = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract, type4mod=grepl("type4",names(all.mods)[k]) ) 
+
+
+modN_extract <- as.numeric(str_match(names(all.mods)[k], "mod(\\d+)")[1, 2])
+
+
+
+mod1 <- inla_spacetime_mod(vintage_date = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract ) 
+
+# for (j in 1:60){
+#  for (k in 4:10) {
+# mod1 <- inla_spacetime_mod(vintage_date = date.test2[j], formula1 = all.mods[[k]], modN=modN_extract ) 
+#  }
+# }

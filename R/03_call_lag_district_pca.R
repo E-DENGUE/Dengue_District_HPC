@@ -8,7 +8,8 @@ i <- as.numeric(args[3])
 
 mods <- c('PC_lags_weather','PC_lags','PC_weather')
 
-#j=1 #108 dates total
-#i=3 #10 models
+i=3
 
-mod1 <- lag_district_pca(date.test.in = date.test2[j], district.select=all.districts[k],modN=i ) 
+
+
+mod1 <- lag_district_pca(vintage_date = date.test2[j], district.select=all.districts[k],modN=i ) 

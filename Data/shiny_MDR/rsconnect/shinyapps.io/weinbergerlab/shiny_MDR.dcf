@@ -1,0 +1,12 @@
+name: shiny_MDR
+title: shiny_MDR
+username: weinbergerlab
+account: weinbergerlab
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 11912127
+bundleId: 8564600
+url: https://weinbergerlab.shinyapps.io/shiny_MDR/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
