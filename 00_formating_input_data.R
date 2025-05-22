@@ -238,89 +238,68 @@ d3 <- d2 %>%
   left_join(humid3, by=c('district', 'date')) %>%
   left_join(wind1, by=c('district', 'date')) %>%
   left_join(wind2, by=c('district', 'date')) %>%
-  left_join(wind3, by=c('district', 'date')) %>%
-  arrange(province,district, year, month) %>%
-  group_by(district)%>% mutate( 
-    #redefine the lag variables
-    avg_daily_wind = as.vector(scale(avg_daily_wind)),
-    lag1_avg_daily_wind = dplyr::lag(avg_daily_wind,1,default=NA),
-    lag2_avg_daily_wind = dplyr::lag(avg_daily_wind,2,default=NA),
-    lag3_avg_daily_wind = dplyr::lag(avg_daily_wind,3,default=NA),
-    
-    
-    #redefine the lag variables
-    avg_daily_humid = as.vector(scale(avg_daily_humid)),
-    lag1_avg_daily_humid = dplyr::lag(avg_daily_humid,1,default=NA),
-    lag2_avg_daily_humid = dplyr::lag(avg_daily_humid,2,default=NA),
-    lag3_avg_daily_humid = dplyr::lag(avg_daily_humid,3,default=NA),
-    
-    avg_daily_temp= as.vector(scale(avg_daily_temp)),
-    lag1_avg_daily_temp= dplyr::lag(avg_daily_temp,1),
-    lag2_avg_daily_temp= dplyr::lag(avg_daily_temp,2),
-    lag3_avg_daily_temp= dplyr::lag(avg_daily_temp,3),
-    
-    
-    monthly_cum_ppt=as.vector(scale(monthly_cum_ppt)),
-    lag1_monthly_cum_ppt= dplyr::lag(monthly_cum_ppt,1),
-    lag2_monthly_cum_ppt= dplyr::lag(monthly_cum_ppt,2),
-    lag3_monthly_cum_ppt= dplyr::lag(monthly_cum_ppt,3),
-    
-    avg_min_daily_temp=as.vector(scale(avg_min_daily_temp)),
-    lag1_avg_min_daily_temp= dplyr::lag(avg_min_daily_temp,1),
-    lag2_avg_min_daily_temp= dplyr::lag(avg_min_daily_temp,2),
-    lag3_avg_min_daily_temp= dplyr::lag(avg_min_daily_temp,3),
-    
-    avg_max_daily_temp= as.vector(scale(avg_max_daily_temp)),
-    lag1_avg_max_daily_temp= dplyr::lag(avg_max_daily_temp,1),
-    lag2_avg_max_daily_temp= dplyr::lag(avg_max_daily_temp,2),
-    lag3_avg_max_daily_temp= dplyr::lag(avg_max_daily_temp,3),
-    
-    
-    total_rainfall_ab=as.vector(scale(total_rainfall_ab)),
-    lag1_total_rainfall_ab= dplyr::lag(total_rainfall_ab,1),
-    lag2_total_rainfall_ab= dplyr::lag(total_rainfall_ab,2),
-    lag3_total_rainfall_ab= dplyr::lag(total_rainfall_ab,3),
-    
-    lag2_breeding_site_elimination_campaign= dplyr::lag(scale(breeding_site_elimination_campaign),2),	
-    lag2_active_spraying= dplyr::lag(scale(active_spraying),2),
-    lag2_large_scale_spraying_for_epidemic_response= dplyr::lag(scale(large_scale_spraying_for_epidemic_response),2),
-    lag2_communication_or_training= dplyr::lag(scale(communication_or_training),2),
-    lag2_number_of_outbreak_detection= dplyr::lag(scale(number_of_outbreak_detection),2),
-    lag2_number_of_outbreak_response= dplyr::lag(scale(number_of_outbreak_response),2),
-    
-    lag3_breeding_site_elimination_campaign= dplyr::lag(scale(breeding_site_elimination_campaign),3),	
-    lag3_active_spraying= dplyr::lag(active_spraying,3),
-    lag3_large_scale_spraying_for_epidemic_response= dplyr::lag(scale(large_scale_spraying_for_epidemic_response),3),
-    lag3_communication_or_training= dplyr::lag(scale(communication_or_training),3),
-    lag3_number_of_outbreak_detection= dplyr::lag(scale(number_of_outbreak_detection),3),
-    lag3_number_of_outbreak_response= dplyr::lag(scale(number_of_outbreak_response),3),
-    
-  )%>%
-  ungroup() %>%
-  arrange(district, date) %>%
-  group_by(district) %>%
-  mutate(   cumsum_cases_12m =  roll::roll_sum(m_DHF_cases,12, min_obs=1), #partial backward moving sum
-            cumsum_pop_12m =  roll::roll_sum(pop,12, min_obs=1), #partial backward moving sum
-            cum_inc_12m = (cumsum_cases_12m+1)/cumsum_pop_12m*100000,
-            cumsum_cases_24m =  roll::roll_sum(m_DHF_cases,24, min_obs=1), #partial backward moving sum
-            cumsum_pop_24m =  roll::roll_sum(pop,24, min_obs=1), #partial backward moving sum
-            cum_inc_24m = (cumsum_cases_24m+1)/cumsum_pop_24m*100000,
-            cumsum_cases_36m =  roll::roll_sum(m_DHF_cases,36, min_obs=1), #partial backward moving sum
-            cumsum_pop_36m =  roll::roll_sum(pop,36, min_obs=1), #partial backward moving sum
-            cum_inc_36m = (cumsum_cases_36m+1)/cumsum_pop_36m*100000
+  left_join(wind3, by=c('district', 'date')) %>%   mutate(
+    avg_daily_wind_scale = as.vector(scale(avg_daily_wind)),
+    avg_daily_humid_scale = as.vector(scale(avg_daily_humid)),
+    avg_daily_temp_scale = as.vector(scale(avg_daily_temp)),  
+    monthly_cum_ppt_scale = as.vector(scale(monthly_cum_ppt)),
+    avg_min_daily_temp_scale = as.vector(scale(avg_min_daily_temp)), 
+    avg_max_daily_temp_scale = as.vector(scale(avg_max_daily_temp)),
+    total_rainfall_ab_scale = as.vector(scale(total_rainfall_ab)),
+    breeding_site_elimination_campaign_scale = as.vector(scale(breeding_site_elimination_campaign)),
+    active_spraying_scale = as.vector(scale(active_spraying)),
+    large_scale_spraying_for_epidemic_response_scale = as.vector(scale(large_scale_spraying_for_epidemic_response)),
+    communication_or_training_scale = as.vector(scale(communication_or_training)),
+    number_of_outbreak_detection_scale = as.vector(scale(number_of_outbreak_detection)),
+    number_of_outbreak_response_scale = as.vector(scale(number_of_outbreak_response))
   ) %>%
-  ungroup() %>%
-  arrange(district, date) %>%
+  
+  arrange(province, district, year, month) %>%
+  
+  # Group by district before applying lags (no scaling inside the group_by)
   group_by(district) %>%
-  mutate(log_cum_inc_12m=scale(log(cum_inc_12m)),
-         log_cum_inc_24m=scale(log(cum_inc_24m)),
-         log_cum_inc_36m=scale(log(cum_inc_36m)),
-         lag2_log_cum_inc_12m=lag(log_cum_inc_12m,2),
-         lag2_log_cum_inc_24m=lag(log_cum_inc_24m,2),
-         lag2_log_cum_inc_36m=lag(log(cum_inc_36m,2)),
-         lag3_log_cum_inc_12m=lag(log_cum_inc_12m,3),
-         lag3_log_cum_inc_24m=lag(log_cum_inc_24m,3),
-         lag3_log_cum_inc_36m=lag(log(cum_inc_36m,3))
+  mutate(
+    lag1_avg_daily_wind = dplyr::lag(avg_daily_wind_scale, 1),
+    lag2_avg_daily_wind = dplyr::lag(avg_daily_wind_scale, 2),
+    lag3_avg_daily_wind = dplyr::lag(avg_daily_wind_scale, 3),
+    
+    lag1_avg_daily_humid = dplyr::lag(avg_daily_humid_scale, 1),
+    lag2_avg_daily_humid = dplyr::lag(avg_daily_humid_scale, 2),
+    lag3_avg_daily_humid = dplyr::lag(avg_daily_humid_scale, 3),
+    
+    lag1_avg_daily_temp = dplyr::lag(avg_daily_temp_scale, 1),
+    lag2_avg_daily_temp = dplyr::lag(avg_daily_temp_scale, 2),
+    lag3_avg_daily_temp = dplyr::lag(avg_daily_temp_scale, 3),
+    
+    lag1_monthly_cum_ppt = dplyr::lag(monthly_cum_ppt_scale, 1),
+    lag2_monthly_cum_ppt = dplyr::lag(monthly_cum_ppt_scale, 2),
+    lag3_monthly_cum_ppt = dplyr::lag(monthly_cum_ppt_scale, 3),
+    
+    lag1_avg_min_daily_temp = dplyr::lag(avg_min_daily_temp_scale, 1),
+    lag2_avg_min_daily_temp = dplyr::lag(avg_min_daily_temp_scale, 2),
+    lag3_avg_min_daily_temp = dplyr::lag(avg_min_daily_temp_scale, 3),
+    
+    lag1_avg_max_daily_temp = dplyr::lag(avg_max_daily_temp_scale, 1),
+    lag2_avg_max_daily_temp = dplyr::lag(avg_max_daily_temp_scale, 2),
+    lag3_avg_max_daily_temp = dplyr::lag(avg_max_daily_temp_scale, 3),
+    
+    lag1_total_rainfall_ab = dplyr::lag(total_rainfall_ab_scale, 1),
+    lag2_total_rainfall_ab = dplyr::lag(total_rainfall_ab_scale, 2),
+    lag3_total_rainfall_ab = dplyr::lag(total_rainfall_ab_scale, 3),
+    
+    lag2_breeding_site_elimination_campaign = dplyr::lag(breeding_site_elimination_campaign_scale, 2),	
+    lag2_active_spraying = dplyr::lag(active_spraying_scale, 2),
+    lag2_large_scale_spraying_for_epidemic_response = dplyr::lag(large_scale_spraying_for_epidemic_response_scale, 2),
+    lag2_communication_or_training = dplyr::lag(communication_or_training_scale, 2),
+    lag2_number_of_outbreak_detection = dplyr::lag(number_of_outbreak_detection_scale, 2),
+    lag2_number_of_outbreak_response = dplyr::lag(number_of_outbreak_response_scale, 2),
+    
+    lag3_breeding_site_elimination_campaign = dplyr::lag(breeding_site_elimination_campaign_scale, 3),	
+    lag3_active_spraying = dplyr::lag(active_spraying_scale, 3),
+    lag3_large_scale_spraying_for_epidemic_response = dplyr::lag(large_scale_spraying_for_epidemic_response_scale, 3),
+    lag3_communication_or_training = dplyr::lag(communication_or_training_scale, 3),
+    lag3_number_of_outbreak_detection = dplyr::lag(number_of_outbreak_detection_scale, 3),
+    lag3_number_of_outbreak_response = dplyr::lag(number_of_outbreak_response_scale, 3)
   ) %>%
   ungroup() %>%
   filter(!is.na(lag3_monthly_cum_ppt) & first_date==as.Date('2004-01-01') & last_date=='2022-12-01')
@@ -461,4 +440,4 @@ MDR_NEW<- MDR_NEW %>%
 
 saveRDS(MDR_NEW, "./Data/MDR_NEW.rds")
 saveRDS(spat_IDS, "./Data/spatial_IDS.rds")
-#####
+#
