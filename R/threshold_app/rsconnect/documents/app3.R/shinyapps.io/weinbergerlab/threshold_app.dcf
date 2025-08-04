@@ -1,0 +1,13 @@
+name: threshold_app
+title: threshold_app
+username: weinbergerlab
+account: weinbergerlab
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 13470967
+bundleId: 9429598
+url: https://weinbergerlab.shinyapps.io/threshold_app/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE
+ignoredFiles: app2.R
