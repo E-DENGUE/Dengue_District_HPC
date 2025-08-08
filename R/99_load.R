@@ -19,17 +19,17 @@ library(lubridate)
 library(INLA)
 
 
-source('./Model/R/99_helper_funcs.R')
-source('./Model/R/99_define_inla_spacetime_mods.R')
-source('./Model/R/01_fun_inla_spacetime.R')
-source('./Model/R/02_fun_hhh4.R')
-source('./Model/R/03_fun_lag_district_pca.R')
+source('./R/99_helper_funcs.R')
+source('./R/99_define_inla_spacetime_mods.R')
+source('./R/01_fun_inla_spacetime.R')
+source('./R/02_fun_hhh4.R')
+source('./R/03_fun_lag_district_pca.R')
 
 ##read the file from "Input" folder
-d2<-  readRDS('./Model/Data/Full_data_set_with_covariates_and_lags.rds')
+d2<-  readRDS('./Data/Full_data_set_with_covariates_and_lags.rds')
 
 
-MDR_NEW <- readRDS( './Model/Data/MDR_NEW.rds')
+MDR_NEW <- readRDS( './Data/MDR_NEW.rds')
 MDR_NEW <- MDR_NEW %>%
   dplyr::filter(fcode != "ED_KIEN_GIANG_KIEN_HAI_DISTRICT",
                 fcode != "ED_KIEN_GIANG_PHU_QUOC_CITY")
