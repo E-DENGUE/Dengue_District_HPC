@@ -1,37 +1,39 @@
-lag_district_pca <- function(vintage_date, district.select, modN){
+lag_district_pca <- function(vintage_date, fcode.select, modN){
+  
+  set.seed(8123)  # Global R seed for reproducibility
   
   
   c1a <- d2 %>%
     filter( date>='2004-09-01')%>%
-    left_join(spat_IDS, by='district') %>%
-    arrange(district, date) %>%
+    left_join(spat_IDS, by='fcode') %>%
+    arrange(fcode, date) %>%
     mutate( t = lubridate::interval(min(date), date) %/% months(1) + 1) %>%
-    group_by(district) %>%
-    mutate(district2=district,
-           Dengue_fever_rates = m_DHF_cases / pop *100000,
-           log_df_lag2 = lag(log((m_DHF_cases+0.5) / pop *100000),n=2),
-           log_df_lag3 = lag(log((m_DHF_cases+0.5) / pop *100000),n=3),
-           log_df_lag4 = lag(log((m_DHF_cases+0.5) / pop *100000),n=4),
-           log_df_lag5 = lag(log((m_DHF_cases+0.5) / pop *100000),n=5),
+    group_by(fcode) %>%
+    mutate(fcode2=fcode,
+           Dengue_fever_rates = obs_dengue_cases / pop_total *100000,
+           log_df_lag2 = lag(log((obs_dengue_cases+0.5) / pop_total *100000),n=2),
+           log_df_lag3 = lag(log((obs_dengue_cases+0.5) / pop_total *100000),n=3),
+           log_df_lag4 = lag(log((obs_dengue_cases+0.5) / pop_total *100000),n=4),
+           log_df_lag5 = lag(log((obs_dengue_cases+0.5) / pop_total *100000),n=5),
            sin12 = sin(2*pi*t/12),
            cos12 = cos(2*pi*t/12),
            
     ) %>%
     filter(date<= (vintage_date[1] %m+% months(3) )) %>%  #only keep vintage date and 2 month ahead of that
     ungroup() %>%
-    mutate(t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
+    dplyr::mutate(t = t - min(t, na.rm = TRUE) + 1, #make sure timeID starts at 1
            time_id1= t ) 
   
   all.lags <- c1a %>%
-    dplyr::select(district,date,log_df_lag3,log_df_lag4,log_df_lag5
+    dplyr::select(fcode,date,log_df_lag3,log_df_lag4,log_df_lag5
     ) %>%
-    reshape2::melt(., id.vars=c('district','date')) %>%
-    reshape2::dcast(., date  ~ district+variable) %>% 
+    reshape2::melt(., id.vars=c('fcode','date')) %>%
+    reshape2::dcast(., date  ~ fcode+variable) %>% 
     filter(complete.cases(.)) %>%
     mutate_at( vars(-starts_with("date")), ~ if(is.numeric(.)) scale(.) else .) %>% #scale all variables except date
     clean_names()
   
-  # form2 <- as.formula(y ~ f(t, group = districtID2, model = "ar1", 
+  # form2 <- as.formula(y ~ f(t, group = fcodeID2, model = "ar1", 
   # hyper = list(theta1 = list(prior = "loggamma", param = c(3, 
   #    2)))))    
   
@@ -41,18 +43,18 @@ lag_district_pca <- function(vintage_date, district.select, modN){
   #nbinomial or poisson
   
   c1b <- c1a %>%
-    filter( district==district.select) %>%
+    filter( fcode==fcode.select) %>%
     left_join(all.lags, by='date') %>%
-    mutate(offset1= pop/100000,
-           m_DHF_cases_hold= ifelse( date> (vintage_date), NA_real_,
-                                     m_DHF_cases)
+    mutate(offset1= pop_total/100000,
+           obs_dengue_cases_hold= ifelse( date> (vintage_date), NA_real_,
+                                     obs_dengue_cases)
     )
-  # dplyr::select(-contains(district.select)) #filters out lags from the select district--fix this to work with tidy names
+  # dplyr::select(-contains(fcode.select)) #filters out lags from the select fcode--fix this to work with tidy names
   
   ##Y-AWARE PCA
-      df2 <- c1b %>% filter( !is.na(an_minh_log_df_lag4 ))
+      df2 <- c1b %>% filter( !is.na(ed_kien_giang_an_minh_district_log_df_lag4 ))
       x <- df2[,names(all.lags)]
-      Y <- df2$m_DHF_cases_hold
+      Y <- df2$obs_dengue_cases_hold
       y.aware.scale<- apply(x[,-1], 2, function(x1){
         x1 <- as.vector(x1)
         log.y.pre.scale<- scale(log(Y+0.5))
@@ -63,6 +65,14 @@ lag_district_pca <- function(vintage_date, district.select, modN){
         return(x.scale)
       })
       pca1<- prcomp(y.aware.scale, center = FALSE,scale. = FALSE)
+      #pca1<- prcomp(y.aware.scale, center = FALSE,scale. = FALSE)
+     # Cumulative_variance <- cumsum(pca1$sdev^2/ sum(pca1$sdev^2) )
+       #plot(Cumulative_variance, type = "b", xlab = "Number of Principal Components", ylab = "Cumulative Proportion of Variance Explained")
+      
+      # cum_var_explained <- cumsum(pca1$sdev^2 / sum(pca1$sdev^2))
+       
+      # cum_var_explained[10]
+      
       # plot(pca1$sdev)
       n.pcs.keep<-10
       pcs<-pca1$x
@@ -79,11 +89,11 @@ lag_district_pca <- function(vintage_date, district.select, modN){
   mod.select = mods[as.numeric(modN)]
   
   if(mod.select == 'PC_lags_weather'){
-  form2 <- as.formula(paste0("m_DHF_cases_hold ~", all.vars, " +lag2_monthly_cum_ppt + lag2_avg_daily_temp + sin12 +cos12 + f(t, model='ar1')"))
+  form2 <- as.formula(paste0("obs_dengue_cases_hold ~", all.vars, " +lag2_monthly_cum_ppt + lag2_avg_daily_temp + sin12 +cos12 + f(t, model='ar1')"))
   }else   if(mod.select == 'PC_lags'){
-    form2 <- as.formula(paste0("m_DHF_cases_hold ~", all.vars, " + sin12 +cos12 + f(t, model='ar1')"))
+    form2 <- as.formula(paste0("obs_dengue_cases_hold ~", all.vars, " + sin12 +cos12 + f(t, model='ar1')"))
   }else   if(mod.select == 'PC_weather'){
-    form2 <- as.formula(paste0("m_DHF_cases_hold ~", "lag2_monthly_cum_ppt + lag2_avg_daily_temp + sin12 +cos12 + f(t, model='ar1')"))
+    form2 <- as.formula(paste0("obs_dengue_cases_hold ~", "lag2_monthly_cum_ppt + lag2_avg_daily_temp + sin12 +cos12 + f(t, model='ar1')"))
     
   }
   
@@ -114,7 +124,7 @@ lag_district_pca <- function(vintage_date, district.select, modN){
   
   c1 <- c1 %>%
     ungroup() %>%
-    mutate(forecast= as.factor(if_else(is.na(m_DHF_cases_hold),1,0)),
+    mutate(forecast= as.factor(if_else(is.na(obs_dengue_cases_hold),1,0)),
            horizon = if_else(date== (vintage_date %m+% months(1)),1,
                              if_else(date== (vintage_date %m+% months(2)),2,
                                      if_else(date== (vintage_date %m+% months(3)),3, 0
@@ -123,7 +133,7 @@ lag_district_pca <- function(vintage_date, district.select, modN){
            max_allowed_lag = 3
     )%>%
     filter(horizon <= max_allowed_lag) #get rid of lag2 if lag1 is included as covariate
-  #View(c1 %>% dplyr::select(district, date,m_DHF_cases_hold,Dengue_fever_rates,log_df_rate,lag_y,lag2_y, forecast, horizon)  %>% filter(date>=as.Date('2012-01-01')))
+  #View(c1 %>% dplyr::select(fcode, date,obs_dengue_cases_hold,Dengue_fever_rates,log_df_rate,lag_y,lag2_y, forecast, horizon)  %>% filter(date>=as.Date('2012-01-01')))
   
   
   score.list =list ('ds'=c1, mod=mod1, 'fixed.eff'=mod1$summary.fixed,'mod.family'=mod.family)
@@ -131,14 +141,14 @@ lag_district_pca <- function(vintage_date, district.select, modN){
   scores <- scoring_func(score.list)
   
   #plot(c1$date, mod1$summary.fitted.values$mean)
-  # plot((c1$m_DHF_cases[is.na(c1$m_DHF_cases_hold)]), ((mod1$summary.fitted.values$mean[is.na(c1$m_DHF_cases_hold)])))
+  # plot((c1$obs_dengue_cases[is.na(c1$obs_dengue_cases_hold)]), ((mod1$summary.fitted.values$mean[is.na(c1$obs_dengue_cases_hold)])))
   
   c1.out <- c1 %>%
-    dplyr::select(date, district, Dengue_fever_rates, forecast,horizon ) 
+    dplyr::select(date, fcode, Dengue_fever_rates, forecast,horizon ) 
   
   out.list =  list ('ds'=c1.out, 'scores'=scores$crps3,'log.samps.inc'=scores$log.samps.inc,  'fixed.eff'=mod1$summary.fixed, 'form'==as.character(form2))
   
-  saveRDS(out.list,paste0('./Results/Results_pca/', mod.select,'_',district.select,'_',vintage_date  ,'.rds' )   )
+  saveRDS(out.list,paste0('./Output/Results/Results_pca/', mod.select,'_',fcode.select,'_',vintage_date  ,'.rds' )   )
   return(out.list)
 }
 
