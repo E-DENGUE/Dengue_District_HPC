@@ -6,7 +6,7 @@ library(ggplot2)
 library(exactci)
 library(RcppRoll)
 library(patchwork)
-d2 <- readRDS('./Model/Data/Full_data_set_with_covariates_and_lags.rds')
+d2 <- readRDS('./Data/Full_data_set_with_covariates_and_lags.rds')
 
 all.fcodes <- unique(d2$fcode) 
 

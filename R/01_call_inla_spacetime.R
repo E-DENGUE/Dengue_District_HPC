@@ -1,4 +1,4 @@
-source('./Model/R/99_load.R')
+source('./R/99_load.R')
 
 
 args <- commandArgs(trailingOnly = TRUE)
