@@ -1,26 +1,32 @@
 hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   
-  sim.mat <- readRDS('./Data/tsclust_simmat.rds')
+ #sim.mat <- readRDS('./Data/tsclust_simmat.rds')
+  
+  set.seed(8123)  # Global R seed for reproducibility
   
   
-  MDR_NEW <- readRDS( "./Dengue_District_HPC-predict_3mo/Data/MDR_NEW.rds") %>%
+  MDR_NEW <- readRDS( "./Model/Data/MDR_NEW.rds") %>%
     arrange(ID)
   
-  row.names(MDR_NEW) <- MDR_NEW$VARNAME
+  row.names(MDR_NEW) <- MDR_NEW$fcode
+  
+ MDR_NEW <- MDR_NEW %>%
+    dplyr::filter(fcode != "ED_KIEN_GIANG_KIEN_HAI_DISTRICT",
+                  fcode != "ED_KIEN_GIANG_PHU_QUOC_CITY")
   
   neighb <- surveillance::poly2adjmat(st_make_valid(MDR_NEW))
   
   dist_nbOrder <- nbOrder(neighb)
   
-  colnames(dist_nbOrder) <- MDR_NEW$VARNAME
+  colnames(dist_nbOrder) <- MDR_NEW$fcode
   
   map1 <- sf:::as_Spatial(MDR_NEW)
   
   c1 <- d2 %>%
-    arrange(district, date) %>%
+    arrange(fcode, date) %>%
     filter( date>='2004-09-01' & date <= (as.Date(vintage_date)  %m+% months(max_horizon))) %>%
-    group_by(district) %>%
-    mutate( log_inc=log((m_DHF_cases+1)/pop*100000),
+    group_by(fcode) %>%
+    mutate( log_inc=log(( obs_dengue_cases+1)/ pop_total*100000),
             log_lag12_inc= scale(dplyr::lag(log_inc,12) )[,1] ) %>%
     ungroup()
   
@@ -31,73 +37,73 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   
   c1.fit <- c1 %>% 
     filter( date <= (vintage_date %m+% months(max_horizon))) %>%
-    mutate(m_DHF_cases_fit = ifelse(date > vintage_date, NA_real_,m_DHF_cases))
+    mutate( obs_dengue_cases_fit = ifelse(date > vintage_date, NA_real_, obs_dengue_cases))
   
   cases <- c1.fit %>% 
-    reshape2::dcast(date~district, value.var= 'm_DHF_cases') %>%
+    reshape2::dcast(date~fcode, value.var= 'obs_dengue_cases') %>%
     filter(date>=start.date) %>%
-    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    dplyr::select(unique(MDR_NEW$fcode))%>%
     as.matrix()
   
   cases.fit <- c1.fit %>% 
-    reshape2::dcast(date~district, value.var= 'm_DHF_cases_fit') %>%
+    reshape2::dcast(date~fcode, value.var= 'obs_dengue_cases_fit') %>%
     filter(date>=start.date) %>%
-    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    dplyr::select(unique(MDR_NEW$fcode))%>%
     as.matrix()
   
-  pop <- c1.fit %>% 
-    mutate(pop2=pop/100000) %>%
-    reshape2::dcast(date~district, value.var= 'pop2') %>%
+   pop_total <- c1.fit %>% 
+    mutate(pop2= pop_total/100000) %>%
+    reshape2::dcast(date~fcode, value.var= 'pop2') %>%
     filter(date>=start.date) %>%
-    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    dplyr::select(unique(MDR_NEW$fcode))%>%
     as.matrix()
   
   temp_lag3 <- c1.fit %>% 
     mutate(lag3_avg_daily_temp = scale(lag3_avg_daily_temp)) %>%
-    reshape2::dcast(date~district, value.var= 'lag3_avg_daily_temp') %>%
+    reshape2::dcast(date~fcode, value.var= 'lag3_avg_daily_temp') %>%
     filter(date>=start.date) %>%
-    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    dplyr::select(unique(MDR_NEW$fcode))%>%
     as.matrix()
   
   precip_lag3 <- c1.fit %>% 
     mutate(lag3_monthly_cum_ppt = scale(lag3_monthly_cum_ppt)) %>%
-    reshape2::dcast(date~district, value.var= 'lag3_monthly_cum_ppt') %>%
+    reshape2::dcast(date~fcode, value.var= 'lag3_monthly_cum_ppt') %>%
     filter(date>=start.date) %>%
-    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    dplyr::select(unique(MDR_NEW$fcode))%>%
     as.matrix()
   
   
   log_cum_inc_24m <- c1.fit %>% 
     mutate(log_cum_inc_24m = scale(log_cum_inc_24m)) %>%
-    reshape2::dcast(date~district, value.var= 'log_cum_inc_24m') %>%
+    reshape2::dcast(date~fcode, value.var= 'log_cum_inc_24m') %>%
     filter(date>=start.date) %>%
-    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    dplyr::select(unique(MDR_NEW$fcode))%>%
     as.matrix()
   
   log_lag12_inc <- c1.fit %>% 
     mutate(log_lag12_inc = scale(log_lag12_inc)) %>%
-    reshape2::dcast(date~district, value.var= 'log_lag12_inc') %>%
+    reshape2::dcast(date~fcode, value.var= 'log_lag12_inc') %>%
     filter(date>=start.date) %>%
-    dplyr::select(unique(MDR_NEW$VARNAME))%>%
+    dplyr::select(unique(MDR_NEW$fcode))%>%
     as.matrix()
   
   
   
-  #unique(MDR_NEW$VARNAME) == colnames(pop)
+  #unique(MDR_NEW$fcode) == colnames( pop_total)
   
   #Define STS object
   dengue_df <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
-                   population = pop, neighbourhood = dist_nbOrder, map=map1)
+                   population =  pop_total, neighbourhood = dist_nbOrder, map=map1)
   
   #sim.mat <- as.matrix(sim.mat)
   
-  sim.mat2 <- `dim<-`(c(sim.mat), dim(sim.mat))
+  #sim.mat2 <- `dim<-`(c(sim.mat), dim(sim.mat))
   
-  colnames(sim.mat2) <- MDR_NEW$VARNAME
+  #colnames(sim.mat2) <- MDR_NEW$fcode
   
   
-  dengue_df_dist <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
-                        population = pop, neighbourhood =sim.mat2 , map=map1)
+ # dengue_df_dist <- sts(cases.fit, start = c(start.year, start.month), frequency = 12,
+  #                      population =  pop_total, neighbourhood =sim.mat2 , map=map1)
   
   all_dates <- sort(unique(c1$date))
   
@@ -166,7 +172,7 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
       data=list(temp_lag3=temp_lag3,precip_lag3=precip_lag3)
     )
     
-  } else if(mod.select=='hhh4_power_cum_lag24'){
+  } else if(mod.select=='hhh4_power_cum_lag34'){
     dengue_mod_ri_temp <- list(
       end = list(f = addSeason2formula(~ -1 + t +  log_cum_inc_24m +  ri() , period = dengue_df@freq),
                  offset = population(dengue_df)),
@@ -205,37 +211,37 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   
   #simulate forward
   dengueSim <- simulate(dengueFit_ri,
-                        nsim = 999, seed = 1, subset = (last_fit_t+1):(last_fit_t+max_horizon),
+                        nsim = 10000, seed = 1234, subset = (last_fit_t+1):(last_fit_t+max_horizon),
                         y.start = last.y)
   
   plot(dengueSim, type = "time", average = median)
   
   #par(mfrow = c(1,1), mar = c(3, 5, 2, 1), las = 1)
-  # plot(dengueFit_ri, type = "fitted", total = TRUE,
-  #      hide0s = TRUE, par.settings = NULL, legend = FALSE)
+   #plot(dengueFit_ri, type = "fitted", total = TRUE,
+   #    hide0s = TRUE, par.settings = NULL, legend = FALSE)
   # plot(dengueSim, "fan", means.args = list(), key.args = list(), add=T)
   
   samps <- dengueSim[(max_horizon-2):max_horizon,,] #samples from fitted model
   
-  pop_forecast <- population(dengue_df)[(last_fit_t+max_horizon-2):(last_fit_t+max_horizon),] #NOTE THIS IS ALREADY DIVIDED BY 100,000
+  pop_forecast <- population(dengue_df)[(last_fit_t+max_horizon-2):(last_fit_t+max_horizon),]*100000 #NOTE THIS IS ALREADY DIVIDED BY 100,000
   obs_forecast <- cases[(last_fit_t+max_horizon-2):(last_fit_t+max_horizon),]   
   
-  samps.inc <- array(apply(samps,3, function(x) x/pop_forecast), dim=dim(samps))
+  samps.inc <- array(apply(samps,3, function(x) x/pop_forecast*100000), dim=dim(samps))
   
   #Log(Incidence)
-  log.samps.inc <- array(apply(samps,3, function(x) log((x+1)/pop_forecast) ), dim=dim(samps))
+  log.samps.inc <- array(apply(samps,3, function(x) log((x+1)/pop_forecast *100000) ), dim=dim(samps))
   
   log.samps.inc_mean <-apply(log.samps.inc,1,mean)
   
-  obs_inc <- obs_forecast/pop_forecast
-  log_obs_inc <- log((obs_forecast+1)/pop_forecast)
+  obs_inc <- obs_forecast/pop_forecast*100000
+  log_obs_inc <- log((obs_forecast+1)/pop_forecast*100000)
   
   #combine the CRPS scores with the 95% posterior predictive distribution (equal tailed)
   forecast_ds <- c1 %>%
     filter(date == vintage_date + months(1)|date == vintage_date + months(2)|date == vintage_date + months(3))
   
   out_ds <- forecast_ds %>%
-    dplyr::select(date, district,   pop, m_DHF_cases)%>%
+    dplyr::select(date, fcode,    pop_total,  obs_dengue_cases)%>%
     mutate( forecast=1,
             horizon =  if_else(
               date == (vintage_date + months(1)), 1,
@@ -254,28 +260,30 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   
   
   crps3 <- data.frame()
+  
+  
   c1.out <- data.frame()
   samps_out_list <- list()
   
   for (h in 1:max_horizon) {
     samps <- matrix(dengueSim[h,,], nrow=dim(dengueSim)[2])
     
-    pop_forecast <- population(dengue_df)[last_fit_t+h,]
+    pop_forecast <- population(dengue_df)[last_fit_t+h,]*100000
     obs_forecast <- cases[last_fit_t+h,]
     
-    samps.inc <- apply(samps, 2, function(x) x / pop_forecast)
-    log.samps.inc <- log(apply(samps, 2, function(x) (x + 1) / pop_forecast))
+    samps.inc <- apply(samps, 2, function(x) x / pop_forecast*100000)
+    log.samps.inc <- log(apply(samps, 2, function(x) (x + 1) / pop_forecast *100000))
     log.samps.inc_mean <- apply(log.samps.inc, 1, mean)
     
-    obs_inc <- obs_forecast / pop_forecast
-    log_obs_inc <- log((obs_forecast + 1) / pop_forecast)
+    obs_inc <- (obs_forecast / pop_forecast*100000)
+    log_obs_inc <- log((obs_forecast + 1) / pop_forecast*100000)
     
     # Create forecast data frame
     forecast_ds <- c1 %>%
       filter(date == vintage_date + months(h))
     
     out_ds <- forecast_ds %>%
-      dplyr::select(date, district, pop, m_DHF_cases) %>%
+      dplyr::select(date, fcode, pop_total, obs_dengue_cases) %>%
       mutate(
         forecast = 1,
         horizon = h,
@@ -284,14 +292,16 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
         pred_ucl = apply(samps, 1, quantile, probs = 0.975)
       )
     
-    # Calculate CRPS scores
-    crps1 <- crps_sample(obs_inc, samps.inc)
-    crps2 <- crps_sample(log_obs_inc, log.samps.inc)
+    if (any(is.na(obs_forecast)) || any(is.na(pop_forecast))) {
+      crps1 <- rep(NA, length(obs_forecast))
+      crps2 <- rep(NA, length(obs_forecast))
+    } else {
+      crps1 <- crps_sample(obs_inc, samps.inc)
+      crps2 <- crps_sample(log_obs_inc, log.samps.inc)
+    }
     
-    # Combine CRPS scores and forecast data
     crps3 <- cbind.data.frame(crps1, crps2,out_ds)    
     
-    # Prepare c1.out for this horizon
     vintage_date <- as.Date(vintage_date)
     c1b <- c1 %>%
       ungroup() %>%
@@ -302,9 +312,9 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
     
     
     c1.out <- c1b %>%
-      dplyr::select(date, district, m_DHF_cases,pop, forecast,horizon ) 
+      dplyr::select(date, fcode, obs_dengue_cases,pop_total, forecast,horizon ) 
     
-    samps.out <- cbind.data.frame('date'=out_ds$date, 'district'=out_ds$district, 'horizon'=out_ds$horizon, log.samps.inc)
+    samps.out <- cbind.data.frame('date'=out_ds$date, 'fcode'=out_ds$fcode, 'horizon'=out_ds$horizon, log.samps.inc)
     
     out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
     samps_out_list[[h]] <-  out.list
@@ -322,18 +332,20 @@ hhh4_mod <- function(vintage_date, modN,max_horizon=3){
   }
   
   out.list <- combine_lists(samps_out_list)
+
   
-  # Show the combined list
-  #out.list
+  # Assuming log.samps.inc is your data frame
+  out.list$log.samps.inc <- out.list$log.samps.inc %>%
+    rename_at(vars(-c(date, fcode, horizon)), ~str_c("rep", .))
+  
   
   c1.out<- out.list$ds
   crps3<- out.list$scores
   samps.out<- out.list$log.samps.inc
   
-  out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
-  
-  saveRDS(out.list,paste0('./Results/Results_hhh4/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
-  
-  return(out.list)
-}
+out.list =  list ('ds'=c1.out, 'scores'=crps3,'log.samps.inc'=samps.out)
 
+saveRDS(out.list,paste0('./Output/Results/Results_hhh4/', 'mod',mod.select,'_',vintage_date  ,'.rds' )   )
+
+return(out.list)
+}
