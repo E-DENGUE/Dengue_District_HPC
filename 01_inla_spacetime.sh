@@ -3,19 +3,20 @@
 #SBATCH --mail-type=ALL
 #SBATCH --partition day,scavenge
 #SBATCH --requeue
-#SBATCH --mail-user=daniel.weinberger@yale.edu
+#SBATCH --mail-user=wa223@yale.edu
 #SBATCH --cpus-per-task=8
 #SBATCH --mem-per-cpu=10G
-#SBATCH -o ./Report/output.%a.out # STDOUT
-#SBATCH --array=1-84   # If k models and J hold out time points this is 1- j*k  J=84, K=15
+#SBATCH -o ./Report/output01/output01.%a.out # STDOUT
+#SBATCH -e ./Report/error01/error01.%a.out 
+#SBATCH --array=1-4392   # If k models and J hold out time points this is 1- j*k  J=84, K=15
 
 
 #Define the number of models being tested
 
-N_models=1
+N_models=61
 
 #Load R
-module load R/4.2.0-foss-2020b
+module load  R/4.2.3-foss-2022b
 
 # J:1-108 time periods
 # K 1:N_models models
