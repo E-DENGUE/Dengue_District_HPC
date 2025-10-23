@@ -99,13 +99,12 @@ ts_decomposition_inla <- function(forecast_year, fcode.select){
   mod.family <- mod1$.args$family
   
   #need the linear predictor minus the AR(1) using lincomb; ar(1) random effect should be uncorrelated from rest of model;
-    lin.pred.no.ar1 <- mod1$summary.lincomb.derived[,c('mean','sd')] %>%
+  lin.pred.no.ar1 <- mod1$summary.lincomb.derived[,c('mean','sd')] %>%
     dplyr::rename(mean.no.ar1_inc=mean, sd.no.ar1_inc=sd) %>%
     mutate(
-      mean_log_baseline = mean.no.ar1_inc*offset1, #lambda, mean of cases
-      var.no.ar1_inc = sd.no.ar1_inc^2,
-      sd_log_baseline = sqrt(var.no.ar1_inc*offset1)
-    )
+          mean_log_baseline = mean.no.ar1_inc + log(offset1) , #lambda, mean of cases
+           sd_log_baseline = sd.no.ar1_inc # SD unchaned because just adding a constant to mean
+           )
   
   ##dataset with the baseline expected values!
   baseline <- cbind.data.frame('date'=c2$date ,'obs_dengue_cases'=c2$obs_dengue_cases,c2$obs_dengue_cases, lin.pred.no.ar1) %>%
