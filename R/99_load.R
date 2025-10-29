@@ -34,7 +34,7 @@ MDR_NEW <- MDR_NEW %>%
   dplyr::filter(fcode != "ED_KIEN_GIANG_KIEN_HAI_DISTRICT",
                 fcode != "ED_KIEN_GIANG_PHU_QUOC_CITY")
 
-spat_IDS <- readRDS( "./Model/Data/spatial_IDS.rds")
+spat_IDS <- readRDS( "./Data/spatial_IDS.rds")
 
 neighb <- poly2nb(st_make_valid(MDR_NEW), queen = T, snap = sqrt(0.001))
 
