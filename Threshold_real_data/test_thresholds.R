@@ -3,6 +3,17 @@ library(dplyr)
 library(ggplot2)
 library(gridExtra)
 
+
+a1 <- read_csv('../Data/risk scores and alerts.csv') %>%
+  mutate(month = month(pred_date)) %>%
+  filter(Forecast_horizon =='3 months')
+
+
+ggplot(a1) +
+  geom_point(aes(x=risk_value_z, y=risk_value_absoulte , color=epidemic_flag_from_three_methods))+
+  facet_wrap(~month)
+
+
 # Load the data
 all.baselines <- readRDS('all_baselines.rds')
 grouped_data <- readRDS('grouped_data_Full.rds')
@@ -111,6 +122,6 @@ pop2_scores <- pop1_scores %>%
 ggplot(pop2_scores) +
   geom_point(aes(x=max_risk_z, y=max_risk_absolute))+
   facet_wrap(~month)+
-  ylim(0, 250)+
+  ylim(0, 60)+
   xlim(0,15)
 
