@@ -2,16 +2,20 @@ library(shiny)
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
+library(tidyverse)
 
 
 a1 <- read_csv('../Data/risk scores and alerts.csv') %>%
   mutate(month = month(pred_date)) %>%
   filter(Forecast_horizon =='3 months')
 
-
 ggplot(a1) +
-  geom_point(aes(x=risk_value_z, y=risk_value_absoulte , color=epidemic_flag_from_three_methods))+
-  facet_wrap(~month)
+  geom_point(aes(x=sqrt(risk_value_z), y=sqrt(risk_value_absoulte) , color=epidemic_flag_pred_mean))+
+  facet_wrap(~month)+
+  theme_classic()+
+  geom_hline(yintercept=3, lty=2)+
+  geom_vline(xintercept=1.0, lty=2)
+
 
 
 # Load the data
@@ -120,7 +124,7 @@ pop2_scores <- pop1_scores %>%
 
 
 pop2_scores %>%
-  filter(date<'2019-01-01') %>%
+  filter(date>'2019-01-01') %>%
 ggplot() +
   geom_point(aes(x=max_risk_z, y=max_risk_absolute))+
   facet_wrap(~month) +
