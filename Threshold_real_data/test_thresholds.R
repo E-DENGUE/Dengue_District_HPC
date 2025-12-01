@@ -102,9 +102,9 @@ pop1_scores <- grouped_data_filter %>%
   dplyr::select(date, district,predN, probability1)
 
 pop2_scores <- pop1_scores %>%
-  arrange(district, date, predN) %>%
   left_join(summary_measures, by = c('date','district')) %>%
-  group_by(district, date) %>%
+  arrange(district, date, predN) %>%
+    group_by(district, date) %>%
   mutate(cum_prob = cumsum(probability1),
          prob_above_level = 1 - cum_prob,
          risk_profile = prob_above_level * predN ,
@@ -119,9 +119,15 @@ pop2_scores <- pop1_scores %>%
   ungroup()
 
 
-ggplot(pop2_scores) +
+pop2_scores %>%
+  filter(date<'2019-01-01') %>%
+ggplot() +
   geom_point(aes(x=max_risk_z, y=max_risk_absolute))+
-  facet_wrap(~month)+
-  ylim(0, 60)+
-  xlim(0,15)
+  facet_wrap(~month) +
+  theme_classic()+
+  geom_hline(yintercept=25, lty=2)+
+  geom_vline(xintercept=6.0, lty=2)
+#+
+  #ylim(0, 60)+
+  #xlim(0,15)
 
