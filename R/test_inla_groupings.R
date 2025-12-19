@@ -33,6 +33,7 @@ fit_mod <- function(vintage_date, formula1 ) {
       lag_y = lag(log_df_rate, 1),
       lag2_y = lag(log_df_rate, 2),
       lag3_y = lag(log_df_rate, 3),
+      pandemic = if_else(date >= '2020-03-01' & date <= "2022-12-01",1,0),
       max_allowed_lag = ifelse(any(
         grepl('lag_y', formula1) | grepl('lag1', formula1)
       ), 1, 3),
@@ -141,7 +142,7 @@ fit_mod <- function(vintage_date, formula1 ) {
       obs_future = if_else(date > vintage_date, obs_dengue_cases , NA_real_)
     ) %>%
     filter(date> vintage_date & date <= (vintage_date %m+% months(3) ) ) %>%
-    dplyr::select(date,obs_dengue_cases,pred_mean_count,offset1 ) %>%
+    dplyr::select(date,grp, obs_dengue_cases,pred_mean_count,offset1 ) %>%
     mutate(horizon = interval(vintage_date, date) %/% months(1) )
   
   out.list = list('preds_district' = preds_district, 'preds_overall' = preds_overall, 'mod.formula'=formula1)
@@ -179,31 +180,103 @@ form4 = 'obs_dengue_cases_hold ~ lag3_y+ grp +
           f(grpID, model="iid") +
           f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=grpID3)'
 
+#same as mod 1, but without interaction for climate
+form5 = 'obs_dengue_cases_hold ~ lag3_y+ grp +
+  lag3_monthly_cum_ppt+
+         f(t,  model="ar1", hyper = hyper.ar1,constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
+#same as mod 5, but with interaction for pandemic
+form6 = 'obs_dengue_cases_hold ~ lag3_y+ grp +
+  lag3_monthly_cum_ppt+ pandemic + lag3_monthly_cum_ppt*pandemic +
+         f(t,  model="ar1", hyper = hyper.ar1,constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
+#same as mod 5 with RW2
+form7 = 'obs_dengue_cases_hold ~ lag3_y+ grp +
+  lag3_monthly_cum_ppt+
+         f(t,  model="rw2", constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
+#same as mod 5, no lag3_y
+form8 = 'obs_dengue_cases_hold ~  grp +
+  lag3_monthly_cum_ppt+
+         f(t,  model="ar1", hyper = hyper.ar1,constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
+#same as mod5 no ar1
+form9 = 'obs_dengue_cases_hold ~ lag3_y+ grp +
+  lag3_monthly_cum_ppt+
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
+#same as mod 8, no seasonality
+form10 = 'obs_dengue_cases_hold ~  grp +
+  lag3_monthly_cum_ppt+
+         f(t,  model="ar1", hyper = hyper.ar1,constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+          f(grpID, model="iid") 
+          '
+#same as mod 8, no precipitation
+form11 = 'obs_dengue_cases_hold ~  grp +
+         f(t,  model="ar1", hyper = hyper.ar1,constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
+
+#same as mod 8, adds rw2
+form12 = 'obs_dengue_cases_hold ~  grp +
+  lag3_monthly_cum_ppt+
+         f(t,  model="ar1", hyper = hyper.ar1,constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+         f(time_id2,  model="rw2", constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
+#same as mod 12, uses rw1 instead of AR1
+form13 = 'obs_dengue_cases_hold ~  grp +
+  lag3_monthly_cum_ppt+
+         f(t,  model="rw1", constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+         f(time_id2,  model="rw2", constr=TRUE, replicate=grpID2) + #shared AR(1) across fcodes
+
+          f(grpID, model="iid") +
+          f(monthN2, model="rw1", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE)'
+
 
 all_dates <- seq.Date(from=as.Date('2020-01-01'), to= as.Date('2025-05-01'), by='month')
 
-all_mods0 <- lapply(all_dates,fit_mod, formula1=form0)
-all_mods1 <- lapply(all_dates,fit_mod, formula1=form1)
-all_mods2 <- lapply(all_dates,fit_mod, formula1=form2)
-all_mods3 <- lapply(all_dates,fit_mod, formula1=form3)
-all_mods4 <- lapply(all_dates,fit_mod, formula1=form4)
+ all_mods0 <- lapply(all_dates,fit_mod, formula1=form0)
+ all_mods1 <- lapply(all_dates,fit_mod, formula1=form1)
+ all_mods2 <- lapply(all_dates,fit_mod, formula1=form2)
+ all_mods3 <- lapply(all_dates,fit_mod, formula1=form3)
+ all_mods4 <- lapply(all_dates,fit_mod, formula1=form4)
+ all_mods5 <- lapply(all_dates,fit_mod, formula1=form5)
+ all_mods6 <- lapply(all_dates,fit_mod, formula1=form6)
+ all_mods7 <- lapply(all_dates,fit_mod, formula1=form7)
+ all_mods8 <- lapply(all_dates,fit_mod, formula1=form8) ##WINNER
+ all_mods9 <- lapply(all_dates,fit_mod, formula1=form9)
+ all_mods10 <- lapply(all_dates,fit_mod, formula1=form10) 
+ all_mods11 <- lapply(all_dates,fit_mod, formula1=form11) 
+ all_mods12 <- lapply(all_dates,fit_mod, formula1=form12) 
+ all_mods13 <- lapply(all_dates,fit_mod, formula1=form13) 
+ 
+  
+#all_mods_combined <- list(all_mods0,all_mods1,all_mods2,all_mods3,all_mods4, all_mods5,all_mods6,all_mods7,all_mods8,all_mods9,all_mods10,all_mods11)
 
-all_mods_combined <- list(all_mods0,all_mods1,all_mods2,all_mods3,all_mods4)
-
+#all_mods_combined <- list(all_mods0,all_mods1,all_mods2,all_mods3,all_mods4, all_mods5,all_mods6,all_mods7,all_mods8,all_mods9,all_mods10,all_mods11)
+all_mods_combined <- list(all_mods8,all_mods12,all_mods13)
+ 
 saveRDS(all_mods_combined, './Results/all_results.rds' )
 
+all_mods_combined <- readRDS( './Results/all_results.rds' )
 
-preds_example <- all_mods_combined[[1]][[1]]$preds_district
-summary(mod1$mod.obj)
+#all_mods_combined <- c(all_mods_combined,all_mods12,all_mods13)
 
 
-all_mods_combined <- list(
-  all_mods0 = all_mods0,
-  all_mods1 = all_mods1,
-  all_mods2 = all_mods2,
-  all_mods3 = all_mods3,
-  all_mods4 = all_mods4
-)
+
 
 all_preds_df <- imap_dfr(   # imap_dfr gives both element and its name
   all_mods_combined,
@@ -217,55 +290,38 @@ all_preds_df <- imap_dfr(   # imap_dfr gives both element and its name
 mae <- all_preds_df %>%
   mutate(abs_error = abs(obs_dengue_cases - pred_mean_count )) %>%
   group_by(horizon, model_name) %>%
-  summarize(mae = mean(abs_error))
+  summarize(mae = mean(abs_error)) %>%
+  filter(horizon==3)
 
 print(mae)  #Mods 1,3,4 all similar at 3 month horizon; Mod 3 is the simplest of these
 #Show preds by district#
 
+mae_post_2023 <- all_preds_df %>%
+  filter(date>='2023-01-01') %>%
+  mutate(abs_error = abs(obs_dengue_cases - pred_mean_count )) %>%
+  group_by(horizon, model_name) %>%
+  summarize(mae = mean(abs_error))%>%
+  filter(horizon==3)
 
-december_dates <- preds_overall %>%
-  filter(month(date) == 12) %>%
-  group_by(year = lubridate::year(date)) %>%
-  summarize(dec_date = min(date))  # first December date each year
-
-
-all_districts <- unique(c1$grp)
-
-
-
-pdf("./Results/district_grouped_predictions.pdf",
-    width = 8,
-    height = 6)  # open PDF device
-
-for (i in all_districts) {
-  ds1_plot <- mod1$preds_district %>%    
-   # filter( date>='2021-01-01') %>%
-        filter(grp == i ) 
-
-  
-  p <- ds1_plot %>%
-    ggplot() +
-    geom_line(aes(x = date, y = pred_mean_count), color="#377eb8") +
-    geom_point(aes(x = date, y = obs_fit)) +
-    geom_point(aes(x = date, y = obs_future), color = 'gray') +
-    
-    geom_vline(
-      data = december_dates,
-      aes(xintercept = dec_date),
-      color = "red",
-      linetype = "dashed",
-      alpha = 0.7
-    ) +
-    theme_classic() +
-    ggtitle(paste(vintage_date, i))
-  print(p)
-  
-}
-dev.off()  # close the PDF device
-
-
-# Plot with vertical lines
+print(mae_post_2023)  #Mods 1,3,4 all similar at 3 month horizon; Mod 3 is the simplest of these
+#Show preds by district#
 
 
 
-##Test groupings
+all_preds_df %>%
+  filter(horizon==3 & model_name !='all_mods7') %>%
+ggplot() +
+  geom_point(aes(x=date, y=obs_dengue_cases))+
+  geom_line(aes(x=date, y=pred_mean_count, group=model_name, color=model_name))+
+  facet_wrap(~grp)
+
+
+p1 <-all_preds_df %>%
+  filter(horizon==3 & model_name !='all_mods7' & date>='2023-01-01') %>%
+  ggplot() +
+  geom_point(aes(x=date, y=obs_dengue_cases))+
+  geom_line(aes(x=date, y=pred_mean_count, group=model_name, color=model_name))+
+  facet_wrap(~grp)
+p1
+plotly::ggplotly(p1)
+
