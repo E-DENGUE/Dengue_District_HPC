@@ -1,0 +1,168 @@
+"","horizon","modN","form","crps1","crps2","N","w_i1","w_i2","rw_season","harm_season","lag2_y","lag_y","lag2_monthly_cum_ppt","iid_spat_intercept","rw_time_spatial","type4_spatial_bym"
+"1",2,"mod61_","m_DHF_cases_hold~   lag2_y + log_cum_inc_12m +log_cum_inc_24m +log_cum_inc_36m +
+                            f(districtID,
+                                   model=""besag"",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                    hyper = hyper.besag ,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model=""ar1"", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",2.9909804817389,0.378644939920562,5796,0.0441428870568213,0.0402560880942342,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"2",2,"mod53_","m_DHF_cases_hold~   lag2_y  +prediomentent+urban_dic +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+        Population_density + Inmigration_Rate + BI_larvae + HI_larvae + DI + Poverty_Rate +
+        Hygienic_Water_Access + Hygienic_Toilet_Access  + cluster+prediomentent+
+        lag2_total_rainfall_ab + lag2_avg_daily_humid + lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+                            f(districtID,
+                                   model=""besag"",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                   scale.model = TRUE) +
+                        f(t, replicate=districtID3, model=""ar1"", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.31749356039399,0.41229069886207,5796,0.0358812624240783,0.0339538331306138,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"3",2,"mod60_","m_DHF_cases_hold~   lag2_y + 
+                            f(districtID,
+                                   model=""besag"",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                    hyper = hyper.besag ,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model=""ar1"", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.39504135374734,0.417689917623161,5796,0.0342608200949068,0.0330817061954482,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"4",2,"modhhh4_power_",NA,3.68924777966792,0.419310053510568,5796,0.029014309704844,0.0328265569814531,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"5",2,"modhhh4_power_precip_temp_",NA,3.69006125034928,0.419635112255422,5796,0.0290015187579562,0.0327757203080113,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"6",2,"modhhh4_np_",NA,3.68961316296836,0.419662302980814,5796,0.0290085634009118,0.0327714732420587,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"7",2,"mod49_","m_DHF_cases_hold~   lag2_y + lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+                            f(districtID,
+                                   model=""besag"",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                   scale.model = TRUE) +
+                     lag2_avg_min_daily_temp + lag2_monthly_cum_ppt +
+                        f(t, replicate=districtID3, model=""ar1"", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.39650416646458,0.421397076222346,5796,0.0342313154226875,0.0325022067562454,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"8",2,"modhhh4_power_precip_temp_endmc2_",NA,3.66614050969805,0.421493731858778,5796,0.0293812101791074,0.0324873018547483,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"9",2,"mod52_","m_DHF_cases_hold~   lag2_y  +urban_dic +cluster+lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+       urban_dic* lag2_total_rainfall_ab +  lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind  +
+                            f(districtID,
+                                   model=""besag"",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                   scale.model = TRUE) +
+                        f(t, replicate=districtID3, model=""ar1"", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.40445881888974,0.421895853673673,5796,0.0340715366660943,0.0324254020901937,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"10",2,"modhhh4_basic_",NA,3.70061691132525,0.422088927129813,5796,0.0288363065226178,0.0323957445834498,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"11",2,"mod50_","m_DHF_cases_hold~   lag2_y + +urban_dic +
+           cluster *lag2_avg_min_daily_temp+lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m +
+                            f(districtID,
+                                   model=""besag"",
+                                   constr= TRUE,
+                                   graph=MDR.adj,
+                                   scale.model = TRUE) +
+                        f(t, replicate=districtID3, model=""ar1"", hyper = hyper.ar1) + #shared AR(1) across districts
+                      f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.41349412573548,0.422306785304405,5796,0.0338914048999335,0.0323623287938875,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,0
+"12",2,"modhhh4_power_precip_temp_endmc1_",NA,3.74929897281497,0.425839542028829,5796,0.0280923289953413,0.0318276015504084,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"13",2,"mod44_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic  + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+
+         lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") +  f(districtID, model=""bym"", graph=MDR.adj) +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.46731707547829,0.426594860470331,5796,0.0328473830394828,0.031714994979961,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"14",2,"mod55_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic  + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+
+         lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.46359754857798,0.426719908150112,5796,0.0329179699511317,0.0316964099298084,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"15",2,"mod8_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic  + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+
+         lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") +  f(districtID, model=""bym"", graph=MDR.adj) +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.5252651204026,0.430488295826455,5796,0.0317763729180665,0.0311439137594079,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"16",2,"mod2_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic  + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+
+         lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.54792067847247,0.432012774822139,5796,0.0313718470010021,0.0309245013950373,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"17",2,"PC_lags","",3.67958883177895,0.433919694506223,5796,0.0291668351876911,0.0306532946989287,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"18",2,"mod3_","m_DHF_cases_hold ~ lag2_y +urban_dic +cluster+
+       urban_dic* lag2_total_rainfall_ab +  lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind  +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.62373035483833,0.436199490900885,5796,0.0300729577223999,0.0303337131782923,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"19",2,"PC_lags_weather","",3.6951292191507,0.436302301115041,5796,0.028922020591115,0.0303194191986137,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"20",2,"mod56_","m_DHF_cases_hold ~ lag2_y +urban_dic +cluster+lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+       urban_dic* lag2_total_rainfall_ab +  lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind  +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.60217974209221,0.436590111272317,5796,0.0304338665971628,0.0302794578695974,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"21",2,"mod6_","m_DHF_cases_hold ~ lag2_y +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.59837160735913,0.438808052193517,5796,0.0304983166336007,0.0299741383830126,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,0
+"22",2,"mod59_","m_DHF_cases_hold ~ lag2_y +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.59345426024667,0.439057822700186,5796,0.0305818426282198,0.0299400448042373,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,0
+"23",2,"mod1_","m_DHF_cases_hold ~ lag2_y +urban_dic +
+           cluster *lag2_avg_min_daily_temp+
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.58705192215852,0.43916451241769,5796,0.0306911078590663,0.0299254994262561,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,0
+"24",2,"mod7_","m_DHF_cases_hold ~ lag2_y +urban_dic +
+           cluster *lag2_avg_min_daily_temp+
+        f(t, model=""ar1"") +  f(districtID, model=""bym"", graph=MDR.adj) +
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.594889604685,0.439739978539849,5796,0.0305574264600454,0.0298472266116973,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,0
+"25",2,"PC_weather","",3.68424921720985,0.439807735644223,5796,0.0290930927699726,0.0298380307485887,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,0
+"26",2,"mod54_","m_DHF_cases_hold ~ lag2_y +urban_dic +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+           cluster *lag2_avg_min_daily_temp+
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.57884576413573,0.440588841353968,5796,0.0308320163227662,0.0297323267715876,TRUE,FALSE,TRUE,FALSE,FALSE,FALSE,FALSE,0
+"27",2,"mod58_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic + BI_larvae + HI_larvae + DI + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+prediomentent+
+        lag2_total_rainfall_ab + lag2_avg_daily_humid + lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.58111467584273,0.440891979699573,5796,0.0307929597897374,0.0296914554911602,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"28",2,"mod48_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic + BI_larvae + HI_larvae + DI + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+prediomentent+
+        lag2_total_rainfall_ab + lag2_avg_daily_humid + lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.58555706193915,0.441312747513283,5796,0.0307167041494947,0.0296348640915955,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"29",2,"mod57_","m_DHF_cases_hold ~ -1+lag2_y +prediomentent+urban_dic +lag2_log_cum_inc_12m+lag2_log_cum_inc_24m+lag2_log_cum_inc_36m+
+        Population_density + Inmigration_Rate + BI_larvae + HI_larvae + DI + Poverty_Rate +
+        Hygienic_Water_Access + Hygienic_Toilet_Access  + cluster+prediomentent+
+        lag2_total_rainfall_ab + lag2_avg_daily_humid + lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.5796473696432,0.445161601072605,5796,0.0308182091824202,0.0291246351269084,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"30",2,"mod12_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic + BI_larvae + HI_larvae + DI + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+prediomentent+
+        lag2_total_rainfall_ab + lag2_avg_daily_humid + lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.66595205387498,0.447998786788356,5796,0.0293842310601161,0.0287569093825681,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"31",2,"mod5_","m_DHF_cases_hold ~ lag2_y +prediomentent+urban_dic +
+        Population_density* urban_dic+ Inmigration_Rate*urban_dic + BI_larvae + HI_larvae + DI + Poverty_Rate* lag2_total_rainfall_ab* Population_density +
+        Hygienic_Water_Access*lag2_avg_min_daily_temp + Hygienic_Toilet_Access  + cluster+prediomentent+
+        lag2_total_rainfall_ab + lag2_avg_daily_humid + lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.67601518004939,0.448776637484243,5796,0.0292235720457954,0.0286573088475953,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0
+"32",2,"mod4_","m_DHF_cases_hold ~ -1+lag2_y +prediomentent+urban_dic +
+        Population_density + Inmigration_Rate + BI_larvae + HI_larvae + DI + Poverty_Rate +
+        Hygienic_Water_Access + Hygienic_Toilet_Access  + cluster+prediomentent+
+        lag2_total_rainfall_ab + lag2_avg_daily_humid + lag2_monthly_cum_ppt +
+        lag2_avg_min_daily_temp + lag2_avg_daily_wind + lag2_avg_max_daily_temp +
+        f(t, model=""ar1"") + f(districtID, model=""iid"") +Monthly_Average_Income_Percapita+ lag2_number_of_outbreak_response+Total_Passenger+
+        f(monthN, model=""rw1"", hyper=hyper2.rw, cyclic=TRUE, scale.model=TRUE, constr=TRUE, replicate=districtID2)",3.65950824916384,0.45283546876054,5796,0.0294878039654134,0.0281458917243938,TRUE,FALSE,TRUE,FALSE,TRUE,FALSE,FALSE,0

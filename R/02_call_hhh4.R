@@ -6,9 +6,13 @@ j <- as.numeric(args[1])
 k <- as.numeric(args[2])
 
 mods <- c('hhh4_np','hhh4_power','hhh4_basic','hhh4_power_precip_temp','hhh4_power_precip_temp_endmc1','hhh4_power_precip_temp_endmc2')
-#mods <- c('hhh4_power_precip_temp')
+mods <- c('hhh4_power_precip_temp') ##We have just this model in the ensemble
 
-#i=1 #108 dates total
-#k=1 #10 models
+k=1
 
-mod1 <- hhh4_mod(date.test.in = date.test2[j], modN=k,max_horizon=2) 
+#j=1
+
+for (j in 1:length(date.test2)){
+ mod1 <- hhh4_mod(vintage_date = date.test2[j], modN = k, max_horizon = 3) 
+
+}
